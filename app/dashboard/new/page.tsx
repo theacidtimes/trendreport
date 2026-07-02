@@ -46,7 +46,8 @@ export default function NewReportPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? "Erro ao gerar relatório.");
+        const base = data.error ?? "Erro ao gerar relatório.";
+        setError(data.detail ? `${base} — ${data.detail}` : base);
         setLoading(false);
         return;
       }

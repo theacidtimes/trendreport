@@ -118,14 +118,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ slug: saved.slug, report });
   } catch (err) {
     if (err instanceof Anthropic.APIError) {
+      console.error("Anthropic API error:", err.status, err.message, err);
       return NextResponse.json(
         { error: `Erro na Anthropic API: ${err.message}` },
         { status: err.status ?? 502 }
       );
     }
 
+    console.error("Erro inesperado em /api/generate:", err);
+
     return NextResponse.json(
-      { error: "Erro inesperado ao gerar relatório." },
+      {
+        error: "Erro inesperado ao gerar relatório.",
+        detail: err instanceof Error ? err.message : String(err),
+      },
       { status: 500 }
     );
   }
