@@ -64,12 +64,18 @@ export interface InstagramItem {
   url?: string;
   displayUrl?: string;
   hashtags?: string[];
+  ownerUsername?: string;
+  type?: string;
 }
 
 export interface TikTokItem {
-  name?: string;
-  videoCount?: number;
-  viewCount?: number;
+  text?: string;
+  webVideoUrl?: string;
+  coverUrl?: string;
+  authorNickName?: string;
+  diggCount?: number;
+  playCount?: number;
+  hashtags?: string[];
 }
 
 export interface TwitterItem {

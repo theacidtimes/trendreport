@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight, TriangleAlert } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import Sidebar from "@/components/Sidebar";
+import ProcessLoader from "@/components/ProcessLoader";
 
 const PLACEHOLDER = `data: "2026-07-01"
 cliente: "Vivo Fibra"
@@ -21,9 +25,16 @@ quero: >
 
 export default function NewReportPage() {
   const router = useRouter();
+  const [userEmail, setUserEmail] = useState<string | undefined>();
   const [briefing, setBriefing] = useState("");
   const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +46,7 @@ export default function NewReportPage() {
     }
 
     setLoading(true);
+    setDone(false);
 
     try {
       const res = await fetch("/api/generate", {
@@ -52,7 +64,8 @@ export default function NewReportPage() {
         return;
       }
 
-      router.push(`/dashboard/${data.slug}`);
+      setDone(true);
+      setTimeout(() => router.push(`/dashboard/${data.slug}`), 350);
     } catch {
       setError("Erro de rede ao gerar relatório.");
       setLoading(false);
@@ -60,39 +73,54 @@ export default function NewReportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex items-center justify-center px-4 py-10">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-2xl flex flex-col gap-4"
-      >
-        <span className="text-muted uppercase text-xs tracking-[0.08em] font-medium">
-          BRIEFING
-        </span>
+    <div className="min-h-screen bg-bg">
+      <Sidebar userEmail={userEmail} />
 
-        <textarea
-          value={briefing}
-          onChange={(e) => setBriefing(e.target.value)}
-          placeholder={PLACEHOLDER}
-          className="bg-surface border border-border text-white text-[15px] rounded-xl p-4 min-h-[200px] md:min-h-[320px] resize-y outline-none focus:border-lime transition-colors font-mono"
-        />
+      <main className="md:pl-64">
+        <div className="min-h-screen md:min-h-0 flex items-center justify-center px-4 py-10 md:py-24">
+          <div className="w-full max-w-2xl flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <span className="text-muted uppercase text-xs tracking-[0.14em] font-medium">
+                Novo report
+              </span>
+              <h1 className="text-white font-bold text-3xl md:text-4xl tracking-[-0.01em]">
+                Cole o briefing.
+              </h1>
+              <p className="text-muted text-[15px] max-w-md">
+                Conte pra IA sobre a marca, campanha ou contexto que você quer explorar.
+              </p>
+            </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-lime text-black font-bold text-base uppercase h-14 rounded-lg w-full flex items-center justify-center gap-2 disabled:opacity-60"
-        >
-          {loading ? (
-            <>
-              ANALISANDO
-              <span className="animate-pulse text-purple">●</span>
-            </>
-          ) : (
-            "GERAR RELATÓRIO →"
-          )}
-        </button>
+            {loading ? (
+              <ProcessLoader done={done} />
+            ) : (
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <textarea
+                  value={briefing}
+                  onChange={(e) => setBriefing(e.target.value)}
+                  placeholder={PLACEHOLDER}
+                  className="bg-surface border border-border text-white text-[15px] rounded-xl p-4 min-h-[240px] md:min-h-[320px] resize-y outline-none focus:border-lime transition-colors font-mono placeholder:text-muted/70"
+                />
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
-      </form>
+                <button
+                  type="submit"
+                  className="bg-lime text-black font-bold text-base uppercase h-14 rounded-lg w-full flex items-center justify-center gap-2 shadow-lime hover:brightness-110 transition-[filter]"
+                >
+                  Gerar relatório
+                  <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2.5} />
+                </button>
+              </form>
+            )}
+
+            {error && (
+              <p className="text-red-400 text-sm flex items-center gap-2">
+                <TriangleAlert className="w-4 h-4 shrink-0" strokeWidth={2} />
+                {error}
+              </p>
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

@@ -5,6 +5,7 @@
 :root {
   --bg: #060009;
   --surface: #0f0015;
+  --surface-2: #170023;
   --purple: #660099;
   --purple-mid: #370053;
   --lime: #81d300;
@@ -19,8 +20,32 @@ body {
   font-family: var(--font-space-grotesk), sans-serif;
 }
 
+::selection {
+  background: var(--lime);
+  color: #060009;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-2);
+  border-radius: 999px;
+  border: 2px solid var(--bg);
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }

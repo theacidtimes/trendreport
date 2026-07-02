@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
 import ReportView from "@/components/ReportView";
 import CopyLinkButton from "./CopyLinkButton";
 import type { TrendReport } from "@/lib/types";
@@ -30,8 +30,10 @@ export default async function DashboardReportPage({
 
   return (
     <div className="min-h-screen bg-bg">
-      <Header userEmail={user?.email} />
-      <ReportView report={report} />
+      <Sidebar userEmail={user?.email} />
+      <main className="md:pl-64">
+        <ReportView report={report} />
+      </main>
       <CopyLinkButton slug={params.slug} />
     </div>
   );

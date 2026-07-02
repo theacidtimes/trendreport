@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Check, Copy, Camera, Clapperboard } from "lucide-react";
 import type { CopyItem } from "@/lib/types";
 
 export default function CopyBlock({ copy }: { copy: CopyItem }) {
@@ -10,6 +11,8 @@ export default function CopyBlock({ copy }: { copy: CopyItem }) {
     .map((h) => (h.startsWith("#") ? h : `#${h}`))
     .join(" ")}`;
 
+  const Icon = copy.tipo === "feed" ? Camera : Clapperboard;
+
   async function handleCopy() {
     await navigator.clipboard.writeText(fullText);
     setCopied(true);
@@ -17,16 +20,27 @@ export default function CopyBlock({ copy }: { copy: CopyItem }) {
   }
 
   return (
-    <div className="bg-bg border border-border rounded-xl p-6 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="text-lime text-xs uppercase tracking-[0.08em] font-medium">
-          {copy.tipo === "feed" ? "FEED" : "STORIES"}
+    <div className="bg-bg border border-border rounded-xl p-6 flex flex-col gap-4 hover:border-lime/40 transition-colors">
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-1.5 text-lime text-xs uppercase tracking-[0.1em] font-medium">
+          <Icon className="w-3.5 h-3.5" strokeWidth={2} />
+          {copy.tipo === "feed" ? "Feed" : "Stories"}
         </span>
         <button
           onClick={handleCopy}
-          className="text-black bg-lime text-xs uppercase tracking-wide font-bold rounded-lg px-4 py-2"
+          className="text-black bg-lime text-xs uppercase tracking-wide font-bold rounded-lg px-3.5 py-2 flex items-center gap-1.5 hover:brightness-110 transition-[filter] shrink-0"
         >
-          {copied ? "COPIADO ✓" : "COPIAR"}
+          {copied ? (
+            <>
+              Copiado
+              <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+            </>
+          ) : (
+            <>
+              Copiar
+              <Copy className="w-3.5 h-3.5" strokeWidth={2.5} />
+            </>
+          )}
         </button>
       </div>
 

@@ -35,29 +35,89 @@ async function runActor<T>(
   return (await runRes.json()) as T[];
 }
 
-export async function fetchInstagram(
-  keywords: string[]
-): Promise<InstagramItem[]> {
+// Perfis validados manualmente (contas públicas, ativas, alto volume de posts)
+// cobrindo esporte, humor/entretenimento e notícias/cultura pop. Instagram não
+// permite busca confiável por hashtag/palavra-chave via scraper, então usamos
+// esta lista fixa como sinal de tendência visual; a busca dinâmica por
+// briefing acontece no TikTok (ver fetchTikTok).
+const INSTAGRAM_BASE_PROFILES = [
+  "g1",
+  "netflixbrasil",
+  "portadosfundos",
+  "flamengo",
+  "buzzfeedbrasil",
+  "sportv",
+  "espnbrasil",
+];
+
+interface RawInstagramItem {
+  error?: string;
+  caption?: string;
+  likesCount?: number;
+  url?: string;
+  displayUrl?: string;
+  hashtags?: string[];
+  ownerUsername?: string;
+  type?: string;
+}
+
+export async function fetchInstagram(): Promise<InstagramItem[]> {
   try {
-    return await runActor<InstagramItem>("apify~instagram-scraper", {
-      hashtags: keywords,
-      resultsLimit: 20,
+    const raw = await runActor<RawInstagramItem>("apify~instagram-scraper", {
+      directUrls: INSTAGRAM_BASE_PROFILES.map(
+        (username) => `https://www.instagram.com/${username}/`
+      ),
+      resultsType: "posts",
+      resultsLimit: 3,
     });
+
+    return raw
+      .filter((item) => !item.error && item.displayUrl)
+      .map((item) => ({
+        caption: item.caption,
+        likesCount: item.likesCount,
+        url: item.url,
+        displayUrl: item.displayUrl,
+        hashtags: item.hashtags,
+        ownerUsername: item.ownerUsername,
+        type: item.type,
+      }));
   } catch {
     return [];
   }
 }
 
+interface RawTikTokItem {
+  text?: string;
+  webVideoUrl?: string;
+  diggCount?: number;
+  playCount?: number;
+  authorMeta?: { nickName?: string };
+  videoMeta?: { coverUrl?: string };
+  hashtags?: { name?: string }[];
+}
+
 export async function fetchTikTok(keywords: string[]): Promise<TikTokItem[]> {
   try {
-    return await runActor<TikTokItem>(
-      "khadinakbar~tiktok-trending-hashtags-scraper",
-      {
-        keywords,
-        country: "BR",
-        maxItems: 20,
-      }
-    );
+    const raw = await runActor<RawTikTokItem>("clockworks~tiktok-scraper", {
+      searchQueries: keywords,
+      searchSection: "/video",
+      resultsPerPage: 5,
+    });
+
+    return raw
+      .filter((item) => item.webVideoUrl && item.videoMeta?.coverUrl)
+      .map((item) => ({
+        text: item.text,
+        webVideoUrl: item.webVideoUrl,
+        coverUrl: item.videoMeta?.coverUrl,
+        authorNickName: item.authorMeta?.nickName,
+        diggCount: item.diggCount,
+        playCount: item.playCount,
+        hashtags: (item.hashtags ?? [])
+          .map((h) => h.name)
+          .filter((name): name is string => Boolean(name)),
+      }));
   } catch {
     return [];
   }
@@ -93,7 +153,7 @@ export async function fetchNews(keywords: string[]): Promise<NewsItem[]> {
 
 export async function collectAll(keywords: string[]): Promise<RawData> {
   const [instagram, tiktok, twitter, news] = await Promise.all([
-    fetchInstagram(keywords),
+    fetchInstagram(),
     fetchTikTok(keywords),
     fetchTwitter(keywords),
     fetchNews(keywords),
