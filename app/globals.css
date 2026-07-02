@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #060009;
+  --surface: #0f0015;
+  --purple: #660099;
+  --purple-mid: #370053;
+  --lime: #81d300;
+  --white: #ffffff;
+  --muted: #9b8faa;
+  --border: #1e0029;
+}
+
+body {
+  color: var(--white);
+  background: var(--bg);
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
