@@ -110,11 +110,13 @@ export async function POST(req: Request) {
 
     if (saveError || !saved) {
       console.error("Erro ao salvar report no Supabase:", saveError);
+      const detail = saveError
+        ? [saveError.message, saveError.details, saveError.hint, saveError.code]
+            .filter(Boolean)
+            .join(" | ") || JSON.stringify(saveError)
+        : "Nenhum dado retornado pelo insert.";
       return NextResponse.json(
-        {
-          error: "Falha ao salvar report no Supabase.",
-          detail: saveError?.message ?? "Nenhum dado retornado pelo insert.",
-        },
+        { error: "Falha ao salvar report no Supabase.", detail },
         { status: 500 }
       );
     }
