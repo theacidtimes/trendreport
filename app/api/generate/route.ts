@@ -109,8 +109,12 @@ export async function POST(req: Request) {
       .single();
 
     if (saveError || !saved) {
+      console.error("Erro ao salvar report no Supabase:", saveError);
       return NextResponse.json(
-        { error: "Falha ao salvar report no Supabase." },
+        {
+          error: "Falha ao salvar report no Supabase.",
+          detail: saveError?.message ?? "Nenhum dado retornado pelo insert.",
+        },
         { status: 500 }
       );
     }
