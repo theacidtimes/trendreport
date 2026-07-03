@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check, Copy, Flame, Sparkle } from "lucide-react";
+import { ArrowUpRight, Check, Clock, Copy, Flame, Sparkle } from "lucide-react";
+
+const TILE_BG = ["bg-surface", "bg-purple", "bg-white"];
 
 export default function ReportCard({
   index,
@@ -12,6 +14,7 @@ export default function ReportCard({
   indiceHype,
   hypeMotivo,
   imagemUrl,
+  corMarca,
 }: {
   index: number;
   slug: string;
@@ -20,8 +23,11 @@ export default function ReportCard({
   indiceHype: number;
   hypeMotivo: string;
   imagemUrl: string | null;
+  corMarca: string | null;
 }) {
   const [copied, setCopied] = useState(false);
+  const bg = TILE_BG[(index - 1) % TILE_BG.length];
+  const isLight = bg === "bg-white";
 
   async function handleCopy() {
     const url = `${window.location.origin}/r/${slug}`;
@@ -30,29 +36,35 @@ export default function ReportCard({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const dataFormatada = new Date(createdAt).toLocaleDateString("pt-BR");
+  const dataFormatada = new Date(createdAt).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <Link
       href={`/dashboard/${slug}`}
-      className="group flex flex-col rounded-xl overflow-hidden border border-border bg-surface transition-colors hover:border-lime/40"
+      className={`group flex flex-col rounded-3xl overflow-hidden border border-border transition-colors hover:border-lime/40 ${bg}`}
     >
       {/* IMAGE */}
       <div
-        className={`relative h-36 shrink-0 bg-surface-2 ${
+        className={`relative h-48 shrink-0 overflow-hidden bg-purple-mid ${
           imagemUrl ? "" : "flex items-center justify-center"
         }`}
-        style={
-          imagemUrl
-            ? {
-                backgroundImage: `url(${imagemUrl})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
-            : undefined
-        }
       >
-        {!imagemUrl && <Sparkle className="w-6 h-6 text-lime/50" strokeWidth={1.5} />}
+        {imagemUrl && (
+          <img
+            src={imagemUrl}
+            alt=""
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover object-top"
+          />
+        )}
+
+        {!imagemUrl && <Sparkle className="w-6 h-6 text-white/30" strokeWidth={1.5} />}
 
         <span className="absolute top-3 left-3 bg-black/50 backdrop-blur rounded-full w-6 h-6 flex items-center justify-center text-white/80 font-bold text-[11px] tabular-nums">
           {String(index).padStart(2, "0")}
@@ -66,14 +78,36 @@ export default function ReportCard({
 
       {/* TEXT */}
       <div className="flex flex-col gap-2 p-5 font-body">
-        <span className="font-sans font-bold text-lg text-white">{cliente}</span>
-        <span className="text-muted text-xs">{dataFormatada}</span>
+        <span
+          className="w-fit font-body font-bold text-white text-base rounded-lg px-3 py-1.5"
+          style={{
+            backgroundImage: `linear-gradient(135deg, ${corMarca || "#660099"}, #000000)`,
+          }}
+        >
+          {cliente}
+        </span>
+        <span
+          className={`flex items-center gap-1.5 text-xs ${isLight ? "text-black/50" : "text-muted"}`}
+        >
+          <Clock className="w-3 h-3 shrink-0" strokeWidth={2.5} />
+          {dataFormatada}
+        </span>
         {hypeMotivo && (
-          <p className="text-muted text-sm leading-relaxed line-clamp-2">{hypeMotivo}</p>
+          <p
+            className={`text-sm leading-relaxed line-clamp-2 ${
+              isLight ? "text-black/70" : "text-muted"
+            }`}
+          >
+            {hypeMotivo}
+          </p>
         )}
 
         <div className="flex items-center gap-2 pt-2">
-          <span className="text-white text-xs uppercase tracking-wide font-medium border border-border rounded-lg px-4 py-2 flex items-center gap-1.5 group-hover:border-lime group-hover:text-lime transition-colors">
+          <span
+            className={`text-xs uppercase tracking-wide font-medium border rounded-lg px-4 py-2 flex items-center gap-1.5 group-hover:border-lime group-hover:text-lime transition-colors ${
+              isLight ? "border-black/15 text-black" : "border-white/20 text-white"
+            }`}
+          >
             Ver
             <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={2.5} />
           </span>

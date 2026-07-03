@@ -21,7 +21,12 @@ export default async function PublicReportPage({
   }
 
   const report = row.report as TrendReport;
-  const geradoEm = new Date(row.created_at).toLocaleDateString("pt-BR");
+  const geradoEm = new Date(row.created_at).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div className="min-h-screen bg-bg">

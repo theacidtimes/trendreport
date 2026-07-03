@@ -2,6 +2,7 @@ import type {
   InstagramItem,
   NewsItem,
   RawData,
+  RedditItem,
   TikTokItem,
   TwitterItem,
 } from "./types";
@@ -139,25 +140,101 @@ export async function fetchTwitter(
   }
 }
 
+interface RawNewsResult {
+  title?: string;
+  link?: string;
+  source?: string;
+  snippet?: string;
+  date?: string;
+}
+
+// Cada item do dataset representa uma página de busca, com os resultados de
+// notícia de verdade aninhados em news_results[] (não um item plano por notícia).
+interface RawNewsPage {
+  error?: boolean;
+  news_results?: RawNewsResult[];
+}
+
+// Uma query só com todos os keywords juntos costuma ficar longa demais e não
+// bate com nada no Google News. Buscamos por keyword separadamente e juntamos
+// os resultados (dedupe por link) pra cobrir mais terreno.
 export async function fetchNews(keywords: string[]): Promise<NewsItem[]> {
+  const queries = keywords.slice(0, 3);
+
+  const results = await Promise.all(
+    queries.map((q) =>
+      runActor<RawNewsPage>("johnvc~GoogleNewsAPI", {
+        q,
+        gl: "BR",
+        max_pages: 1,
+      }).catch(() => [] as RawNewsPage[])
+    )
+  );
+
+  const seen = new Set<string>();
+  const merged: NewsItem[] = [];
+  for (const page of results.flat()) {
+    if (page.error) continue;
+    for (const item of page.news_results ?? []) {
+      if (!item.title || !item.link || seen.has(item.link)) continue;
+      seen.add(item.link);
+      merged.push({
+        title: item.title,
+        link: item.link,
+        source: item.source,
+        snippet: item.snippet,
+        date: item.date,
+      });
+    }
+  }
+  return merged;
+}
+
+interface RawRedditItem {
+  dataType?: string;
+  title?: string;
+  communityName?: string;
+  url?: string;
+  permalink?: string;
+  upVotes?: number;
+  numberOfComments?: number;
+}
+
+export async function fetchReddit(keywords: string[]): Promise<RedditItem[]> {
   try {
-    return await runActor<NewsItem>("johnvc~GoogleNewsAPI", {
-      q: keywords.join(" "),
-      gl: "BR",
-      max_pages: 2,
+    const raw = await runActor<RawRedditItem>("trudax~reddit-scraper-lite", {
+      searches: keywords,
+      searchPosts: true,
+      sort: "top",
+      time: "week",
+      includeMediaLinks: true,
+      skipComments: true,
+      maxItems: 15,
+      maxPostCount: 15,
     });
+
+    return raw
+      .filter((item) => item.dataType === "post" && item.title)
+      .map((item) => ({
+        title: item.title,
+        communityName: item.communityName,
+        url: item.url ?? item.permalink,
+        upVotes: item.upVotes,
+        numberOfComments: item.numberOfComments,
+      }));
   } catch {
     return [];
   }
 }
 
 export async function collectAll(keywords: string[]): Promise<RawData> {
-  const [instagram, tiktok, twitter, news] = await Promise.all([
+  const [instagram, tiktok, twitter, news, reddit] = await Promise.all([
     fetchInstagram(),
     fetchTikTok(keywords),
     fetchTwitter(keywords),
     fetchNews(keywords),
+    fetchReddit(keywords),
   ]);
 
-  return { instagram, tiktok, twitter, news };
+  return { instagram, tiktok, twitter, news, reddit };
 }

@@ -20,7 +20,7 @@ export default function CopyBlock({ copy }: { copy: CopyItem }) {
   }
 
   return (
-    <div className="bg-bg border border-border rounded-xl p-6 flex flex-col gap-4 hover:border-lime/40 transition-colors">
+    <div className="bg-black border border-border rounded-3xl p-6 flex flex-col gap-4 hover:border-lime/40 transition-colors font-body">
       <div className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-1.5 text-lime text-xs uppercase tracking-[0.1em] font-medium">
           <Icon className="w-3.5 h-3.5" strokeWidth={2} />

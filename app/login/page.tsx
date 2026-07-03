@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Sparkle, TriangleAlert } from "lucide-react";
+import { ArrowRight, Loader2, TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import Logo from "@/components/Logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,16 +41,11 @@ export default function LoginPage() {
         onSubmit={handleSubmit}
         className="w-full max-w-[400px] bg-surface border border-border rounded-2xl p-10 flex flex-col gap-5 shadow-card"
       >
-        <div className="flex flex-col items-center gap-3 mb-1">
-          <span className="w-10 h-10 rounded-full bg-lime flex items-center justify-center">
-            <Sparkle className="w-5 h-5 text-black" strokeWidth={2.5} fill="currentColor" />
+        <div className="flex flex-col items-center gap-2 mb-1">
+          <Logo size="lg" />
+          <span className="text-muted uppercase text-xs tracking-[0.14em] font-medium">
+            trend report
           </span>
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-white font-bold text-base">cccaramelo</span>
-            <span className="text-muted uppercase text-xs tracking-[0.14em] font-medium">
-              trend report
-            </span>
-          </div>
         </div>
 
         <input

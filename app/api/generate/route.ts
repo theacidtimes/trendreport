@@ -3,7 +3,7 @@ import * as yaml from "js-yaml";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { collectAll } from "@/lib/apify";
-import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
+import { SYSTEM_PROMPT, VIVO_KNOWLEDGE, systemPromptDynamic } from "@/lib/systemPrompt";
 import type { TrendReport } from "@/lib/types";
 
 const anthropic = new Anthropic();
@@ -72,7 +72,17 @@ export async function POST(req: Request) {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 8000,
-      system: SYSTEM_PROMPT,
+      system: [
+        // Conhecimento de marca + regras + schema: estático entre requests,
+        // cacheado num único prefixo (cache_control marca o fim do trecho cacheável).
+        {
+          type: "text",
+          text: `${VIVO_KNOWLEDGE}\n\n---\n\n${SYSTEM_PROMPT}`,
+          cache_control: { type: "ephemeral" },
+        },
+        // Data de hoje: muda por request, fica fora do prefixo cacheado.
+        { type: "text", text: systemPromptDynamic() },
+      ],
       messages: [{ role: "user", content: userMessage }],
     });
 
@@ -93,6 +103,16 @@ export async function POST(req: Request) {
         { status: 502 }
       );
     }
+
+    // Contagem real de itens coletados por rede — calculada aqui (não pelo
+    // modelo) pra garantir que o tracker de fontes nunca exiba número inventado.
+    report.fontes = {
+      instagram: rawData.instagram.length,
+      twitter: rawData.twitter.length,
+      tiktok: rawData.tiktok.length,
+      news: rawData.news.length,
+      reddit: rawData.reddit.length,
+    };
 
     const cliente =
       typeof briefing.cliente === "string" ? briefing.cliente : "Cliente";

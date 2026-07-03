@@ -1,14 +1,6 @@
-import {
-  ArrowUpRight,
-  AtSign,
-  Camera,
-  Flame,
-  Music2,
-  Newspaper,
-  Snowflake,
-  Waves,
-} from "lucide-react";
+import { ArrowUpRight, Flame, Snowflake, Sparkles, Waves } from "lucide-react";
 import type { Tendencia } from "@/lib/types";
+import { PLATFORM_ICON } from "@/lib/platforms";
 
 const STATUS_LABEL: Record<Tendencia["status"], string> = {
   em_alta: "EM ALTA",
@@ -22,13 +14,6 @@ const STATUS_ICON: Record<Tendencia["status"], typeof Flame> = {
   subindo: Waves,
   estabilizando: Waves,
   esfriando: Snowflake,
-};
-
-const PLATFORM_ICON: Record<NonNullable<Tendencia["plataforma"]>, typeof Camera> = {
-  instagram: Camera,
-  twitter: AtSign,
-  tiktok: Music2,
-  news: Newspaper,
 };
 
 function StatusBadge({ status }: { status: Tendencia["status"] }) {
@@ -47,7 +32,7 @@ function StatusBadge({ status }: { status: Tendencia["status"] }) {
 
   if (status === "subindo") {
     return (
-      <span className={`${base} bg-purple text-white`}>
+      <span className={`${base} bg-white text-black`}>
         <Icon className="w-3 h-3" strokeWidth={2.5} />
         {STATUS_LABEL[status]}
       </span>
@@ -55,7 +40,7 @@ function StatusBadge({ status }: { status: Tendencia["status"] }) {
   }
 
   return (
-    <span className={`${base} border border-muted/50 text-muted bg-surface`}>
+    <span className={`${base} border border-white/25 text-white/70`}>
       <Icon className="w-3 h-3" strokeWidth={2.5} />
       {STATUS_LABEL[status]}
     </span>
@@ -75,26 +60,25 @@ export default function TrendCard({
   const PlatformIcon = tendencia.plataforma ? PLATFORM_ICON[tendencia.plataforma] : null;
 
   return (
-    <div
-      className="group flex flex-col rounded-xl overflow-hidden border border-border bg-surface transition-colors hover:border-lime/40"
-    >
+    <div className="group flex flex-col rounded-3xl overflow-hidden border border-border bg-purple transition-colors hover:border-lime/40">
       {/* IMAGE */}
       <div
-        className={`relative shrink-0 bg-surface-2 ${large ? "h-64 md:h-80" : "h-40"} ${
+        className={`relative shrink-0 overflow-hidden bg-purple-mid ${large ? "h-72 md:h-96" : "h-52"} ${
           hasImage ? "" : "flex items-center justify-center"
         }`}
-        style={
-          hasImage
-            ? {
-                backgroundImage: `url(${tendencia.imagem_url})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
-            : undefined
-        }
       >
+        {hasImage && (
+          <img
+            src={tendencia.imagem_url}
+            alt=""
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover object-top"
+          />
+        )}
+
         {!hasImage && PlatformIcon && (
-          <PlatformIcon className="w-8 h-8 text-muted/40" strokeWidth={1.5} />
+          <PlatformIcon className="w-8 h-8 text-white/30" strokeWidth={1.5} />
         )}
 
         {typeof index === "number" && (
@@ -115,25 +99,26 @@ export default function TrendCard({
         <StatusBadge status={tendencia.status} />
 
         <h3
-          className={`font-sans font-bold text-white tracking-[-0.01em] leading-tight ${
-            large ? "text-xl md:text-2xl" : "text-lg"
+          className={`font-bold text-white tracking-[-0.01em] leading-tight ${
+            large ? "font-sans text-xl md:text-2xl" : "font-body text-lg"
           }`}
         >
           {tendencia.titulo}
         </h3>
 
-        <p className="text-muted text-sm leading-relaxed">{tendencia.descricao}</p>
+        <p className="text-white/70 text-sm leading-relaxed">{tendencia.descricao}</p>
 
-        <p className="text-lime italic text-sm leading-relaxed">
-          {tendencia.gancho_produto}
-        </p>
+        <div className="flex items-start gap-2 bg-black/20 border border-white/10 rounded-xl px-4 py-3">
+          <Sparkles className="w-3.5 h-3.5 text-lime shrink-0 mt-0.5" strokeWidth={2.2} />
+          <p className="text-lime italic text-sm leading-relaxed">{tendencia.gancho_produto}</p>
+        </div>
 
         {tendencia.post_url && (
           <a
             href={tendencia.post_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 text-white text-xs uppercase tracking-wide font-medium border border-border rounded-lg px-4 py-2 w-fit flex items-center gap-1.5 hover:border-lime hover:text-lime transition-colors"
+            className="mt-1 text-white text-xs uppercase tracking-wide font-medium border border-white/20 rounded-lg px-4 py-2 w-fit flex items-center gap-1.5 hover:border-lime hover:text-lime transition-colors"
           >
             Ver post
             <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={2.5} />

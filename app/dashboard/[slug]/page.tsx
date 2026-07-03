@@ -18,7 +18,7 @@ export default async function DashboardReportPage({
 
   const { data: row } = await supabase
     .from("reports")
-    .select("report")
+    .select("report, created_at")
     .eq("slug", params.slug)
     .single();
 
@@ -27,12 +27,18 @@ export default async function DashboardReportPage({
   }
 
   const report = row.report as TrendReport;
+  const geradoEm = new Date(row.created_at).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div className="min-h-screen bg-bg">
       <Sidebar userEmail={user?.email} />
       <main className="md:pl-64">
-        <ReportView report={report} />
+        <ReportView report={report} geradoEm={geradoEm} standalone={false} />
       </main>
       <CopyLinkButton slug={params.slug} />
     </div>

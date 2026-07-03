@@ -17,6 +17,8 @@ export interface ReportMeta {
   indice_hype: number;
   hype_motivo: string;
   proximo_gatilho: ProximoGatilho;
+  cor_marca?: string;
+  titulo_social?: string;
 }
 
 export interface Tendencia {
@@ -26,7 +28,19 @@ export interface Tendencia {
   gancho_produto: string;
   imagem_url?: string;
   post_url?: string;
-  plataforma?: "instagram" | "twitter" | "tiktok" | "news";
+  autor?: string | null;
+  plataforma?: "instagram" | "twitter" | "tiktok" | "news" | "reddit";
+}
+
+export interface RadarSinal {
+  tema: string;
+  url?: string | null;
+  autor?: string | null;
+}
+
+export interface RadarItem {
+  plataforma: "instagram" | "twitter" | "tiktok" | "reddit" | "news";
+  sinais: RadarSinal[];
 }
 
 export interface Oportunidade {
@@ -41,11 +55,21 @@ export interface CopyItem {
   hashtags: string[];
 }
 
+export interface FontesDados {
+  instagram: number;
+  twitter: number;
+  tiktok: number;
+  news: number;
+  reddit: number;
+}
+
 export interface TrendReport {
   meta: ReportMeta;
   tendencias: Tendencia[];
   oportunidades: Oportunidade[];
   copy: CopyItem[];
+  radar: RadarItem[];
+  fontes?: FontesDados;
 }
 
 export interface ReportRow {
@@ -92,9 +116,18 @@ export interface NewsItem {
   date?: string;
 }
 
+export interface RedditItem {
+  title?: string;
+  communityName?: string;
+  url?: string;
+  upVotes?: number;
+  numberOfComments?: number;
+}
+
 export interface RawData {
   instagram: InstagramItem[];
   tiktok: TikTokItem[];
   twitter: TwitterItem[];
   news: NewsItem[];
+  reddit: RedditItem[];
 }
