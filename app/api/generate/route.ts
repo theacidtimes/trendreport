@@ -88,22 +88,27 @@ export async function POST(req: Request) {
       rawData
     )}`;
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8000,
-      system: [
-        // Conhecimento de marca + regras + schema: estático entre requests,
-        // cacheado num único prefixo (cache_control marca o fim do trecho cacheável).
-        {
-          type: "text",
-          text: `${VIVO_KNOWLEDGE}\n\n---\n\n${SYSTEM_PROMPT}`,
-          cache_control: { type: "ephemeral" },
-        },
-        // Data de hoje: muda por request, fica fora do prefixo cacheado.
-        { type: "text", text: systemPromptDynamic() },
-      ],
-      messages: [{ role: "user", content: userMessage }],
-    });
+    // Streaming em vez de create() simples: com o dataset coletado (19 perfis
+    // de Instagram + demais fontes) e max_tokens alto, uma chamada não-streaming
+    // fica sujeita ao timeout de conexão do SDK antes do modelo terminar.
+    const response = await anthropic.messages
+      .stream({
+        model: "claude-sonnet-4-6",
+        max_tokens: 8000,
+        system: [
+          // Conhecimento de marca + regras + schema: estático entre requests,
+          // cacheado num único prefixo (cache_control marca o fim do trecho cacheável).
+          {
+            type: "text",
+            text: `${VIVO_KNOWLEDGE}\n\n---\n\n${SYSTEM_PROMPT}`,
+            cache_control: { type: "ephemeral" },
+          },
+          // Data de hoje: muda por request, fica fora do prefixo cacheado.
+          { type: "text", text: systemPromptDynamic() },
+        ],
+        messages: [{ role: "user", content: userMessage }],
+      })
+      .finalMessage();
 
     const textBlock = response.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") {
