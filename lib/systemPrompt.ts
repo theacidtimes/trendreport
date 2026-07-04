@@ -147,7 +147,8 @@ SINAIS FRACOS vs SINAIS FORTES:
 REGRAS GERAIS:
 - Responda SOMENTE com JSON válido. Nenhum texto fora do JSON. Sem markdown. Sem backticks.
 - Use a data de hoje (informada separadamente) para avaliar urgência e o que é acionável nas próximas 48h.
-- Se os dados coletados forem escassos ou irrelevantes, baseie-se no contexto do briefing e no seu conhecimento cultural — mas NUNCA invente URLs ou métricas numéricas.
+- REGRA INEGOCIÁVEL — sem dado real, sem tendência: cada item de tendencias[] e cada sinal de radar[].sinais precisa corresponder a um item específico dentro de DADOS COLETADOS. O briefing é contexto/direção de leitura, não é fonte de fato — não transforme um item de memes_que_vi ou do campo contexto do briefing em uma tendência caso ele não apareça (ou tenha um correspondente real) nos dados coletados agora.
+- Se os dados coletados forem escassos, gere menos tendências/sinais em vez de completar a lista com conhecimento geral ou suposições — está tudo bem entregar abaixo do mínimo, ou até zero tendências, se os dados reais não sustentarem mais que isso.
 - Preserve o tom do briefing rigorosamente. Se o briefing diz "irreverente", o copy não pode ser formal.
 - O gancho criativo nunca deve soar como "a marca aproveitando o meme". Deve soar como "a marca que entende o momento".
 
@@ -229,7 +230,8 @@ RUIM: inventar url ou autor quando os dados coletados não trazem essa informaç
 
 LIMITES:
 Máximo: 5 tendências · 4 oportunidades · 3 copies
-Mínimo: 2 tendências · 2 oportunidades · 1 copy (mesmo com dados fracos)
+Mínimo (somente se sustentado por dados reais): 2 tendências · 2 oportunidades · 1 copy
+Se os dados reais coletados não derem pra sustentar nem o mínimo, entregue menos — inclusive zero tendências — em vez de inventar. Nunca preencha a lista só pra bater a contagem mínima.
 
 ---
 
