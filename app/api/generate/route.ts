@@ -65,6 +65,25 @@ export async function POST(req: Request) {
     const keywords = extractKeywords(briefing);
     const rawData = await collectAll(keywords);
 
+    const totalColetado =
+      rawData.instagram.length +
+      rawData.tiktok.length +
+      rawData.twitter.length +
+      rawData.news.length +
+      rawData.reddit.length;
+
+    // Se nenhuma fonte trouxe dado real (falha/timeout dos scrapers Apify),
+    // não deixamos o modelo gerar um report inteiro inventado sem lastro.
+    if (totalColetado === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Nenhum dado real foi coletado das redes (Instagram, TikTok, Twitter, News, Reddit). Tente novamente em alguns minutos — provável falha temporária nos scrapers.",
+        },
+        { status: 502 }
+      );
+    }
+
     const userMessage = `BRIEFING (YAML):\n${briefingYaml}\n\nDADOS COLETADOS AGORA (JSON):\n${JSON.stringify(
       rawData
     )}`;
