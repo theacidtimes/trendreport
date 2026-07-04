@@ -31,7 +31,19 @@ export default function SocialPostCard({ tendencia }: { tendencia: Tendencia }) 
       </div>
 
       {/* IMAGE */}
-      {tendencia.imagem_url && (
+      {tendencia.imagem_url && plataforma === "tiktok" && (
+        <div className="relative w-full aspect-[4/5] bg-black flex items-center justify-center">
+          <img
+            src={tendencia.imagem_url}
+            alt=""
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            className="h-full w-auto object-contain"
+          />
+        </div>
+      )}
+
+      {tendencia.imagem_url && plataforma !== "tiktok" && (
         <div className="relative w-full aspect-[4/5] bg-surface-2">
           <img
             src={tendencia.imagem_url}

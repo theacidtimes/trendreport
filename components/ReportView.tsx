@@ -8,6 +8,8 @@ import CopyBlock from "./CopyBlock";
 import NetworkRadar from "./NetworkRadar";
 import DataSourceTracker from "./DataSourceTracker";
 import QuoteCard from "./QuoteCard";
+import PostMentionCard from "./PostMentionCard";
+import BriefingRecap from "./BriefingRecap";
 import Logo from "./Logo";
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
@@ -23,10 +25,12 @@ export default function ReportView({
   report,
   geradoEm,
   standalone = true,
+  briefing,
 }: {
   report: TrendReport;
   geradoEm?: string;
   standalone?: boolean;
+  briefing?: Record<string, unknown> | string | null;
 }) {
   const { meta, tendencias = [], oportunidades, copy, radar, fontes } = report;
   const corMarca = meta.cor_marca || "#660099";
@@ -68,6 +72,13 @@ export default function ReportView({
           </span>
         )}
       </div>
+
+      {/* RECAP DO BRIEFING */}
+      {briefing && (
+        <div className="max-w-6xl mx-auto px-5 md:px-10 pt-4">
+          <BriefingRecap briefing={briefing} />
+        </div>
+      )}
 
       {/* HERO CLUSTER: hero + hype gauge + próximo gatilho */}
       <div className="max-w-6xl mx-auto px-5 md:px-10 pt-8 pb-14">
@@ -135,9 +146,13 @@ export default function ReportView({
             </h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {quotes.map((q, i) => (
-              <QuoteCard key={i} plataforma={q.plataforma} autor={q.autor} texto={q.texto} url={q.url} />
-            ))}
+            {quotes.map((q, i) =>
+              q.plataforma === "instagram" ? (
+                <PostMentionCard key={i} autor={q.autor} texto={q.texto} url={q.url} />
+              ) : (
+                <QuoteCard key={i} plataforma={q.plataforma} autor={q.autor} texto={q.texto} url={q.url} />
+              )
+            )}
           </div>
         </div>
       )}

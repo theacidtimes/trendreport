@@ -58,16 +58,29 @@ export default function TrendCard({
 }) {
   const hasImage = Boolean(tendencia.imagem_url);
   const PlatformIcon = tendencia.plataforma ? PLATFORM_ICON[tendencia.plataforma] : null;
+  // TikTok cobre vem no formato vertical nativo (9:16) — forçar num box
+  // horizontal com object-cover corta o conteúdo do meme e sobra só fundo preto.
+  const isVertical = tendencia.plataforma === "tiktok";
 
   return (
     <div className="group flex flex-col rounded-3xl overflow-hidden border border-border bg-purple transition-colors hover:border-lime/40">
       {/* IMAGE */}
       <div
-        className={`relative shrink-0 overflow-hidden bg-purple-mid ${large ? "h-72 md:h-96" : "h-52"} ${
-          hasImage ? "" : "flex items-center justify-center"
+        className={`relative shrink-0 overflow-hidden bg-black ${large ? "h-72 md:h-96" : "h-52"} ${
+          hasImage && !isVertical ? "" : "flex items-center justify-center"
         }`}
       >
-        {hasImage && (
+        {hasImage && isVertical && (
+          <img
+            src={tendencia.imagem_url}
+            alt=""
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            className="h-full w-auto object-contain"
+          />
+        )}
+
+        {hasImage && !isVertical && (
           <img
             src={tendencia.imagem_url}
             alt=""

@@ -12,7 +12,7 @@ export default async function PublicReportPage({
 
   const { data: row } = await supabase
     .from("reports")
-    .select("report, created_at")
+    .select("report, created_at, briefing")
     .eq("slug", params.slug)
     .single();
 
@@ -21,6 +21,7 @@ export default async function PublicReportPage({
   }
 
   const report = row.report as TrendReport;
+  const briefing = row.briefing as Record<string, unknown> | string | null;
   const geradoEm = new Date(row.created_at).toLocaleString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -30,7 +31,7 @@ export default async function PublicReportPage({
 
   return (
     <div className="min-h-screen bg-bg">
-      <ReportView report={report} geradoEm={geradoEm} />
+      <ReportView report={report} geradoEm={geradoEm} briefing={briefing} />
     </div>
   );
 }
