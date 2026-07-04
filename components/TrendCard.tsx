@@ -58,35 +58,41 @@ export default function TrendCard({
 }) {
   const hasImage = Boolean(tendencia.imagem_url);
   const PlatformIcon = tendencia.plataforma ? PLATFORM_ICON[tendencia.plataforma] : null;
-  // TikTok cobre vem no formato vertical nativo (9:16) — forçar num box
-  // horizontal com object-cover corta o conteúdo do meme e sobra só fundo preto.
+  // TikTok cobre vem no formato vertical nativo (9:16) — esticar num banner
+  // horizontal largo cropa/isola o conteúdo do meme. Em vez disso montamos um
+  // bento na horizontal: coluna de imagem estreita e vertical ao lado do texto.
   const isVertical = tendencia.plataforma === "tiktok";
+  const splitBento = isVertical && hasImage;
 
   return (
-    <div className="group flex flex-col rounded-3xl overflow-hidden border border-border bg-purple transition-colors hover:border-lime/40">
+    <div
+      className={`group flex ${
+        splitBento ? "flex-col sm:flex-row" : "flex-col"
+      } ${splitBento && !large ? "self-start" : ""} rounded-3xl overflow-hidden border border-border bg-purple transition-colors hover:border-lime/40`}
+    >
       {/* IMAGE */}
       <div
-        className={`relative shrink-0 overflow-hidden bg-black ${large ? "h-72 md:h-96" : "h-52"} ${
-          hasImage && !isVertical ? "" : "flex items-center justify-center"
-        }`}
+        className={
+          splitBento
+            ? `relative shrink-0 overflow-hidden bg-black flex items-center justify-center w-full aspect-[3/4] sm:aspect-auto sm:self-stretch ${
+                large ? "sm:w-40 md:w-56 lg:w-72" : "sm:w-28 md:w-32"
+              }`
+            : `relative shrink-0 overflow-hidden bg-black ${large ? "h-72 md:h-96" : "h-52"} ${
+                hasImage ? "" : "flex items-center justify-center"
+              }`
+        }
       >
-        {hasImage && isVertical && (
+        {hasImage && (
           <img
             src={tendencia.imagem_url}
             alt=""
             referrerPolicy="no-referrer"
             loading="lazy"
-            className="h-full w-auto object-contain"
-          />
-        )}
-
-        {hasImage && !isVertical && (
-          <img
-            src={tendencia.imagem_url}
-            alt=""
-            referrerPolicy="no-referrer"
-            loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover object-top"
+            className={
+              splitBento
+                ? "w-full h-full object-cover"
+                : "absolute inset-0 w-full h-full object-cover object-top"
+            }
           />
         )}
 
@@ -108,7 +114,7 @@ export default function TrendCard({
       </div>
 
       {/* TEXT */}
-      <div className="flex flex-col gap-2.5 p-5 font-body">
+      <div className={`flex flex-col gap-2.5 p-5 font-body ${splitBento ? "sm:flex-1 sm:justify-center" : ""}`}>
         <StatusBadge status={tendencia.status} />
 
         <h3
