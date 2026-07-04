@@ -49,6 +49,20 @@ const INSTAGRAM_BASE_PROFILES = [
   "buzzfeedbrasil",
   "sportv",
   "espnbrasil",
+  // memes
+  "saquinhodelixo",
+  "meltedvideos",
+  "pleasecome2br",
+  "brazilianversion",
+  "divadepressao",
+  // cinema/séries/games/música/cultura pop
+  "omelete",
+  "jovemnerd",
+  "ignbrasil",
+  "rollingstonebrasil",
+  "adrenaline_oficial",
+  "voxeloficial",
+  "papelpop",
 ];
 
 interface RawInstagramItem {
