@@ -4,9 +4,27 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { collectAll } from "@/lib/apify";
 import { SYSTEM_PROMPT, VIVO_KNOWLEDGE, systemPromptDynamic } from "@/lib/systemPrompt";
-import type { TrendReport } from "@/lib/types";
+import type { RawData, TrendReport } from "@/lib/types";
 
 const anthropic = new Anthropic();
+
+function topByEngagement<T>(items: T[], score: (item: T) => number, limit: number): T[] {
+  return [...items].sort((a, b) => score(b) - score(a)).slice(0, limit);
+}
+
+// Manda só o topo de cada fonte pra Claude — o payload bruto (54 posts de
+// Instagram, 40 de TikTok etc.) infla o contexto e é a principal causa da
+// geração levar minutos. `fontes`/o guard de zero-dado continuam usando o
+// total real coletado (rawData), só o que vai pro modelo é reduzido.
+function trimForModel(rawData: RawData): RawData {
+  return {
+    instagram: topByEngagement(rawData.instagram, (i) => i.likesCount ?? 0, 15),
+    tiktok: topByEngagement(rawData.tiktok, (i) => (i.diggCount ?? 0) + (i.playCount ?? 0), 15),
+    twitter: topByEngagement(rawData.twitter, (i) => i.tweetVolume ?? 0, 20),
+    news: rawData.news.slice(0, 10),
+    reddit: topByEngagement(rawData.reddit, (i) => i.upVotes ?? 0, 10),
+  };
+}
 
 function extractKeywords(briefing: Record<string, unknown>): string[] {
   const keywords = new Set<string>();
@@ -85,7 +103,7 @@ export async function POST(req: Request) {
     }
 
     const userMessage = `BRIEFING (YAML):\n${briefingYaml}\n\nDADOS COLETADOS AGORA (JSON):\n${JSON.stringify(
-      rawData
+      trimForModel(rawData)
     )}`;
 
     // Streaming em vez de create() simples: com o dataset coletado (19 perfis
