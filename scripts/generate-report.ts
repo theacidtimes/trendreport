@@ -17,6 +17,11 @@ async function main() {
     );
   }
 
+  // Diagnóstico temporário: confirmar exatamente o valor/formato do slug
+  // recebido via env (suspeita de espaço/quebra de linha vindo do payload).
+  console.log("DEBUG slug recebido:", JSON.stringify(slug), "length:", slug.length);
+  console.log("DEBUG supabaseUrl:", JSON.stringify(supabaseUrl));
+
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
@@ -32,13 +37,25 @@ async function main() {
       return;
     }
 
-    const { error: updateError } = await supabase
+    const { data: updateData, error: updateError } = await supabase
       .from("reports")
       .update({ status: "ready", report: result.report })
-      .eq("slug", slug);
+      .eq("slug", slug)
+      .select("slug, status");
+
+    console.log(
+      "DEBUG resultado do update:",
+      JSON.stringify({ updateData, updateError })
+    );
 
     if (updateError) {
       throw new Error(`Falha ao salvar report no Supabase: ${updateError.message}`);
+    }
+
+    if (!updateData || updateData.length === 0) {
+      throw new Error(
+        `Update não afetou nenhuma linha (slug não encontrado?): ${JSON.stringify(slug)}`
+      );
     }
 
     console.log(`Report ${slug} gerado com sucesso.`);
