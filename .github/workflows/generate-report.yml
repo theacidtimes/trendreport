@@ -1,0 +1,27 @@
+name: Generate Report
+
+on:
+  repository_dispatch:
+    types: [generate-report]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - run: npm run generate:report
+        env:
+          REPORT_SLUG: ${{ github.event.client_payload.slug }}
+          BRIEFING_YAML: ${{ github.event.client_payload.briefing_yaml }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

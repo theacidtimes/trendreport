@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
+import { TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
 import ReportView from "@/components/ReportView";
 import CopyLinkButton from "./CopyLinkButton";
+import PendingReport from "./PendingReport";
 import type { TrendReport } from "@/lib/types";
 
 export default async function DashboardReportPage({
@@ -18,12 +20,39 @@ export default async function DashboardReportPage({
 
   const { data: row } = await supabase
     .from("reports")
-    .select("report, created_at, briefing")
+    .select("report, created_at, briefing, status, error_message")
     .eq("slug", params.slug)
     .single();
 
   if (!row) {
     notFound();
+  }
+
+  if (row.status === "pending") {
+    return (
+      <div className="min-h-screen bg-bg">
+        <Sidebar userEmail={user?.email} />
+        <main className="md:pl-64">
+          <PendingReport slug={params.slug} />
+        </main>
+      </div>
+    );
+  }
+
+  if (row.status === "error") {
+    return (
+      <div className="min-h-screen bg-bg">
+        <Sidebar userEmail={user?.email} />
+        <main className="md:pl-64">
+          <div className="min-h-screen md:min-h-0 flex items-center justify-center px-4 py-10 md:py-24">
+            <p className="text-red-400 text-sm max-w-md flex items-center gap-2 text-center">
+              <TriangleAlert className="w-4 h-4 shrink-0" strokeWidth={2} />
+              {row.error_message ?? "Erro ao gerar relatório."}
+            </p>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   const report = row.report as TrendReport;

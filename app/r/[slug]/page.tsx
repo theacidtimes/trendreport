@@ -12,11 +12,13 @@ export default async function PublicReportPage({
 
   const { data: row } = await supabase
     .from("reports")
-    .select("report, created_at, briefing")
+    .select("report, created_at, briefing, status")
     .eq("slug", params.slug)
     .single();
 
-  if (!row) {
+  // Link público só existe pra reports prontos — pending/error ainda não
+  // têm nada pronto pra mostrar (e não devem vazar estado interno).
+  if (!row || row.status !== "ready") {
     notFound();
   }
 
