@@ -5,15 +5,19 @@ import { generateReport } from "../lib/generateReport";
 async function main() {
   const slug = process.env.REPORT_SLUG;
   const briefingYaml = process.env.BRIEFING_YAML;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!slug || !briefingYaml) {
     throw new Error("REPORT_SLUG e BRIEFING_YAML são obrigatórios.");
   }
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error(
+      "SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são obrigatórios (verifique os secrets do repositório)."
+    );
+  }
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
     const briefing = yaml.load(briefingYaml) as Record<string, unknown>;
@@ -49,4 +53,12 @@ async function main() {
   }
 }
 
-main();
+main().catch((err) => {
+  // Se chegou aqui, quebrou antes de ter um client do Supabase pra registrar
+  // o erro na linha (ex: env var ausente) — pelo menos deixa claro no log.
+  console.error(
+    "Erro fatal antes de conseguir salvar status no Supabase:",
+    err instanceof Error ? err.message : String(err)
+  );
+  process.exitCode = 1;
+});
