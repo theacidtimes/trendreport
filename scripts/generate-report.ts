@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import * as yaml from "js-yaml";
+import WebSocket from "ws";
 import { generateReport } from "../lib/generateReport";
 
 async function main() {
@@ -17,12 +18,13 @@ async function main() {
     );
   }
 
-  // Diagnóstico temporário: confirmar exatamente o valor/formato do slug
-  // recebido via env (suspeita de espaço/quebra de linha vindo do payload).
-  console.log("DEBUG slug recebido:", JSON.stringify(slug), "length:", slug.length);
-  console.log("DEBUG supabaseUrl:", JSON.stringify(supabaseUrl));
-
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  // O runner do GitHub Actions nem sempre expõe um WebSocket global nativo
+  // (depende da build exata do Node), e o @supabase/supabase-js quebra na
+  // criação do client sem isso — mesmo sem usarmos Realtime. Passar o `ws`
+  // como transporte explícito evita essa detecção de ambiente por completo.
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    realtime: { transport: WebSocket as never },
+  });
 
   try {
     const briefing = yaml.load(briefingYaml) as Record<string, unknown>;
@@ -42,11 +44,6 @@ async function main() {
       .update({ status: "ready", report: result.report })
       .eq("slug", slug)
       .select("slug, status");
-
-    console.log(
-      "DEBUG resultado do update:",
-      JSON.stringify({ updateData, updateError })
-    );
 
     if (updateError) {
       throw new Error(`Falha ao salvar report no Supabase: ${updateError.message}`);
