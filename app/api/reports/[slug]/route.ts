@@ -68,23 +68,76 @@ export async function PATCH(
   // A RLS (policy "owner") garante que só o dono altera a própria linha; e
   // filtramos por status para nunca sobrescrever um report ainda 'pending'
   // ou em 'error' — a edição humana só age sobre relatórios já gerados.
+  // maybeSingle (em vez de single) evita o erro "Cannot coerce the result to a
+  // single JSON object" quando o update casa 0 linhas — devolvemos 404 claro.
   const { data, error } = await supabase
     .from("reports")
     .update(update)
     .eq("slug", params.slug)
     .in("status", EDITABLE_STATUSES)
     .select("slug, status")
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    return NextResponse.json(
+      { error: "Falha ao atualizar report.", detail: error.message },
+      { status: 500 }
+    );
+  }
+
+  if (!data) {
     return NextResponse.json(
       {
-        error: "Falha ao atualizar report.",
-        detail: error?.message ?? "Nenhuma linha atualizada.",
+        error: "Report não encontrado ou sem permissão para editar.",
+        detail: "Nenhuma linha atualizada.",
       },
-      { status: error ? 500 : 404 }
+      { status: 404 }
     );
   }
 
   return NextResponse.json({ slug: data.slug, status: data.status });
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: { slug: string } }
+) {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  }
+
+  // A RLS ("collaborators delete") libera o DELETE pra qualquer analista logado;
+  // o trigger de auditoria grava quem excluiu + o report_before como backup.
+  // maybeSingle evita o PGRST116 quando 0 linhas casam — devolvemos 404 claro.
+  const { data, error } = await supabase
+    .from("reports")
+    .delete()
+    .eq("slug", params.slug)
+    .select("slug")
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json(
+      { error: "Falha ao excluir report.", detail: error.message },
+      { status: 500 }
+    );
+  }
+
+  if (!data) {
+    return NextResponse.json(
+      {
+        error: "Report não encontrado ou sem permissão para excluir.",
+        detail: "Nenhuma linha excluída.",
+      },
+      { status: 404 }
+    );
+  }
+
+  return NextResponse.json({ slug: data.slug, deleted: true });
 }

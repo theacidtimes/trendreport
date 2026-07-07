@@ -11,6 +11,7 @@ import {
   Pencil,
   Plus,
   Send,
+  Trash2,
   TriangleAlert,
   Upload,
   X,
@@ -83,6 +84,7 @@ export default function ReportEditor({
   const [tab, setTab] = useState<"editar" | "preview">("editar");
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [savedAt, setSavedAt] = useState(false);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -169,7 +171,31 @@ export default function ReportEditor({
     }
   }
 
-  const busy = saving || publishing;
+  async function handleDelete() {
+    if (
+      !window.confirm(
+        "Excluir este relatório permanentemente? O estado atual fica guardado no backup de auditoria."
+      )
+    ) {
+      return;
+    }
+    setError("");
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/reports/${slug}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail ?? data.error ?? "Falha ao excluir.");
+      }
+      router.push("/dashboard");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao excluir.");
+      setDeleting(false);
+    }
+  }
+
+  const busy = saving || publishing || deleting;
 
   return (
     <div className="min-h-screen pb-28">
@@ -605,6 +631,14 @@ export default function ReportEditor({
             </span>
           )}
           <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={handleDelete}
+              disabled={busy}
+              className="border border-red-500/30 text-red-400 font-medium text-sm rounded-lg px-4 h-12 flex items-center justify-center gap-2 hover:border-red-500/60 hover:bg-red-500/5 transition-colors disabled:opacity-60"
+            >
+              <Trash2 className="w-4 h-4" strokeWidth={2} />
+              {deleting ? "Excluindo..." : "Excluir"}
+            </button>
             <button
               onClick={handleSaveDraft}
               disabled={busy}
