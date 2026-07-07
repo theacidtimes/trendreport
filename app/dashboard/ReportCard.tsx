@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check, Clock, Copy, Flame, Sparkle } from "lucide-react";
+import {
+  ArrowUpRight,
+  Check,
+  Clock,
+  Copy,
+  Flame,
+  Loader2,
+  Pencil,
+  Sparkle,
+} from "lucide-react";
 
 const TILE_BG = ["bg-surface", "bg-purple", "bg-white"];
 
@@ -11,6 +20,7 @@ export default function ReportCard({
   slug,
   cliente,
   createdAt,
+  status,
   indiceHype,
   hypeMotivo,
   imagemUrl,
@@ -20,6 +30,7 @@ export default function ReportCard({
   slug: string;
   cliente: string;
   createdAt: string;
+  status: string;
   indiceHype: number;
   hypeMotivo: string;
   imagemUrl: string | null;
@@ -74,6 +85,32 @@ export default function ReportCard({
           <Flame className="w-3 h-3 shrink-0" strokeWidth={2.5} />
           {indiceHype}
         </div>
+
+        {status !== "published" && (
+          <span
+            className={`absolute bottom-3 left-3 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide backdrop-blur rounded-full px-2.5 py-1 ${
+              status === "pending"
+                ? "bg-black/50 text-white/80"
+                : status === "error"
+                  ? "bg-red-500/80 text-white"
+                  : "bg-lime text-black"
+            }`}
+          >
+            {status === "pending" ? (
+              <>
+                <Loader2 className="w-3 h-3 shrink-0 animate-spin" strokeWidth={2.5} />
+                Gerando
+              </>
+            ) : status === "error" ? (
+              "Erro"
+            ) : (
+              <>
+                <Pencil className="w-3 h-3 shrink-0" strokeWidth={2.5} />
+                Em revisão
+              </>
+            )}
+          </span>
+        )}
       </div>
 
       {/* TEXT */}
@@ -108,29 +145,31 @@ export default function ReportCard({
               isLight ? "border-black/15 text-black" : "border-white/20 text-white"
             }`}
           >
-            Ver
+            {status === "ready" ? "Revisar" : "Ver"}
             <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={2.5} />
           </span>
 
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              handleCopy();
-            }}
-            className="text-black bg-lime text-xs uppercase tracking-wide font-bold rounded-lg px-4 py-2 flex items-center gap-1.5 hover:brightness-110 transition-[filter]"
-          >
-            {copied ? (
-              <>
-                Copiado
-                <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-              </>
-            ) : (
-              <>
-                Copiar link
-                <Copy className="w-3.5 h-3.5" strokeWidth={2.5} />
-              </>
-            )}
-          </button>
+          {status === "published" && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                handleCopy();
+              }}
+              className="text-black bg-lime text-xs uppercase tracking-wide font-bold rounded-lg px-4 py-2 flex items-center gap-1.5 hover:brightness-110 transition-[filter]"
+            >
+              {copied ? (
+                <>
+                  Copiado
+                  <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </>
+              ) : (
+                <>
+                  Copiar link
+                  <Copy className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </Link>

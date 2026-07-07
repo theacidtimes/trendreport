@@ -14,13 +14,13 @@ export default async function DashboardPage() {
 
   const { data: reports } = await supabase
     .from("reports")
-    .select("id, slug, cliente, report, created_at")
+    .select("id, slug, cliente, report, created_at, status")
     .order("created_at", { ascending: false });
 
-  const rows = (reports ?? []) as Pick<
+  const rows = (reports ?? []) as (Pick<
     ReportRow,
     "id" | "slug" | "cliente" | "report" | "created_at"
-  >[];
+  > & { status: string })[];
 
   const thumbOf = (row: (typeof rows)[number]) =>
     row.report?.tendencias?.find((t) => t.imagem_url)?.imagem_url ?? null;
@@ -111,6 +111,7 @@ export default async function DashboardPage() {
                   slug={r.slug}
                   cliente={r.cliente}
                   createdAt={r.created_at}
+                  status={r.status}
                   indiceHype={r.report?.meta?.indice_hype ?? 0}
                   hypeMotivo={r.report?.meta?.hype_motivo ?? ""}
                   imagemUrl={thumbOf(r)}

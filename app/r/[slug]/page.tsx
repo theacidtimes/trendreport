@@ -16,9 +16,10 @@ export default async function PublicReportPage({
     .eq("slug", params.slug)
     .single();
 
-  // Link público só existe pra reports prontos — pending/error ainda não
-  // têm nada pronto pra mostrar (e não devem vazar estado interno).
-  if (!row || row.status !== "ready") {
+  // Link público só existe pra reports homologados. 'ready' agora significa
+  // "gerado pela IA, aguardando curadoria humana" — não deve vazar pro cliente
+  // até o analista publicar (status 'published').
+  if (!row || row.status !== "published") {
     notFound();
   }
 

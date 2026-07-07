@@ -3,7 +3,8 @@ import { TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
 import ReportView from "@/components/ReportView";
-import CopyLinkButton from "./CopyLinkButton";
+import PublishedActions from "./PublishedActions";
+import ReportEditor from "./ReportEditor";
 import PendingReport from "./PendingReport";
 import type { TrendReport } from "@/lib/types";
 
@@ -64,13 +65,31 @@ export default async function DashboardReportPage({
     minute: "2-digit",
   });
 
+  // 'ready' = gerado pela IA, aguardando curadoria humana. Só depois de
+  // homologado (status 'published') o relatório fica visível no link público.
+  if (row.status === "ready") {
+    return (
+      <div className="min-h-screen bg-bg">
+        <Sidebar userEmail={user?.email} />
+        <main className="md:pl-64">
+          <ReportEditor
+            slug={params.slug}
+            initialReport={report}
+            briefing={briefing}
+            geradoEm={geradoEm}
+          />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-bg">
       <Sidebar userEmail={user?.email} />
       <main className="md:pl-64">
         <ReportView report={report} geradoEm={geradoEm} standalone={false} briefing={briefing} />
       </main>
-      <CopyLinkButton slug={params.slug} />
+      <PublishedActions slug={params.slug} />
     </div>
   );
 }
