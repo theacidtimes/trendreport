@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUp, TriangleAlert } from "lucide-react";
-import ProcessLoader from "./ProcessLoader";
 import TypingDots from "./TypingDots";
 
 export default function ComposerBar() {
@@ -11,7 +10,6 @@ export default function ComposerBar() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
   function autoGrow() {
@@ -25,7 +23,6 @@ export default function ComposerBar() {
     if (!text.trim() || loading) return;
     setError("");
     setLoading(true);
-    setDone(false);
 
     try {
       const res = await fetch("/api/generate", {
@@ -43,8 +40,9 @@ export default function ComposerBar() {
         return;
       }
 
-      setDone(true);
-      setTimeout(() => router.push(`/dashboard/${data.slug}`), 350);
+      // Navega direto pro loader real de /dashboard/[slug] (ligado ao progresso
+      // de verdade da geração) — sem animação de "concluído" falsa aqui.
+      router.push(`/dashboard/${data.slug}`);
     } catch {
       setError("Erro de rede ao gerar relatório.");
       setLoading(false);
@@ -98,8 +96,6 @@ export default function ComposerBar() {
           {loading ? <TypingDots className="text-black" /> : <ArrowUp className="w-4 h-4" strokeWidth={2.5} />}
         </button>
       </div>
-
-      {loading && <ProcessLoader done={done} />}
 
       {error && (
         <p className="text-red-400 text-sm flex items-center gap-2">

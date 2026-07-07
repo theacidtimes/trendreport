@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, TriangleAlert } from "lucide-react";
+import { ArrowRight, Loader2, TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/Sidebar";
-import ProcessLoader from "@/components/ProcessLoader";
 
 const PLACEHOLDER = `data: "2026-07-01"
 cliente: "Vivo Fibra"
@@ -28,7 +27,6 @@ export default function NewReportPage() {
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const [briefing, setBriefing] = useState("");
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -46,7 +44,6 @@ export default function NewReportPage() {
     }
 
     setLoading(true);
-    setDone(false);
 
     try {
       const res = await fetch("/api/generate", {
@@ -64,8 +61,11 @@ export default function NewReportPage() {
         return;
       }
 
-      setDone(true);
-      setTimeout(() => router.push(`/dashboard/${data.slug}`), 350);
+      // Navega direto pro /dashboard/[slug] assim que a linha "pending" existe —
+      // é lá que mora o loader real, ligado ao progresso de verdade da geração
+      // (ver PendingReport). Nada de animação de "concluído" falsa aqui, pra não
+      // parecer que terminou e reiniciar de novo na página seguinte.
+      router.push(`/dashboard/${data.slug}`);
     } catch {
       setError("Erro de rede ao gerar relatório.");
       setLoading(false);
@@ -91,26 +91,33 @@ export default function NewReportPage() {
               </p>
             </div>
 
-            {loading ? (
-              <ProcessLoader done={done} />
-            ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <textarea
-                  value={briefing}
-                  onChange={(e) => setBriefing(e.target.value)}
-                  placeholder={PLACEHOLDER}
-                  className="bg-surface border border-border text-white text-[15px] rounded-xl p-4 min-h-[240px] md:min-h-[320px] resize-y outline-none focus:border-lime transition-colors font-mono placeholder:text-muted/70"
-                />
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <textarea
+                value={briefing}
+                onChange={(e) => setBriefing(e.target.value)}
+                placeholder={PLACEHOLDER}
+                disabled={loading}
+                className="bg-surface border border-border text-white text-[15px] rounded-xl p-4 min-h-[240px] md:min-h-[320px] resize-y outline-none focus:border-lime transition-colors font-mono placeholder:text-muted/70 disabled:opacity-60"
+              />
 
-                <button
-                  type="submit"
-                  className="bg-lime text-black font-bold text-base uppercase h-14 rounded-lg w-full flex items-center justify-center gap-2 shadow-lime hover:brightness-110 transition-[filter]"
-                >
-                  Gerar relatório
-                  <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                </button>
-              </form>
-            )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-lime text-black font-bold text-base uppercase h-14 rounded-lg w-full flex items-center justify-center gap-2 shadow-lime hover:brightness-110 transition-[filter] disabled:opacity-70 disabled:pointer-events-none"
+              >
+                {loading ? (
+                  <>
+                    Enviando briefing...
+                    <Loader2 className="w-[18px] h-[18px] animate-spin" strokeWidth={2.5} />
+                  </>
+                ) : (
+                  <>
+                    Gerar relatório
+                    <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2.5} />
+                  </>
+                )}
+              </button>
+            </form>
 
             {error && (
               <p className="text-red-400 text-sm flex items-center gap-2">

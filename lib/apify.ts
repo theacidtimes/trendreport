@@ -241,13 +241,32 @@ export async function fetchReddit(keywords: string[]): Promise<RedditItem[]> {
   }
 }
 
-export async function collectAll(keywords: string[]): Promise<RawData> {
+export type SourceName = "instagram" | "tiktok" | "twitter" | "news" | "reddit";
+
+// As 5 fontes rodam em paralelo (Promise.all), então não têm uma ordem fixa
+// de conclusão — o onProgress é chamado assim que CADA UMA termina (sucesso
+// ou falha tratada), na ordem real em que os scrapers respondem. É isso que
+// alimenta a barra de progresso real na interface (ver ProcessLoader).
+async function track<T>(
+  name: SourceName,
+  promise: Promise<T>,
+  onProgress?: (source: SourceName) => void
+): Promise<T> {
+  const result = await promise;
+  onProgress?.(name);
+  return result;
+}
+
+export async function collectAll(
+  keywords: string[],
+  onProgress?: (source: SourceName) => void
+): Promise<RawData> {
   const [instagram, tiktok, twitter, news, reddit] = await Promise.all([
-    fetchInstagram(),
-    fetchTikTok(keywords),
-    fetchTwitter(keywords),
-    fetchNews(keywords),
-    fetchReddit(keywords),
+    track("instagram", fetchInstagram(), onProgress),
+    track("tiktok", fetchTikTok(keywords), onProgress),
+    track("twitter", fetchTwitter(keywords), onProgress),
+    track("news", fetchNews(keywords), onProgress),
+    track("reddit", fetchReddit(keywords), onProgress),
   ]);
 
   return { instagram, tiktok, twitter, news, reddit };

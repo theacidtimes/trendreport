@@ -24,11 +24,21 @@ async function main() {
   // (depende da build exata do Node), e o @supabase/supabase-js quebra na
   // criação do client sem isso — mesmo sem usarmos Realtime. Passar o `ws`
   // como transporte explícito evita essa detecção de ambiente por completo.
-  let supabase: ReturnType<typeof createClient>;
-  try {
-    supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  //
+  // Nota de tipagem: criamos via uma função concreta (não generic) e usamos
+  // `ReturnType<typeof buildSupabaseClient>` pra anotar `supabase` — anotar
+  // direto como `ReturnType<typeof createClient>` faz o TS resolver os
+  // generics do createClient sem os argumentos reais, colapsando os tipos de
+  // linha das tabelas pra `never` (e quebrando `next build` no Vercel).
+  function buildSupabaseClient() {
+    return createClient(supabaseUrl!, supabaseServiceKey!, {
       realtime: { transport: WebSocket as never },
     });
+  }
+
+  let supabase: ReturnType<typeof buildSupabaseClient>;
+  try {
+    supabase = buildSupabaseClient();
     console.log("FASE 1: client Supabase criado com sucesso.");
   } catch (err) {
     console.error(
@@ -41,7 +51,19 @@ async function main() {
   try {
     const briefing = yaml.load(briefingYaml) as Record<string, unknown>;
     console.log("FASE 2: briefing parseado, iniciando generateReport()...");
-    const result = await generateReport(briefingYaml, briefing);
+
+    const result = await generateReport(briefingYaml, briefing, async (progress) => {
+      console.log("PROGRESSO:", JSON.stringify(progress));
+      // Best-effort: se essa update falhar, a coleta/geração continua normal —
+      // só a barra de progresso na interface fica parada até o próximo passo.
+      const { error } = await supabase
+        .from("reports")
+        .update({ progress })
+        .eq("slug", slug);
+      if (error) {
+        console.error("Falha ao atualizar progress (não bloqueia a geração):", error.message);
+      }
+    });
     console.log("FASE 3: generateReport() concluído.", "error" in result ? "(com erro)" : "(sucesso)");
 
     if ("error" in result) {

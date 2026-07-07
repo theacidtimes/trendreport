@@ -1,7 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { collectAll } from "./apify";
+import { collectAll, type SourceName } from "./apify";
 import { SYSTEM_PROMPT, VIVO_KNOWLEDGE, systemPromptDynamic } from "./systemPrompt";
 import type { RawData, TrendReport } from "./types";
+
+export type ReportProgress =
+  | { phase: "briefing"; sources_done: SourceName[] }
+  | { phase: "collecting"; sources_done: SourceName[] }
+  | { phase: "model"; sources_done: SourceName[] };
+
+export type OnProgress = (progress: ReportProgress) => void | Promise<void>;
 
 const anthropic = new Anthropic();
 
@@ -47,10 +54,20 @@ function trimForModel(rawData: RawData): RawData {
 
 export async function generateReport(
   briefingYaml: string,
-  briefing: Record<string, unknown>
+  briefing: Record<string, unknown>,
+  onProgress?: OnProgress
 ): Promise<{ report: TrendReport } | { error: string }> {
   const keywords = extractKeywords(briefing);
-  const rawData = await collectAll(keywords);
+  const sourcesDone: SourceName[] = [];
+
+  await onProgress?.({ phase: "collecting", sources_done: [] });
+
+  const rawData = await collectAll(keywords, (source) => {
+    sourcesDone.push(source);
+    // Best-effort: se o update no Supabase falhar, não deve derrubar a
+    // coleta de dados em si — só a barra de progresso fica desatualizada.
+    void onProgress?.({ phase: "collecting", sources_done: [...sourcesDone] });
+  });
 
   const totalColetado =
     rawData.instagram.length +
@@ -71,6 +88,8 @@ export async function generateReport(
   const userMessage = `BRIEFING (YAML):\n${briefingYaml}\n\nDADOS COLETADOS AGORA (JSON):\n${JSON.stringify(
     trimForModel(rawData)
   )}`;
+
+  await onProgress?.({ phase: "model", sources_done: sourcesDone });
 
   const response = await anthropic.messages
     .stream({
