@@ -1,16 +1,9 @@
-import {
-  ArrowUpRight,
-  CalendarClock,
-  Flame,
-  Radio,
-  Sparkle,
-  TrendingUp,
-} from "lucide-react";
+import { ArrowUpRight, CalendarClock, Flame, Radio, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
-import ReportCard from "./ReportCard";
 import NewReportDialog from "./NewReportDialog";
+import ReportsBrowser, { type ReportCardData } from "./ReportsBrowser";
 import { PLATFORM_ICON, PLATFORM_LABEL, type Plataforma } from "@/lib/platforms";
 import type { ReportRow } from "@/lib/types";
 
@@ -112,6 +105,20 @@ export default async function DashboardPage() {
 
   const proximoGatilho = rows[0]?.report?.meta?.proximo_gatilho ?? null;
   const TopPlatformIcon = topPlatform ? PLATFORM_ICON[topPlatform] : null;
+
+  // Dados serializáveis dos cards — a filtragem/ordenação por cliente e data
+  // acontece client-side no ReportsBrowser (sem recarregar a página).
+  const cards: ReportCardData[] = rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    cliente: r.cliente,
+    createdAt: r.created_at,
+    status: r.status,
+    indiceHype: r.report?.meta?.indice_hype ?? 0,
+    hypeMotivo: r.report?.meta?.hype_motivo ?? "",
+    imagemUrl: thumbOf(r),
+    corMarca: r.report?.meta?.cor_marca ?? null,
+  }));
 
   return (
     <div className="min-h-screen bg-bg">
@@ -254,43 +261,7 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-1 pt-6">
-            <span className="text-muted text-xs uppercase tracking-[0.14em] font-medium">
-              {rows.length} {rows.length === 1 ? "report" : "reports"}
-            </span>
-            <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
-              Seus reports
-            </h2>
-          </div>
-
-          {rows.length === 0 ? (
-            <div className="flex flex-col items-center gap-4 py-24 border border-dashed border-border rounded-3xl">
-              <span className="w-11 h-11 rounded-full bg-surface flex items-center justify-center">
-                <Sparkle className="w-5 h-5 text-muted" strokeWidth={2} />
-              </span>
-              <p className="text-muted text-center max-w-xs">
-                Nenhum report ainda. Cole um briefing acima e gere o primeiro relatório de
-                tendências.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {rows.map((r, i) => (
-                <ReportCard
-                  key={r.id}
-                  index={i + 1}
-                  slug={r.slug}
-                  cliente={r.cliente}
-                  createdAt={r.created_at}
-                  status={r.status}
-                  indiceHype={r.report?.meta?.indice_hype ?? 0}
-                  hypeMotivo={r.report?.meta?.hype_motivo ?? ""}
-                  imagemUrl={thumbOf(r)}
-                  corMarca={r.report?.meta?.cor_marca ?? null}
-                />
-              ))}
-            </div>
-          )}
+          <ReportsBrowser cards={cards} />
         </div>
       </main>
     </div>
