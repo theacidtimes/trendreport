@@ -18,17 +18,31 @@ async function main() {
     );
   }
 
+  console.log("FASE 0: process.version =", process.version);
+
   // O runner do GitHub Actions nem sempre expõe um WebSocket global nativo
   // (depende da build exata do Node), e o @supabase/supabase-js quebra na
   // criação do client sem isso — mesmo sem usarmos Realtime. Passar o `ws`
   // como transporte explícito evita essa detecção de ambiente por completo.
-  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-    realtime: { transport: WebSocket as never },
-  });
+  let supabase: ReturnType<typeof createClient>;
+  try {
+    supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      realtime: { transport: WebSocket as never },
+    });
+    console.log("FASE 1: client Supabase criado com sucesso.");
+  } catch (err) {
+    console.error(
+      "FASE 1 FALHOU (criação do client Supabase):",
+      err instanceof Error ? err.message : String(err)
+    );
+    throw err;
+  }
 
   try {
     const briefing = yaml.load(briefingYaml) as Record<string, unknown>;
+    console.log("FASE 2: briefing parseado, iniciando generateReport()...");
     const result = await generateReport(briefingYaml, briefing);
+    console.log("FASE 3: generateReport() concluído.", "error" in result ? "(com erro)" : "(sucesso)");
 
     if ("error" in result) {
       await supabase
@@ -39,11 +53,13 @@ async function main() {
       return;
     }
 
+    console.log("FASE 4: salvando report no Supabase...");
     const { data: updateData, error: updateError } = await supabase
       .from("reports")
       .update({ status: "ready", report: result.report })
       .eq("slug", slug)
       .select("slug, status");
+    console.log("FASE 5: update concluído.", JSON.stringify({ updateData, updateError }));
 
     if (updateError) {
       throw new Error(`Falha ao salvar report no Supabase: ${updateError.message}`);
@@ -58,6 +74,10 @@ async function main() {
     console.log(`Report ${slug} gerado com sucesso.`);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
+    console.error("FASE X: erro capturado no bloco principal:", detail);
+    if (err instanceof Error && err.stack) {
+      console.error(err.stack);
+    }
     await supabase
       .from("reports")
       .update({ status: "error", error_message: `Erro inesperado ao gerar relatório: ${detail}` })
