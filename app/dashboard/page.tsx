@@ -13,26 +13,32 @@ function HypeGauge({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(100, value));
   const offset = circ - (pct / 100) * circ;
   return (
-    <div className="relative w-28 h-28 shrink-0">
+    <div className="relative w-48 h-48 shrink-0">
       <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="10" />
+        <defs>
+          <linearGradient id="hypeGradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#660099" />
+            <stop offset="100%" stopColor="#81d300" />
+          </linearGradient>
+        </defs>
+        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="9" />
         <circle
           cx="50"
           cy="50"
           r={r}
           fill="none"
-          stroke="#660099"
-          strokeWidth="10"
+          stroke="url(#hypeGradient)"
+          strokeWidth="9"
           strokeLinecap="round"
           strokeDasharray={circ}
           strokeDashoffset={offset}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-sans text-black font-bold text-3xl tabular-nums leading-none">
+        <span className="font-sans text-black font-bold text-5xl tabular-nums leading-none">
           {value}
         </span>
-        <span className="text-black/40 text-[10px] font-medium">/100</span>
+        <span className="text-black/40 text-xs font-medium mt-1">/100</span>
       </div>
     </div>
   );
@@ -246,17 +252,19 @@ export default async function DashboardPage() {
                   {rows.length}
                 </span>
               </div>
-              <div className="flex-1 rounded-3xl bg-white p-6 flex flex-col justify-between gap-4">
+              <div className="flex-1 rounded-3xl bg-white p-6 flex flex-col gap-4 min-h-[16rem]">
                 <span className="text-black/50 text-xs uppercase tracking-[0.14em] font-medium">
                   Hype médio
                 </span>
-                {avgHype !== null ? (
-                  <div className="flex items-center justify-center py-1">
+                <div className="flex-1 flex items-center justify-center">
+                  {avgHype !== null ? (
                     <HypeGauge value={avgHype} />
-                  </div>
-                ) : (
-                  <span className="font-sans text-black/30 font-bold text-4xl tabular-nums">—</span>
-                )}
+                  ) : (
+                    <span className="font-sans text-black/30 font-bold text-4xl tabular-nums">
+                      —
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
