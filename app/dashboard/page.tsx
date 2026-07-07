@@ -244,13 +244,21 @@ export default async function DashboardPage() {
 
             {/* RIGHT: stats */}
             <div className="lg:col-span-4 flex flex-col gap-4">
-              <div className="flex-1 rounded-3xl bg-black border border-border p-6 flex flex-col justify-between gap-3">
+              <div className="flex-1 rounded-3xl bg-black border border-border p-6 flex flex-col gap-4 min-h-[16rem]">
                 <span className="text-muted text-xs uppercase tracking-[0.14em] font-medium">
                   Total de reports
                 </span>
-                <span className="font-sans text-white font-bold text-4xl tabular-nums">
-                  {rows.length}
-                </span>
+                <div className="flex-1 flex items-center justify-center">
+                  <span
+                    className="font-sans font-bold tabular-nums text-transparent bg-clip-text text-[9rem] md:text-[11rem] leading-none"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(160deg, #a855f7 0%, #660099 55%, #1a0030 100%)",
+                    }}
+                  >
+                    {rows.length}
+                  </span>
+                </div>
               </div>
               <div className="flex-1 rounded-3xl bg-white p-6 flex flex-col gap-4 min-h-[16rem]">
                 <span className="text-black/50 text-xs uppercase tracking-[0.14em] font-medium">
