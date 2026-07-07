@@ -1,6 +1,7 @@
 import { ArrowUpRight, Sparkles } from "lucide-react";
 import type { Tendencia } from "@/lib/types";
 import { PLATFORM_ICON, PLATFORM_LABEL, PLATFORM_ACCENT } from "@/lib/platforms";
+import SmartImage from "./SmartImage";
 
 export default function SocialPostCard({ tendencia }: { tendencia: Tendencia }) {
   const plataforma = tendencia.plataforma;
@@ -33,23 +34,14 @@ export default function SocialPostCard({ tendencia }: { tendencia: Tendencia }) 
       {/* IMAGE */}
       {tendencia.imagem_url && plataforma === "tiktok" && (
         <div className="relative w-full aspect-[4/5] bg-black flex items-center justify-center">
-          <img
-            src={tendencia.imagem_url}
-            alt=""
-            referrerPolicy="no-referrer"
-            loading="lazy"
-            className="h-full w-auto object-contain"
-          />
+          <SmartImage src={tendencia.imagem_url} className="h-full w-auto object-contain" />
         </div>
       )}
 
       {tendencia.imagem_url && plataforma !== "tiktok" && (
         <div className="relative w-full aspect-[4/5] bg-surface-2">
-          <img
+          <SmartImage
             src={tendencia.imagem_url}
-            alt=""
-            referrerPolicy="no-referrer"
-            loading="lazy"
             className="absolute inset-0 w-full h-full object-cover object-top"
           />
         </div>

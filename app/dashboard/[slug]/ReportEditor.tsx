@@ -5,14 +5,19 @@ import { useRouter } from "next/navigation";
 import {
   Check,
   Eye,
+  Image as ImageIcon,
+  Loader2,
   Lock,
   Pencil,
   Plus,
   Send,
   TriangleAlert,
+  Upload,
   X,
 } from "lucide-react";
 import ReportView from "@/components/ReportView";
+import SmartImage from "@/components/SmartImage";
+import { createClient } from "@/lib/supabase/client";
 import type {
   CopyItem,
   Oportunidade,
@@ -79,6 +84,7 @@ export default function ReportEditor({
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [savedAt, setSavedAt] = useState(false);
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [error, setError] = useState("");
 
   function mutate(fn: (draft: TrendReport) => void) {
@@ -88,6 +94,39 @@ export default function ReportEditor({
       return draft;
     });
     setSavedAt(false);
+  }
+
+  // Sobe uma imagem escolhida pelo analista pro bucket público report-images e
+  // aponta a imagem_url da tendência pra URL definitiva do Storage — que não
+  // expira, ao contrário das URLs assinadas das redes.
+  async function handleImageUpload(index: number, file: File) {
+    if (!file.type.startsWith("image/")) {
+      setError("Selecione um arquivo de imagem.");
+      return;
+    }
+    setError("");
+    setUploadingIndex(index);
+
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${slug}/${crypto.randomUUID()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("report-images")
+        .upload(path, file, { contentType: file.type, upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("report-images").getPublicUrl(path);
+      mutate((d) => {
+        d.tendencias[index].imagem_url = data.publicUrl;
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao subir a imagem.");
+    } finally {
+      setUploadingIndex(null);
+    }
   }
 
   async function persist(status?: "published") {
@@ -277,7 +316,7 @@ export default function ReportEditor({
               <SectionHeading>Memes em alta</SectionHeading>
               <span className="flex items-center gap-1.5 text-muted text-[11px] uppercase tracking-[0.1em]">
                 <Lock className="w-3 h-3" strokeWidth={2.5} />
-                imagem e link travados
+                link travado
               </span>
             </div>
             {report.tendencias.map((t, i) => (
@@ -299,6 +338,64 @@ export default function ReportEditor({
                     <X className="w-3.5 h-3.5" strokeWidth={2} /> remover
                   </button>
                 </div>
+
+                {/* IMAGEM — o analista pode subir uma imagem real pra substituir
+                    a da rede quando ela expira/quebra. */}
+                <div className="flex items-center gap-3">
+                  <div className="relative w-16 h-20 rounded-lg overflow-hidden bg-black border border-border shrink-0">
+                    {t.imagem_url ? (
+                      <SmartImage
+                        src={t.imagem_url}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <ImageIcon className="w-5 h-5 text-white/25" strokeWidth={1.5} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-start gap-1.5">
+                    <label
+                      className={`flex items-center gap-1.5 text-xs font-medium border border-border rounded-lg px-3 py-2 transition-colors ${
+                        uploadingIndex === i
+                          ? "text-muted"
+                          : "text-white hover:border-lime/40 cursor-pointer"
+                      }`}
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingIndex === i}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload(i, file);
+                          e.target.value = "";
+                        }}
+                      />
+                      {uploadingIndex === i ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2.5} />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          {t.imagem_url ? "Trocar imagem" : "Adicionar imagem"}
+                        </>
+                      )}
+                    </label>
+                    {t.imagem_url && uploadingIndex !== i && (
+                      <button
+                        onClick={() => mutate((d) => (d.tendencias[i].imagem_url = undefined))}
+                        className="text-muted hover:text-red-400 transition-colors text-[11px]"
+                      >
+                        remover imagem
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Título">
                     <input

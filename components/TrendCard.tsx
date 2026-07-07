@@ -1,6 +1,7 @@
 import { ArrowUpRight, Flame, Snowflake, Sparkles, Waves } from "lucide-react";
 import type { Tendencia } from "@/lib/types";
 import { PLATFORM_ICON } from "@/lib/platforms";
+import SmartImage from "./SmartImage";
 
 const STATUS_LABEL: Record<Tendencia["status"], string> = {
   em_alta: "EM ALTA",
@@ -83,11 +84,8 @@ export default function TrendCard({
         }
       >
         {hasImage && (
-          <img
+          <SmartImage
             src={tendencia.imagem_url}
-            alt=""
-            referrerPolicy="no-referrer"
-            loading="lazy"
             className={
               splitBento
                 ? "w-full h-full object-cover"

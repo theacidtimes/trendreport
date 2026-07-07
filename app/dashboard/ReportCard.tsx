@@ -12,6 +12,7 @@ import {
   Pencil,
   Sparkle,
 } from "lucide-react";
+import SmartImage from "@/components/SmartImage";
 
 const TILE_BG = ["bg-surface", "bg-purple", "bg-white"];
 
@@ -66,11 +67,8 @@ export default function ReportCard({
         }`}
       >
         {imagemUrl && (
-          <img
+          <SmartImage
             src={imagemUrl}
-            alt=""
-            referrerPolicy="no-referrer"
-            loading="lazy"
             className="absolute inset-0 w-full h-full object-cover object-top"
           />
         )}
