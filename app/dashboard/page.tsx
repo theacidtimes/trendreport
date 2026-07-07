@@ -2,7 +2,6 @@ import {
   ArrowUpRight,
   CalendarClock,
   Flame,
-  Plus,
   Radio,
   Sparkle,
   TrendingUp,
@@ -11,6 +10,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
 import ReportCard from "./ReportCard";
+import NewReportDialog from "./NewReportDialog";
 import { PLATFORM_ICON, PLATFORM_LABEL, type Plataforma } from "@/lib/platforms";
 import type { ReportRow } from "@/lib/types";
 
@@ -123,23 +123,8 @@ export default async function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             {/* LEFT: bento de insights derivados dos reports */}
             <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* CTA — entrada pra criar report (substitui a antiga bubble) */}
-              <Link
-                href="/dashboard/new"
-                className="group sm:col-span-2 rounded-3xl bg-purple p-6 md:p-7 flex items-center justify-between gap-4 transition-colors hover:bg-purple-mid"
-              >
-                <div className="flex flex-col gap-1">
-                  <span className="text-white/60 text-xs uppercase tracking-[0.14em] font-medium">
-                    Novo report
-                  </span>
-                  <h1 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
-                    O que está bombando agora?
-                  </h1>
-                </div>
-                <span className="shrink-0 w-12 h-12 rounded-full bg-lime text-black flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <Plus className="w-6 h-6" strokeWidth={2.5} />
-                </span>
-              </Link>
+              {/* CTA — abre o briefing num modal na própria página (sem trocar de rota) */}
+              <NewReportDialog />
 
               {/* Sinais monitorados — soma real de report.fontes */}
               <div className="rounded-3xl bg-surface border border-border p-6 flex flex-col justify-between gap-4 min-h-[9rem]">
