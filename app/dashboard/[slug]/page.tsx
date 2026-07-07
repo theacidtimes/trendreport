@@ -3,6 +3,7 @@ import { TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
 import ReportView from "@/components/ReportView";
+import { checkIsAdmin } from "@/lib/admin";
 import PublishedActions from "./PublishedActions";
 import ReportEditor from "./ReportEditor";
 import PendingReport from "./PendingReport";
@@ -19,6 +20,8 @@ export default async function DashboardReportPage({
     data: { user },
   } = await supabase.auth.getUser();
 
+  const isAdmin = await checkIsAdmin(supabase);
+
   const { data: row } = await supabase
     .from("reports")
     .select("report, created_at, briefing, status, error_message")
@@ -32,7 +35,7 @@ export default async function DashboardReportPage({
   if (row.status === "pending") {
     return (
       <div className="min-h-screen bg-bg">
-        <Sidebar userEmail={user?.email} />
+        <Sidebar userEmail={user?.email} isAdmin={isAdmin} />
         <main className="md:pl-64">
           <PendingReport slug={params.slug} />
         </main>
@@ -43,7 +46,7 @@ export default async function DashboardReportPage({
   if (row.status === "error") {
     return (
       <div className="min-h-screen bg-bg">
-        <Sidebar userEmail={user?.email} />
+        <Sidebar userEmail={user?.email} isAdmin={isAdmin} />
         <main className="md:pl-64">
           <div className="min-h-screen md:min-h-0 flex items-center justify-center px-4 py-10 md:py-24">
             <p className="text-red-400 text-sm max-w-md flex items-center gap-2 text-center">
@@ -70,7 +73,7 @@ export default async function DashboardReportPage({
   if (row.status === "ready") {
     return (
       <div className="min-h-screen bg-bg">
-        <Sidebar userEmail={user?.email} />
+        <Sidebar userEmail={user?.email} isAdmin={isAdmin} />
         <main className="md:pl-64">
           <ReportEditor
             slug={params.slug}

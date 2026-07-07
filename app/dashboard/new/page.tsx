@@ -7,15 +7,17 @@ import BriefingForm from "@/components/BriefingForm";
 
 export default function NewReportPage() {
   const [userEmail, setUserEmail] = useState<string | undefined>();
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email));
+    supabase.rpc("is_app_admin").then(({ data }) => setIsAdmin(data === true));
   }, []);
 
   return (
     <div className="min-h-screen bg-bg">
-      <Sidebar userEmail={userEmail} />
+      <Sidebar userEmail={userEmail} isAdmin={isAdmin} />
 
       <main className="md:pl-64">
         <div className="min-h-screen md:min-h-0 flex items-center justify-center px-4 py-10 md:py-24">

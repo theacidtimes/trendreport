@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, LogOut, Plus } from "lucide-react";
+import { LayoutGrid, LogOut, Plus, ScrollText } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
 
@@ -11,9 +11,20 @@ const NAV = [
   { href: "/dashboard", label: "Reports", icon: LayoutGrid },
 ];
 
-export default function Sidebar({ userEmail }: { userEmail?: string }) {
+const ADMIN_NAV = [
+  { href: "/dashboard/auditoria", label: "Auditoria", icon: ScrollText },
+];
+
+export default function Sidebar({
+  userEmail,
+  isAdmin = false,
+}: {
+  userEmail?: string;
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
+  const nav = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -34,7 +45,7 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
         </Link>
 
         <nav className="flex flex-col gap-1">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {nav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
               <Link
@@ -80,7 +91,7 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
           <Logo size="sm" />
         </Link>
         <div className="flex items-center gap-5">
-          {NAV.map(({ href, icon: Icon, label }) => (
+          {nav.map(({ href, icon: Icon, label }) => (
             <Link
               key={href}
               href={href}

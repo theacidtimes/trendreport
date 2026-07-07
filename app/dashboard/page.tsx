@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import NewReportDialog from "./NewReportDialog";
 import ReportsBrowser, { type ReportCardData } from "./ReportsBrowser";
 import { PLATFORM_ICON, PLATFORM_LABEL, type Plataforma } from "@/lib/platforms";
+import { checkIsAdmin } from "@/lib/admin";
 import type { ReportRow } from "@/lib/types";
 
 function HypeGauge({ value }: { value: number }) {
@@ -50,6 +51,8 @@ export default async function DashboardPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const isAdmin = await checkIsAdmin(supabase);
 
   const { data: reports } = await supabase
     .from("reports")
@@ -128,7 +131,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-bg">
-      <Sidebar userEmail={user?.email} />
+      <Sidebar userEmail={user?.email} isAdmin={isAdmin} />
 
       <main className="md:pl-64">
         <div className="max-w-6xl mx-auto px-6 py-10 md:py-14 flex flex-col gap-4">
