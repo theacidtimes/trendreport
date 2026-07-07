@@ -38,6 +38,25 @@ function topByEngagement<T>(items: T[], score: (item: T) => number, limit: numbe
   return [...items].sort((a, b) => score(b) - score(a)).slice(0, limit);
 }
 
+// O modelo é instruído a devolver só JSON, mas de vez em quando ainda embrulha
+// em cercas de markdown (```json) ou solta uma frase antes/depois. Combinado
+// com o prefill "{" no assistant, isto recorta o objeto JSON de forma robusta:
+// tira cercas e descarta qualquer prosa fora do primeiro { … último }.
+function extractJson(text: string): string {
+  let t = text.trim();
+
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fence) t = fence[1].trim();
+
+  const start = t.indexOf("{");
+  const end = t.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) {
+    t = t.slice(start, end + 1);
+  }
+
+  return t;
+}
+
 // Manda só o topo de cada fonte pra Claude — o payload bruto (54 posts de
 // Instagram, 40 de TikTok etc.) infla o contexto e é a principal causa da
 // geração levar minutos. `fontes`/o guard de zero-dado continuam usando o
@@ -103,7 +122,13 @@ export async function generateReport(
         },
         { type: "text", text: systemPromptDynamic() },
       ],
-      messages: [{ role: "user", content: userMessage }],
+      // Prefill "{" força a resposta a começar já dentro do JSON — corta pela
+      // raiz qualquer preâmbulo em prosa ou cerca de markdown que o modelo
+      // insistiria em colocar antes do objeto.
+      messages: [
+        { role: "user", content: userMessage },
+        { role: "assistant", content: "{" },
+      ],
     })
     .finalMessage();
 
@@ -112,10 +137,30 @@ export async function generateReport(
     return { error: "Resposta vazia do modelo." };
   }
 
+  // Se a geração bateu no teto de tokens, o JSON quase certamente saiu cortado
+  // no meio — melhor avisar com clareza do que estourar um parse genérico.
+  if (response.stop_reason === "max_tokens") {
+    console.error("Geração truncada (stop_reason=max_tokens): JSON provavelmente incompleto.");
+    return {
+      error:
+        "O relatório ficou grande demais e foi cortado antes de terminar. Tente gerar de novo.",
+    };
+  }
+
+  // O prefill "{" não volta no conteúdo retornado — reconstruímos o objeto e
+  // limpamos qualquer resíduo antes de parsear.
+  const rawJson = extractJson("{" + textBlock.text);
+
   let report: TrendReport;
   try {
-    report = JSON.parse(textBlock.text) as TrendReport;
-  } catch {
+    report = JSON.parse(rawJson) as TrendReport;
+  } catch (err) {
+    console.error(
+      "Falha ao interpretar JSON do modelo:",
+      err instanceof Error ? err.message : String(err),
+      "\n--- Início da resposta bruta ---\n",
+      rawJson.slice(0, 800)
+    );
     return { error: "Falha ao interpretar JSON retornado pelo modelo." };
   }
 
