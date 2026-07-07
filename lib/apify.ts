@@ -204,6 +204,24 @@ export async function fetchNews(keywords: string[]): Promise<NewsItem[]> {
   return merged;
 }
 
+// Reddit é nossa fonte "under the radar" pra sinal fraco: em vez de busca
+// global cega por palavra-chave (pouco sinal útil), monitoramos megacomunidades
+// BR fixas, cada uma cobrindo um território de comportamento diferente —
+// lifestyle real, desabafos, conexão/home office, cultura pop/streaming e
+// perrengues de viagem. O insight de verdade mora nos comentários mais votados.
+const REDDIT_SUBREDDITS = [
+  "eu_nvr",
+  "conversas",
+  "InternetBrasil",
+  "gamesEcultura",
+  "viagens",
+];
+
+interface RawRedditComment {
+  body?: string;
+  upVotes?: number;
+}
+
 interface RawRedditItem {
   dataType?: string;
   title?: string;
@@ -212,30 +230,49 @@ interface RawRedditItem {
   permalink?: string;
   upVotes?: number;
   numberOfComments?: number;
+  comments?: RawRedditComment[];
 }
 
-export async function fetchReddit(keywords: string[]): Promise<RedditItem[]> {
+export async function fetchReddit(): Promise<RedditItem[]> {
   try {
     const raw = await runActor<RawRedditItem>("trudax~reddit-scraper-lite", {
-      searches: keywords,
-      searchPosts: true,
-      sort: "top",
-      time: "week",
+      startUrls: REDDIT_SUBREDDITS.map((sub) => ({
+        url: `https://www.reddit.com/r/${sub}/`,
+      })),
+      sort: "hot",
+      time: "day",
       includeMediaLinks: true,
-      skipComments: true,
+      skipComments: false,
       maxItems: 15,
       maxPostCount: 15,
     });
 
     return raw
       .filter((item) => item.dataType === "post" && item.title)
-      .map((item) => ({
-        title: item.title,
-        communityName: item.communityName,
-        url: item.url ?? item.permalink,
-        upVotes: item.upVotes,
-        numberOfComments: item.numberOfComments,
-      }));
+      .map((item) => {
+        // Pega os 4 comentários mais votados da thread, limpa o texto e "mastiga"
+        // a discussão dentro do próprio title — assim o Claude recebe o debate
+        // real sem precisarmos mexer na estrutura de tipos do RedditItem.
+        const topComentarios = (item.comments ?? [])
+          .slice()
+          .sort((a, b) => (b.upVotes ?? 0) - (a.upVotes ?? 0))
+          .slice(0, 4)
+          .map((c) => (c.body ?? "").replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .join(" | ");
+
+        const title = topComentarios
+          ? `${item.title} [Fórum/Discussão Real: ${topComentarios}]`
+          : item.title;
+
+        return {
+          title,
+          communityName: item.communityName,
+          url: item.url ?? item.permalink,
+          upVotes: item.upVotes,
+          numberOfComments: item.numberOfComments,
+        };
+      });
   } catch {
     return [];
   }
@@ -266,7 +303,7 @@ export async function collectAll(
     track("tiktok", fetchTikTok(keywords), onProgress),
     track("twitter", fetchTwitter(keywords), onProgress),
     track("news", fetchNews(keywords), onProgress),
-    track("reddit", fetchReddit(keywords), onProgress),
+    track("reddit", fetchReddit(), onProgress),
   ]);
 
   return { instagram, tiktok, twitter, news, reddit };
