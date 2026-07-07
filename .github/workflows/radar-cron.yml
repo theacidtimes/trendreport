@@ -1,0 +1,25 @@
+name: Trend Radar — Varredura Contínua
+
+on:
+  schedule:
+    # 2x/dia, todos os dias — horários em UTC (GitHub Actions roda em UTC).
+    # 11:00 UTC = 08:00 BRT  ·  23:00 UTC = 20:00 BRT
+    - cron: '0 11,23 * * *'
+  workflow_dispatch:
+
+jobs:
+  run-radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Trigger Radar API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.APP_URL }}/api/radar/run" \
+            -H "Authorization: Bearer ${{ secrets.RADAR_CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          echo "Status: $response"
+          if [ "$response" != "200" ]; then
+            echo "Falha — status $response"
+            exit 1
+          fi

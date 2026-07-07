@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, LogOut, Plus, ScrollText } from "lucide-react";
+import { LayoutGrid, LogOut, Plus, Radar, ScrollText } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
 
 const NAV = [
   { href: "/dashboard/new", label: "Novo report", icon: Plus },
   { href: "/dashboard", label: "Reports", icon: LayoutGrid },
+  { href: "/dashboard/radar", label: "Radar", icon: Radar },
 ];
 
 const ADMIN_NAV = [

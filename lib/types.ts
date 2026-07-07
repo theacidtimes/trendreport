@@ -131,3 +131,61 @@ export interface RawData {
   news: NewsItem[];
   reddit: RedditItem[];
 }
+
+// ─── RADAR MODULE ──────────────────────────────────────────
+
+export interface MarcaKnowledge {
+  marca: string
+  produto: string
+  tom: string
+  perfil_comportamental: string
+  universos_culturais: string[]
+  o_que_evitar: string[]
+  ambicao_de_marca: string
+}
+
+export interface Marca {
+  id: string
+  nome: string
+  yaml_conhecimento: MarcaKnowledge
+  status_varredura: boolean
+  intervalo_horas: number
+  ultima_varredura: string | null
+  created_at: string
+}
+
+export interface TrendDrop {
+  id: string
+  marca_id: string
+  insight_titulo: string
+  categoria_funil: 'growth' | 'base'
+  status_hype: 'em_alta' | 'subindo' | 'estabilizando' | 'esfriando'
+  indice_hype: number
+  descricao_fato: string
+  gancho_produto: string
+  insight_criativo_cccaramelo: string
+  links_fontes: string[]
+  score_densidade: number
+  score_transbordo: number
+  score_velocidade: number
+  created_at: string
+  marca?: Marca
+}
+
+export interface RawDataPoint {
+  fonte: 'reddit' | 'news' | 'twitter'
+  titulo: string
+  url: string
+  snippet: string
+  comentarios?: number
+  upvotes?: number
+  coletado_em: string
+}
+
+export interface HypeScore {
+  total: number
+  densidade: number
+  transbordo: number
+  velocidade: number
+  status: TrendDrop['status_hype']
+}
