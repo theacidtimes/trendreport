@@ -71,6 +71,10 @@ const OUTPUT_SCHEMA = `
 Responda SOMENTE com array JSON válido. Sem markdown. Sem texto fora do JSON.
 Máximo 4 drops. Mínimo 1. Só drops com fit genuíno.
 
+ESTILO: escreva como gente, não como IA. Quase nada de travessão/hífen ("—"): ele
+denuncia texto de máquina. Prefira ponto, vírgula ou dois-pontos. No máximo um "—" por
+drop, e só se for realmente melhor que a alternativa.
+
 [
   {
     "insight_titulo": string,
@@ -102,7 +106,7 @@ VARIE o ângulo entre os drops — não resolva tudo na mesma tese. Em especial,
 sempre em "não é sobre velocidade/Mbps, é sobre experiência/o que as pessoas fazem com a
 conexão": isso é leitura de categoria, virou lugar-comum, e não é ponto de vista próprio.
 BOM: "O que chama atenção não é assistirem juntos, é sincronizarem o 'ao vivo' pra não
-furar o grupo — a conexão virou instrumento de pertencimento em tempo real. Pra Vivo, o
+furar o grupo. A conexão virou instrumento de pertencimento em tempo real. Pra Vivo, o
 recorte é esse: o que está em jogo é sincronia social, não um número de plano."
 RUIM (copy): "Seu Wi-Fi 7 não sabe o que é lag."
 RUIM (tese repetida, sem ângulo): "não é sobre velocidade, é sobre o que as pessoas

@@ -112,12 +112,28 @@ export function mapItems(fonte: Fonte, items: any[]): RawDataPoint[] {
   return mapTwitter(items)
 }
 
-// Escopo BR curado. O actor IGNORA qualquer parâmetro de subreddit (não existe no
-// schema dele), então a busca varre o Reddit inteiro — o recorte BR é aplicado
-// aqui, filtrando pela comunidade. Sem isso entram r/Nicaragua, r/PuertoRico etc.
+// O actor IGNORA qualquer parâmetro de subreddit (não existe no schema dele), então a
+// busca varre o Reddit inteiro. Filtrar por whitelist de subreddit era estreito demais:
+// derrubava r/brasil, r/desabafos aleatórios e — pior — deixava passar r/Vivo, que é
+// EM INGLÊS sobre o CELULAR Vivo (marca errada), não a Vivo telecom. A âncora certa é o
+// IDIOMA: conteúdo em português é BR e é da conversa que interessa, venha do sub que vier.
+// Isso também é marca-agnóstico (serve Conta Simples etc. sem manter lista por cliente).
 const SUBREDDITS_BR = new Set(
-  ['eu_nvr', 'conversas', 'internetbrasil', 'brasil', 'desabafos'].map(s => s.toLowerCase())
+  ['eu_nvr', 'conversas', 'internetbrasil', 'brasil', 'brazil', 'desabafos', 'brasilivre', 'brdev', 'investimentos'].map(s => s.toLowerCase())
 )
+
+// Marcadores de português: palavras-função frequentes + diacríticos. Some as ocorrências;
+// 2+ já separa PT de EN/ES com folga em texto curto de Reddit. Barato e sem dependência.
+const PT_MARKERS = /\b(que|n[ãa]o|com|para|uma?|isso|voc[êe]s?|est[áa]|s[ãa]o|mais|muito|por|ent[ãa]o|porque|tamb[ée]m|mas|meu|minha|pra|vc|fibra|plano|empresa|conta)\b/gi
+const PT_DIACRITICS = /[ãõçáéíóúâêôà]/gi
+function isPortuguese(text: string): boolean {
+  const t = String(text || '')
+  if (t.length < 8) return false
+  const hits = (t.match(PT_MARKERS) || []).length + (t.match(PT_DIACRITICS) || []).length
+  return hits >= 2
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const isBRSub = (c: any) => SUBREDDITS_BR.has(String(c || '').replace(/^r\//i, '').toLowerCase())
 
 // id do post na URL (compartilhado entre post e seus comentários):
 // .../comments/{postId}/... e .../comments/{postId}/comment/{commentId}/
@@ -132,12 +148,14 @@ function mapReddit(items: any[]): RawDataPoint[] {
   // não tem título, então o filtro antigo (titulo && url) descartava todos — o agente
   // nunca lia a conversa. Aqui os comentários são agrupados no post pai e entram no
   // snippet, que é justamente onde está o sinal cultural (venda casada, ANATEL, etc.).
+  // Um item entra se é de sub BR conhecido OU se o texto é português. A âncora de idioma
+  // é o que faz o Reddit virar insumo principal sem manter whitelist por marca.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isBR = (c: any) => SUBREDDITS_BR.has(String(c || '').replace(/^r\//i, '').toLowerCase())
+  const posts = items.filter((i: any) =>
+    i.dataType === 'post' && (isBRSub(i.communityName) || isPortuguese(`${i.title || ''} ${i.body || ''}`)))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const posts = items.filter((i: any) => i.dataType === 'post' && isBR(i.communityName))
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const comments = items.filter((i: any) => i.dataType === 'comment' && isBR(i.communityName))
+  const comments = items.filter((i: any) =>
+    i.dataType === 'comment' && (isBRSub(i.communityName) || isPortuguese(i.body || '')))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const commentsByPost = new Map<string, any[]>()
