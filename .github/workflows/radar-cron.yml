@@ -2,10 +2,13 @@ name: Trend Radar — Varredura Contínua
 
 on:
   schedule:
-    # De hora em hora. O endpoint só roda as marcas que "venceram" o próprio
+    # A cada 15min. O endpoint só DISPARA as marcas que "venceram" o próprio
     # intervalo_horas (cadência por cliente) — então esta frequência é só o
-    # tique do relógio; quem decide se roda é o intervalo de cada marca.
-    - cron: '0 * * * *'
+    # tique do relógio; quem decide se dispara é o intervalo de cada marca.
+    # Ticks curtos importam porque a coleta agora é assíncrona: cada tick também
+    # FINALIZA os scrapes que ficaram prontos desde o anterior, então */15
+    # reduz a latência entre "run da Apify terminou" e "drops salvos".
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:

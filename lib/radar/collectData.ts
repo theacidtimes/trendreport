@@ -3,43 +3,113 @@ import { RawDataPoint } from '../types'
 const APIFY_TOKEN = process.env.APIFY_TOKEN!
 const APIFY_BASE = 'https://api.apify.com/v2'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function runActor(actorId: string, input: object): Promise<any[]> {
-  if (!APIFY_TOKEN) {
-    console.error(`[APIFY] APIFY_TOKEN ausente no ambiente — ${actorId} não roda`)
-    return []
+export type Fonte = 'reddit' | 'news' | 'twitter'
+
+// A REST da Apify exige o ID no formato username~actor (til), não username/actor.
+// A barra quebra o path e a API responde 404 "no API endpoint at this URL".
+function actorPath(actorId: string): string {
+  return actorId.replace('/', '~')
+}
+
+// Actor + input por fonte. A raspagem de comentários do Reddit e o max_pages do
+// News fazem os runs passarem de 60s, então NÃO dá pra esperar inline — quem dispara
+// (startScrape) não espera; o resultado é buscado num tick posterior via getRunStatus
+// + fetchDataset. Ver runRadar.ts.
+function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string; input: object } {
+  if (fonte === 'reddit') {
+    const query = keywords.slice(0, 3).join(' OR ')
+    // includeMediaLinks é o que traz upVotes/numberOfComments — sem ele os contadores
+    // não vêm e a densidade fica sempre zero. sort=relevance + time=month evita o run
+    // vazio que hot+day dava pra termos de nicho.
+    return {
+      actorId: 'trudax/reddit-scraper-lite',
+      input: {
+        searches: [query],
+        maxItems: 25,
+        maxPostCount: 12,
+        skipComments: false,
+        maxComments: 6,
+        includeMediaLinks: true,
+        sort: 'relevance',
+        time: 'month'
+      }
+    }
   }
+  if (fonte === 'news') {
+    const query = keywords.slice(0, 3).join(' ')
+    return {
+      actorId: 'johnvc/GoogleNewsAPI',
+      input: {
+        q: `${query} site:.com.br OR site:.uol.com.br OR site:.g1.globo.com`,
+        gl: 'br',
+        hl: 'pt-br',
+        max_pages: 2
+      }
+    }
+  }
+  return { actorId: 'data-slayer/twitter-trends-by-location', input: { country: 'Brazil' } }
+}
 
-  // A REST da Apify exige o ID no formato username~actor (til), não username/actor.
-  // A barra quebra o path e a API responde 404 "no API endpoint at this URL".
-  const actorPath = actorId.replace('/', '~')
-
-  const runRes = await fetch(
-    `${APIFY_BASE}/acts/${actorPath}/runs?token=${APIFY_TOKEN}&waitForFinish=60`,
+// Dispara o run e NÃO espera (waitForFinish=0). Devolve o id do run pra ser pollado
+// depois. null = falhou ao disparar (sem token, HTTP erro, resposta sem id).
+export async function startScrape(fonte: Fonte, keywords: string[]): Promise<string | null> {
+  if (!APIFY_TOKEN) {
+    console.error(`[APIFY] APIFY_TOKEN ausente — ${fonte} não dispara`)
+    return null
+  }
+  const { actorId, input } = scrapeSpec(fonte, keywords)
+  const res = await fetch(
+    `${APIFY_BASE}/acts/${actorPath(actorId)}/runs?token=${APIFY_TOKEN}&waitForFinish=0`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input)
     }
   )
-  if (!runRes.ok) {
-    console.error(`[APIFY] ${actorId} falhou ao iniciar: HTTP ${runRes.status} — ${await runRes.text()}`)
-    return []
+  if (!res.ok) {
+    console.error(`[APIFY] ${actorId} falhou ao disparar: HTTP ${res.status} — ${await res.text()}`)
+    return null
   }
-
-  const run = await runRes.json()
-  if (!run?.data?.defaultDatasetId) {
-    console.error(`[APIFY] ${actorId} sem dataset (status run: ${run?.data?.status ?? 'desconhecido'})`)
-    return []
+  const run = await res.json()
+  const id = run?.data?.id
+  if (!id) {
+    console.error(`[APIFY] ${actorId} sem run id na resposta`)
+    return null
   }
+  return id
+}
 
+// Estados terminais da Apify: SUCCEEDED (ok) e o resto (FAILED/ABORTED/TIMED-OUT).
+// READY/RUNNING seguem pendentes.
+export const TERMINAL_FAIL = new Set(['FAILED', 'ABORTED', 'TIMED-OUT', 'ABORTING', 'TIMING-OUT'])
+
+export type RunStatus = { status: string; datasetId: string | null }
+
+export async function getRunStatus(runId: string): Promise<RunStatus> {
+  const res = await fetch(`${APIFY_BASE}/actor-runs/${runId}?token=${APIFY_TOKEN}`)
+  if (!res.ok) return { status: 'FAILED', datasetId: null }
+  const run = await res.json()
+  return {
+    status: run?.data?.status ?? 'FAILED',
+    datasetId: run?.data?.defaultDatasetId ?? null
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function fetchDataset(datasetId: string): Promise<any[]> {
   const items = await fetch(
-    `${APIFY_BASE}/datasets/${run.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=30`
+    `${APIFY_BASE}/datasets/${datasetId}/items?token=${APIFY_TOKEN}&limit=50`
   ).then(r => r.json())
+  return Array.isArray(items) ? items : []
+}
 
-  const arr = Array.isArray(items) ? items : []
-  console.log(`[APIFY] ${actorId}: ${arr.length} itens`)
-  return arr
+// Converte itens crus do dataset (por fonte) em RawDataPoint[]. Puro — roda no tick
+// que finaliza o batch, sobre o raw guardado em radar_scrape_jobs.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function mapItems(fonte: Fonte, items: any[]): RawDataPoint[] {
+  if (fonte === 'reddit') return mapReddit(items)
+  if (fonte === 'news') return mapNews(items)
+  return mapTwitter(items)
 }
 
 // Escopo BR curado. O actor IGNORA qualquer parâmetro de subreddit (não existe no
@@ -56,24 +126,8 @@ function postIdFromUrl(url: string): string | null {
   return m ? m[1] : null
 }
 
-export async function collectReddit(keywords: string[]): Promise<RawDataPoint[]> {
-  const query = keywords.slice(0, 3).join(' OR ')
-  // includeMediaLinks é o que traz upVotes/numberOfComments — sem ele os contadores
-  // não vêm e a densidade fica sempre zero. sort=relevance + time=month evita o run
-  // vazio que hot+day dava pra termos de nicho. Limites enxutos porque a raspagem de
-  // comentários é lenta (proxy RESIDENTIAL, único disponível na conta) e o
-  // waitForFinish=60 do runActor pega dataset parcial se o run passar disso.
-  const items = await runActor('trudax/reddit-scraper-lite', {
-    searches: [query],
-    maxItems: 25,
-    maxPostCount: 12,
-    skipComments: false,
-    maxComments: 6,
-    includeMediaLinks: true,
-    sort: 'relevance',
-    time: 'month'
-  })
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapReddit(items: any[]): RawDataPoint[] {
   // O actor devolve posts e comentários como itens SEPARADOS (dataType). Comentário
   // não tem título, então o filtro antigo (titulo && url) descartava todos — o agente
   // nunca lia a conversa. Aqui os comentários são agrupados no post pai e entram no
@@ -119,14 +173,8 @@ export async function collectReddit(keywords: string[]): Promise<RawDataPoint[]>
   }).filter(item => item.titulo && item.url)
 }
 
-export async function collectNews(keywords: string[]): Promise<RawDataPoint[]> {
-  const query = keywords.slice(0, 3).join(' ')
-  const items = await runActor('johnvc/GoogleNewsAPI', {
-    q: `${query} site:.com.br OR site:.uol.com.br OR site:.g1.globo.com`,
-    gl: 'br',
-    hl: 'pt-br',
-    max_pages: 2
-  })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapNews(items: any[]): RawDataPoint[] {
   // Cada item do dataset é uma PÁGINA, não um artigo: os artigos vêm aninhados
   // em news_results[]. Ler item.title/link no topo devolve undefined e o filtro
   // descarta tudo (era por isso que News chegava zerado no cérebro).
@@ -141,10 +189,8 @@ export async function collectNews(keywords: string[]): Promise<RawDataPoint[]> {
   })).filter(item => item.titulo && item.url)
 }
 
-export async function collectTwitterTrends(): Promise<RawDataPoint[]> {
-  const items = await runActor('data-slayer/twitter-trends-by-location', {
-    country: 'Brazil'
-  })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapTwitter(items: any[]): RawDataPoint[] {
   return items.map(item => ({
     fonte: 'twitter' as const,
     titulo: item.name || item.trend || '',
@@ -152,17 +198,4 @@ export async function collectTwitterTrends(): Promise<RawDataPoint[]> {
     snippet: `Volume: ${item.tweetVolume || 'n/d'}`,
     coletado_em: new Date().toISOString()
   })).filter(item => item.titulo)
-}
-
-export async function collectAllData(keywords: string[]): Promise<RawDataPoint[]> {
-  const [reddit, news, twitter] = await Promise.allSettled([
-    collectReddit(keywords),
-    collectNews(keywords),
-    collectTwitterTrends()
-  ])
-  return [
-    ...(reddit.status === 'fulfilled' ? reddit.value : []),
-    ...(news.status === 'fulfilled' ? news.value : []),
-    ...(twitter.status === 'fulfilled' ? twitter.value : [])
-  ]
 }

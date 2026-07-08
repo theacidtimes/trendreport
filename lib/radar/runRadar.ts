@@ -1,5 +1,13 @@
+import { randomUUID } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
-import { collectAllData } from './collectData'
+import {
+  Fonte,
+  startScrape,
+  getRunStatus,
+  fetchDataset,
+  mapItems,
+  TERMINAL_FAIL
+} from './collectData'
 import { scoreHype, scoreForDrop } from './scoreHype'
 import { buildRadarPrompt } from './radarPrompt'
 import { computeStatus } from './momentum'
@@ -8,6 +16,11 @@ import { Marca, RawDataPoint } from '../types'
 import Anthropic from '@anthropic-ai/sdk'
 
 const MODEL = 'claude-sonnet-4-6'
+const FONTES: Fonte[] = ['reddit', 'news', 'twitter']
+// Run pendura preso derruba o batch inteiro (nunca fica só-terminal). A Apify já
+// impõe timeout próprio, mas um blip na consulta de status pode deixar a linha em
+// 'running' — passado esse teto, tratamos como falha pra não travar a fila.
+const JOB_STALE_MS = 30 * 60 * 1000
 
 function getSupabase() {
   return createClient(
@@ -20,6 +33,10 @@ function getAnthropic() {
 }
 
 type SupabaseLike = ReturnType<typeof getSupabase>
+type AnthropicLike = ReturnType<typeof getAnthropic>
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ScrapeJob = any
 
 // Fecha o run: registra volume/uso em radar_runs e marca a última varredura.
 // Chamado em TODOS os caminhos de saída para o ledger de uso ficar completo.
@@ -47,19 +64,127 @@ async function closeRun(
     .eq('id', marcaId)
 }
 
-export async function runRadarForMarca(marca: Marca): Promise<void> {
-  console.log(`[RADAR] Iniciando: ${marca.nome}`)
-  const supabase = getSupabase()
-  const anthropic = getAnthropic()
+function keywordsFor(marca: Marca): string[] {
   const k = marca.yaml_conhecimento
   // termos_busca são as palavras-chave curadas pro search. Fallback pra marca+
   // produto só cobre registros antigos ainda sem termos — o DNA editorial
   // (universos_culturais) NÃO entra aqui: como query cru ele retorna zero.
-  const keywords = k.termos_busca?.length
+  return k.termos_busca?.length
     ? k.termos_busca
     : [k.marca, k.produto].filter(Boolean)
+}
 
-  const rawData = await collectAllData(keywords)
+// DISPARO: começa os 3 scrapes da marca (sem esperar), grava uma linha de job por
+// fonte e marca a varredura como feita. O ultima_varredura sai daqui pra o isDue não
+// re-disparar a mesma marca antes do resultado voltar num tick seguinte.
+async function kickoffMarca(supabase: SupabaseLike, marca: Marca, batchId: string): Promise<void> {
+  const keywords = keywordsFor(marca)
+  const runIds = await Promise.all(FONTES.map(f => startScrape(f, keywords)))
+  const rows = FONTES.map((fonte, i) => ({
+    batch_id: batchId,
+    marca_id: marca.id,
+    fonte,
+    apify_run_id: runIds[i],
+    status: runIds[i] ? 'running' : 'failed'
+  }))
+  await supabase.from('radar_scrape_jobs').insert(rows)
+  await supabase.from('marcas')
+    .update({ ultima_varredura: new Date().toISOString() })
+    .eq('id', marca.id)
+  console.log(`[RADAR] Disparado: ${marca.nome} (${rows.filter(r => r.status === 'running').length}/3 fontes)`)
+}
+
+// Poll dos jobs 'running': SUCCEEDED vira 'done' com o dataset guardado; terminal de
+// falha (ou run velho demais) vira 'failed'. Muta os jobs em memória pra o
+// agrupamento seguinte enxergar o estado atualizado sem re-consultar.
+async function pollRunningJobs(supabase: SupabaseLike, jobs: ScrapeJob[]): Promise<void> {
+  const now = Date.now()
+  for (const job of jobs) {
+    if (job.status !== 'running') continue
+    if (!job.apify_run_id) {
+      await markJob(supabase, job, 'failed')
+      continue
+    }
+    const { status, datasetId } = await getRunStatus(job.apify_run_id)
+    if (status === 'SUCCEEDED' && datasetId) {
+      const raw = await fetchDataset(datasetId)
+      job.raw = raw
+      await supabase.from('radar_scrape_jobs')
+        .update({ status: 'done', dataset_id: datasetId, raw, updated_at: new Date().toISOString() })
+        .eq('id', job.id)
+      job.status = 'done'
+    } else if (TERMINAL_FAIL.has(status)) {
+      await markJob(supabase, job, 'failed')
+    } else if (now - new Date(job.created_at).getTime() > JOB_STALE_MS) {
+      console.error(`[RADAR] Job ${job.id} (${job.fonte}) travado em ${status}, marcando failed`)
+      await markJob(supabase, job, 'failed')
+    }
+  }
+}
+
+async function markJob(supabase: SupabaseLike, job: ScrapeJob, status: string): Promise<void> {
+  job.status = status
+  await supabase.from('radar_scrape_jobs')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', job.id)
+}
+
+// FINALIZAÇÃO: pega todo job ainda não processado, atualiza os 'running', e roda a
+// pipeline por marca assim que TODOS os jobs do batch dela ficam terminais. Batches
+// com alguma fonte ainda 'running' esperam o próximo tick.
+async function finalize(supabase: SupabaseLike, anthropic: AnthropicLike): Promise<void> {
+  const { data: jobs } = await supabase
+    .from('radar_scrape_jobs')
+    .select('*')
+    .neq('status', 'processed')
+
+  if (!jobs?.length) return
+
+  await pollRunningJobs(supabase, jobs as ScrapeJob[])
+
+  // Agrupa por batch+marca: cada marca aparece uma vez por batch, com 3 jobs.
+  const groups = new Map<string, ScrapeJob[]>()
+  for (const job of jobs as ScrapeJob[]) {
+    const key = `${job.batch_id}|${job.marca_id}`
+    const arr = groups.get(key)
+    if (arr) arr.push(job)
+    else groups.set(key, [job])
+  }
+
+  for (const group of Array.from(groups.values())) {
+    if (group.some((j: ScrapeJob) => j.status === 'running')) continue // batch ainda coletando
+
+    const marcaId = group[0].marca_id
+    const { data: marca } = await supabase.from('marcas').select('*').eq('id', marcaId).single()
+    if (marca) {
+      try {
+        await processMarcaBatch(supabase, anthropic, marca as Marca, group)
+      } catch (e) {
+        console.error(`[RADAR] Erro ao processar batch de ${(marca as Marca).nome}:`, e)
+        await closeRun(supabase, marcaId, { status: 'erro' })
+      }
+    }
+    // Processado (ou marca sumiu): tira os jobs da fila.
+    await supabase.from('radar_scrape_jobs')
+      .update({ status: 'processed', updated_at: new Date().toISOString() })
+      .in('id', group.map((j: ScrapeJob) => j.id))
+  }
+}
+
+// PIPELINE: reconstrói rawData a partir dos datasets guardados e roda score →
+// memória → LLM → drops, igual ao fluxo inline antigo, só que sobre dados já
+// coletados de forma assíncrona.
+async function processMarcaBatch(
+  supabase: SupabaseLike,
+  anthropic: AnthropicLike,
+  marca: Marca,
+  jobs: ScrapeJob[]
+): Promise<void> {
+  console.log(`[RADAR] Finalizando: ${marca.nome}`)
+  const rawData: RawDataPoint[] = jobs
+    .filter(j => j.status === 'done')
+    .flatMap(j => mapItems(j.fonte as Fonte, j.raw || []))
+
   if (rawData.length < 3) {
     console.log(`[RADAR] Dados insuficientes para ${marca.nome}`)
     await closeRun(supabase, marca.id, { sinais_captados: rawData.length, status: 'sem_dados' })
@@ -97,6 +222,7 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
     return
   }
 
+  const k = marca.yaml_conhecimento
   const { system, user } = buildRadarPrompt(k, freshData, retrieved)
   const response = await anthropic.messages.create({
     model: MODEL,
@@ -168,15 +294,24 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
 
 // A marca está "vencida" quando já passou o intervalo_horas dela desde a última
 // varredura. Marca nunca varrida entra na hora. É isso que faz cada cliente ter
-// a própria cadência: o cron bate de hora em hora, mas só roda quem venceu.
+// a própria cadência: o cron bate de tempos em tempos, mas só dispara quem venceu.
 function isDue(marca: Marca, now: number): boolean {
   if (!marca.ultima_varredura) return true
   const intervaloMs = (marca.intervalo_horas || 6) * 3_600_000
   return now - new Date(marca.ultima_varredura).getTime() >= intervaloMs
 }
 
+// Cada tick faz duas coisas: FINALIZA batches pendentes de ticks anteriores (o
+// resultado da Apify que já ficou pronto) e DISPARA novos scrapes pras marcas
+// vencidas. Assim nenhum passo espera run lento inline — o cron cobre a latência.
 export async function runAllActiveRadars(): Promise<void> {
   const supabase = getSupabase()
+  const anthropic = getAnthropic()
+
+  // 1. Finaliza o que já voltou.
+  await finalize(supabase, anthropic)
+
+  // 2. Dispara as vencidas.
   const { data: marcas, error } = await supabase
     .from('marcas').select('*').eq('status_varredura', true)
 
@@ -192,13 +327,13 @@ export async function runAllActiveRadars(): Promise<void> {
     return
   }
 
+  const batchId = randomUUID()
   for (const marca of due) {
     try {
-      await runRadarForMarca(marca)
-      await new Promise(r => setTimeout(r, 5000))
+      await kickoffMarca(supabase, marca, batchId)
     } catch (e) {
-      console.error(`[RADAR] Erro em ${marca.nome}:`, e)
+      console.error(`[RADAR] Erro ao disparar ${marca.nome}:`, e)
     }
   }
-  console.log(`[RADAR] Varredura completa (${due.length}/${marcas.length})`)
+  console.log(`[RADAR] Disparo completo (${due.length}/${marcas.length})`)
 }
