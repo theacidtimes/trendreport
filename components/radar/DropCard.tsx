@@ -21,6 +21,11 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
     <div style={{ background: '#0F0015', border: '0.5px solid #1E0029', borderRadius: 16, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {drop.marca && (
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', padding: '3px 10px', borderRadius: 20, background: '#241033', color: '#fff', border: '0.5px solid #3A1A52' }}>
+            {drop.marca.nome}
+          </span>
+        )}
         <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.08em', padding: '3px 10px', borderRadius: 20, background: s.bg, color: s.color, border: 'border' in s ? s.border : undefined }}>
           {s.label}
         </span>
@@ -33,8 +38,8 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
       <p style={{ fontSize: 14, color: '#9B8FAA', margin: 0, lineHeight: 1.5 }}>{drop.descricao_fato}</p>
 
       <div style={{ borderLeft: '2px solid #81D300', paddingLeft: 12, lineHeight: 1.5 }}>
-        <span style={{ fontSize: 10, letterSpacing: '0.08em', color: '#81D300', display: 'block', marginBottom: 4 }}>CONEXÃO COM PRODUTO</span>
-        <span style={{ fontSize: 14, color: '#C9BCD8' }}>{drop.gancho_produto}</span>
+        <span style={{ fontSize: 10, letterSpacing: '0.08em', color: '#81D300', display: 'block', marginBottom: 4 }}>INSIGHT</span>
+        <span style={{ fontSize: 14, color: '#fff' }}>{drop.gancho_produto}</span>
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
@@ -66,7 +71,6 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
 
       <div style={{ fontSize: 11, color: '#333' }}>
         {new Date(drop.created_at).toLocaleString('pt-BR')}
-        {drop.marca && ` · ${drop.marca.nome}`}
       </div>
     </div>
   )

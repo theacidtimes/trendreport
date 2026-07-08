@@ -59,7 +59,7 @@ export default async function RadarPage() {
             <h2 className="text-muted text-xs uppercase tracking-[0.14em] font-medium">
               Drops recentes
             </h2>
-            <DropsPanel />
+            <DropsPanel marcas={marcas} />
           </section>
         </div>
       </main>
