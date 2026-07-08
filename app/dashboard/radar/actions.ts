@@ -11,6 +11,8 @@ export async function toggleMarca(id: string, status: boolean): Promise<void> {
     .update({ status_varredura: status })
     .eq("id", id);
   if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/radar");
+  revalidatePath("/dashboard/admin/clientes");
 }
 
 export async function createMarca(data: {

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
 import { checkIsAdmin } from "@/lib/admin";
 import DropsPanel from "@/components/radar/DropsPanel";
-import MarcasManager from "./MarcasManager";
+import RadarStatus from "@/components/radar/RadarStatus";
 import type { Marca } from "@/lib/types";
 
 export default async function RadarPage() {
@@ -50,9 +50,9 @@ export default async function RadarPage() {
 
           <section className="flex flex-col gap-3">
             <h2 className="text-muted text-xs uppercase tracking-[0.14em] font-medium">
-              Marcas monitoradas
+              Status da captura
             </h2>
-            <MarcasManager marcas={marcas} />
+            <RadarStatus marcas={marcas} />
           </section>
 
           <section className="flex flex-col gap-3">

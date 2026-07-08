@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getClienteSummary } from "@/lib/radar/metrics";
 import type { Marca } from "@/lib/types";
 import MarcaDialog from "./MarcaDialog";
+import ClienteToggle from "@/components/radar/ClienteToggle";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "nunca";
@@ -59,7 +60,16 @@ export default async function ClientesPage() {
       ) : (
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {withSummary.map(({ marca, summary }) => (
-            <li key={marca.id}>
+            <li key={marca.id} className="relative">
+              <div
+                className="absolute bottom-4 right-5 z-10 flex items-center gap-2"
+                title={marca.status_varredura ? "Captura ligada" : "Captura desligada"}
+              >
+                <span className="text-muted text-[10px] uppercase tracking-wide">
+                  {marca.status_varredura ? "on" : "off"}
+                </span>
+                <ClienteToggle marca={marca} />
+              </div>
               <Link
                 href={`/dashboard/admin/clientes/${marca.id}`}
                 className="group flex flex-col gap-4 rounded-2xl bg-surface border border-border hover:border-lime/40 p-5 transition-colors h-full"
