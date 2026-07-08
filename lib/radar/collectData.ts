@@ -68,7 +68,7 @@ export async function collectNews(keywords: string[]): Promise<RawDataPoint[]> {
   const items = await runActor('johnvc/GoogleNewsAPI', {
     q: `${query} site:.com.br OR site:.uol.com.br OR site:.g1.globo.com`,
     gl: 'br',
-    hl: 'pt-BR',
+    hl: 'pt-br',
     max_pages: 2
   })
   return items.map(item => ({
