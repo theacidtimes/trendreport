@@ -5,22 +5,37 @@ const APIFY_BASE = 'https://api.apify.com/v2'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function runActor(actorId: string, input: object): Promise<any[]> {
-  const run = await fetch(
-    `${APIFY_BASE}/acts/${actorId}/runs?token=${APIFY_TOKEN}&waitForFinish=120`,
+  if (!APIFY_TOKEN) {
+    console.error(`[APIFY] APIFY_TOKEN ausente no ambiente — ${actorId} não roda`)
+    return []
+  }
+
+  const runRes = await fetch(
+    `${APIFY_BASE}/acts/${actorId}/runs?token=${APIFY_TOKEN}&waitForFinish=60`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input)
     }
-  ).then(r => r.json())
+  )
+  if (!runRes.ok) {
+    console.error(`[APIFY] ${actorId} falhou ao iniciar: HTTP ${runRes.status} — ${await runRes.text()}`)
+    return []
+  }
 
-  if (!run?.data?.defaultDatasetId) return []
+  const run = await runRes.json()
+  if (!run?.data?.defaultDatasetId) {
+    console.error(`[APIFY] ${actorId} sem dataset (status run: ${run?.data?.status ?? 'desconhecido'})`)
+    return []
+  }
 
   const items = await fetch(
     `${APIFY_BASE}/datasets/${run.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=30`
   ).then(r => r.json())
 
-  return Array.isArray(items) ? items : []
+  const arr = Array.isArray(items) ? items : []
+  console.log(`[APIFY] ${actorId}: ${arr.length} itens`)
+  return arr
 }
 
 export async function collectReddit(keywords: string[]): Promise<RawDataPoint[]> {
