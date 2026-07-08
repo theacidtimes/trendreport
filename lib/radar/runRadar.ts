@@ -100,7 +100,7 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
   const { system, user } = buildRadarPrompt(k, freshData, retrieved)
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 1000,
+    max_tokens: 4000,
     system,
     messages: [{ role: 'user', content: user }]
   })
