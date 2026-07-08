@@ -155,6 +155,15 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
   })
 }
 
+// A marca está "vencida" quando já passou o intervalo_horas dela desde a última
+// varredura. Marca nunca varrida entra na hora. É isso que faz cada cliente ter
+// a própria cadência: o cron bate de hora em hora, mas só roda quem venceu.
+function isDue(marca: Marca, now: number): boolean {
+  if (!marca.ultima_varredura) return true
+  const intervaloMs = (marca.intervalo_horas || 6) * 3_600_000
+  return now - new Date(marca.ultima_varredura).getTime() >= intervaloMs
+}
+
 export async function runAllActiveRadars(): Promise<void> {
   const supabase = getSupabase()
   const { data: marcas, error } = await supabase
@@ -165,13 +174,20 @@ export async function runAllActiveRadars(): Promise<void> {
     return
   }
 
-  for (const marca of marcas) {
+  const now = Date.now()
+  const due = (marcas as Marca[]).filter(m => isDue(m, now))
+  if (!due.length) {
+    console.log(`[RADAR] ${marcas.length} ativa(s), nenhuma vencida ainda`)
+    return
+  }
+
+  for (const marca of due) {
     try {
-      await runRadarForMarca(marca as Marca)
+      await runRadarForMarca(marca)
       await new Promise(r => setTimeout(r, 5000))
     } catch (e) {
       console.error(`[RADAR] Erro em ${marca.nome}:`, e)
     }
   }
-  console.log('[RADAR] Varredura completa')
+  console.log(`[RADAR] Varredura completa (${due.length}/${marcas.length})`)
 }

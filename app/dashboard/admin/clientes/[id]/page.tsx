@@ -144,10 +144,13 @@ export default async function ClienteDetailPage({
         <div className="rounded-2xl bg-surface border border-border p-5 flex flex-col gap-2">
           <span className="flex items-center gap-2 text-muted text-xs uppercase tracking-[0.12em] font-medium">
             <Zap className="w-3.5 h-3.5 shrink-0" strokeWidth={2.2} />
-            Última varredura
+            Cadência
           </span>
           <span className="text-white text-sm tabular-nums">
-            {formatDateTime(summary.ultima_run)}
+            a cada {marca.intervalo_horas}h
+          </span>
+          <span className="text-muted text-xs">
+            última varredura {formatDateTime(summary.ultima_run)}
           </span>
         </div>
         <div className="rounded-2xl bg-surface border border-border p-5 flex flex-col gap-2">

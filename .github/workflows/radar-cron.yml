@@ -2,9 +2,10 @@ name: Trend Radar — Varredura Contínua
 
 on:
   schedule:
-    # 2x/dia, todos os dias — horários em UTC (GitHub Actions roda em UTC).
-    # 11:00 UTC = 08:00 BRT  ·  23:00 UTC = 20:00 BRT
-    - cron: '0 11,23 * * *'
+    # De hora em hora. O endpoint só roda as marcas que "venceram" o próprio
+    # intervalo_horas (cadência por cliente) — então esta frequência é só o
+    # tique do relógio; quem decide se roda é o intervalo de cada marca.
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:

@@ -9,6 +9,19 @@ export default function MarcaToggle({ marca, onToggle }: {
   const [loading, setLoading] = useState(false)
   const [active, setActive] = useState(marca.status_varredura)
 
+  const cadencia = `a cada ${marca.intervalo_horas}h`
+  const proxima = marca.ultima_varredura
+    ? new Date(
+        new Date(marca.ultima_varredura).getTime() +
+          marca.intervalo_horas * 3_600_000
+      )
+    : null
+  const proximaLabel = !proxima
+    ? 'na próxima varredura'
+    : proxima.getTime() <= Date.now()
+      ? 'na próxima varredura (vencida)'
+      : proxima.toLocaleString('pt-BR')
+
   async function handleToggle() {
     if (loading) return
     setLoading(true)
@@ -29,9 +42,16 @@ export default function MarcaToggle({ marca, onToggle }: {
         <div className="text-white text-[15px] font-medium truncate">{marca.nome}</div>
         <div className="text-muted text-xs mt-0.5">
           {marca.ultima_varredura
-            ? `última varredura: ${new Date(marca.ultima_varredura).toLocaleString('pt-BR')}`
+            ? `última: ${new Date(marca.ultima_varredura).toLocaleString('pt-BR')}`
             : 'nunca varrida'}
+          {' · '}
+          {cadencia}
         </div>
+        {active && (
+          <div className="text-muted/70 text-xs mt-0.5">
+            próxima: {proximaLabel}
+          </div>
+        )}
       </div>
 
       <button
