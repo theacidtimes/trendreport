@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getClienteSummary, getDailyMetrics } from "@/lib/radar/metrics";
 import MetricChart from "@/components/admin/MetricChart";
 import ClienteExport from "@/components/admin/ClienteExport";
+import MarcaDialog from "../MarcaDialog";
 import type { Marca } from "@/lib/types";
 
 function formatDateTime(iso: string | null): string {
@@ -98,7 +99,10 @@ export default async function ClienteDetailPage({
               {marca.yaml_conhecimento?.produto || "—"}
             </p>
           </div>
-          <ClienteExport nome={marca.nome} summary={summary} daily={daily} />
+          <div className="flex items-center gap-2 print:hidden">
+            <MarcaDialog marca={marca} />
+            <ClienteExport nome={marca.nome} summary={summary} daily={daily} />
+          </div>
         </div>
       </div>
 

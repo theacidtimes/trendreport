@@ -3,7 +3,7 @@ import { ArrowUpRight, Users, Zap, Circle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getClienteSummary } from "@/lib/radar/metrics";
 import type { Marca } from "@/lib/types";
-import NewMarcaDialog from "./NewMarcaDialog";
+import MarcaDialog from "./MarcaDialog";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "nunca";
@@ -48,7 +48,7 @@ export default async function ClientesPage() {
               {marcas.length} cadastrado{marcas.length === 1 ? "" : "s"}.
             </p>
           </div>
-          <NewMarcaDialog />
+          <MarcaDialog />
         </div>
       </div>
 

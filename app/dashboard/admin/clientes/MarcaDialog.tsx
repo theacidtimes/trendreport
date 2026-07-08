@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X } from "lucide-react";
-import { createMarca } from "@/app/dashboard/radar/actions";
+import { Pencil, Plus, X } from "lucide-react";
+import { createMarca, updateMarca } from "@/app/dashboard/radar/actions";
+import type { Marca } from "@/lib/types";
 
 const FIELD =
   "w-full rounded-xl bg-surface border border-border px-3.5 py-2.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-lime/50 transition-colors";
@@ -16,11 +17,14 @@ function toLines(v: string): string[] {
     .filter(Boolean);
 }
 
-export default function NewMarcaDialog() {
+export default function MarcaDialog({ marca }: { marca?: Marca }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isEdit = Boolean(marca);
+  const dna = marca?.yaml_conhecimento;
 
   const close = useCallback(() => {
     if (loading) return;
@@ -51,18 +55,23 @@ export default function NewMarcaDialog() {
       setError("Informe o nome da marca.");
       return;
     }
+    const payload = {
+      nome,
+      produto: String(fd.get("produto") || ""),
+      tom: String(fd.get("tom") || ""),
+      perfil_comportamental: String(fd.get("perfil_comportamental") || ""),
+      universos_culturais: toLines(String(fd.get("universos_culturais") || "")),
+      o_que_evitar: toLines(String(fd.get("o_que_evitar") || "")),
+      ambicao_de_marca: String(fd.get("ambicao_de_marca") || ""),
+      intervalo_horas: Number(fd.get("intervalo_horas")) || 6,
+    };
     setLoading(true);
     try {
-      await createMarca({
-        nome,
-        produto: String(fd.get("produto") || ""),
-        tom: String(fd.get("tom") || ""),
-        perfil_comportamental: String(fd.get("perfil_comportamental") || ""),
-        universos_culturais: toLines(String(fd.get("universos_culturais") || "")),
-        o_que_evitar: toLines(String(fd.get("o_que_evitar") || "")),
-        ambicao_de_marca: String(fd.get("ambicao_de_marca") || ""),
-        intervalo_horas: Number(fd.get("intervalo_horas")) || 6,
-      });
+      if (marca) {
+        await updateMarca(marca.id, payload);
+      } else {
+        await createMarca(payload);
+      }
       setOpen(false);
       router.refresh();
     } catch (err) {
@@ -74,16 +83,27 @@ export default function NewMarcaDialog() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="group inline-flex items-center gap-2 rounded-full bg-purple hover:bg-purple-mid text-white text-sm font-medium px-4 py-2 transition-colors"
-      >
-        <span className="w-5 h-5 rounded-full bg-lime text-black flex items-center justify-center group-hover:scale-110 transition-transform">
-          <Plus className="w-3.5 h-3.5" strokeWidth={2.6} />
-        </span>
-        Novo cliente
-      </button>
+      {isEdit ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-2 rounded-full border border-border text-muted hover:text-white hover:border-lime/40 text-sm font-medium px-3.5 h-9 transition-colors print:hidden"
+        >
+          <Pencil className="w-4 h-4" strokeWidth={2} />
+          Editar DNA
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="group inline-flex items-center gap-2 rounded-full bg-purple hover:bg-purple-mid text-white text-sm font-medium px-4 py-2 transition-colors"
+        >
+          <span className="w-5 h-5 rounded-full bg-lime text-black flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Plus className="w-3.5 h-3.5" strokeWidth={2.6} />
+          </span>
+          Novo cliente
+        </button>
+      )}
 
       {open && (
         <div
@@ -99,7 +119,7 @@ export default function NewMarcaDialog() {
               <div className="flex flex-col gap-1.5">
                 <span className={LABEL}>Trend Radar</span>
                 <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
-                  Novo cliente
+                  {isEdit ? `Editar ${marca?.nome}` : "Novo cliente"}
                 </h2>
                 <p className="text-muted text-[15px] max-w-md">
                   O DNA da marca vira o conhecimento que orienta a varredura e os
@@ -120,12 +140,19 @@ export default function NewMarcaDialog() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1.5">
                 <span className={LABEL}>Nome *</span>
-                <input name="nome" required placeholder="Vivo" className={FIELD} />
+                <input
+                  name="nome"
+                  required
+                  defaultValue={marca?.nome}
+                  placeholder="Vivo"
+                  className={FIELD}
+                />
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className={LABEL}>Produto</span>
                 <input
                   name="produto"
+                  defaultValue={dna?.produto}
                   placeholder="Fibra residencial e Wi-Fi 7"
                   className={FIELD}
                 />
@@ -136,6 +163,7 @@ export default function NewMarcaDialog() {
               <span className={LABEL}>Tom de voz</span>
               <input
                 name="tom"
+                defaultValue={dna?.tom}
                 placeholder="irreverente, cultura pop brasileira, sem ser corporativo"
                 className={FIELD}
               />
@@ -146,6 +174,7 @@ export default function NewMarcaDialog() {
               <textarea
                 name="perfil_comportamental"
                 rows={2}
+                defaultValue={dna?.perfil_comportamental}
                 placeholder="Adultos 25-45, classes B e C, hiperconectados..."
                 className={FIELD}
               />
@@ -157,6 +186,7 @@ export default function NewMarcaDialog() {
                 <textarea
                   name="universos_culturais"
                   rows={4}
+                  defaultValue={dna?.universos_culturais?.join("\n")}
                   placeholder={"um por linha\ncomunidade gamer BR\npáginas de meme"}
                   className={FIELD}
                 />
@@ -166,6 +196,7 @@ export default function NewMarcaDialog() {
                 <textarea
                   name="o_que_evitar"
                   rows={4}
+                  defaultValue={dna?.o_que_evitar?.join("\n")}
                   placeholder={"um por linha\ntom político\nlinguagem técnica"}
                   className={FIELD}
                 />
@@ -177,6 +208,7 @@ export default function NewMarcaDialog() {
               <textarea
                 name="ambicao_de_marca"
                 rows={2}
+                defaultValue={dna?.ambicao_de_marca}
                 placeholder="Ser a marca de conectividade que entende a cultura brasileira..."
                 className={FIELD}
               />
@@ -188,7 +220,7 @@ export default function NewMarcaDialog() {
                 name="intervalo_horas"
                 type="number"
                 min={1}
-                defaultValue={6}
+                defaultValue={marca?.intervalo_horas ?? 6}
                 className={FIELD}
               />
             </label>
@@ -213,7 +245,11 @@ export default function NewMarcaDialog() {
                 disabled={loading}
                 className="rounded-full bg-lime text-black text-sm font-semibold px-5 py-2.5 hover:brightness-95 transition disabled:opacity-50"
               >
-                {loading ? "Salvando..." : "Cadastrar marca"}
+                {loading
+                  ? "Salvando..."
+                  : isEdit
+                    ? "Salvar alterações"
+                    : "Cadastrar marca"}
               </button>
             </div>
           </form>
