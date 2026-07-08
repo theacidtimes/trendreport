@@ -52,7 +52,12 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
   const supabase = getSupabase()
   const anthropic = getAnthropic()
   const k = marca.yaml_conhecimento
-  const keywords = [k.marca, k.produto, ...k.universos_culturais.slice(0, 3)]
+  // termos_busca são as palavras-chave curadas pro search. Fallback pra marca+
+  // produto só cobre registros antigos ainda sem termos — o DNA editorial
+  // (universos_culturais) NÃO entra aqui: como query cru ele retorna zero.
+  const keywords = k.termos_busca?.length
+    ? k.termos_busca
+    : [k.marca, k.produto].filter(Boolean)
 
   const rawData = await collectAllData(keywords)
   if (rawData.length < 3) {

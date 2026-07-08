@@ -21,6 +21,7 @@ export async function createMarca(data: {
   universos_culturais: string[];
   o_que_evitar: string[];
   ambicao_de_marca: string;
+  termos_busca: string[];
   intervalo_horas: number;
 }): Promise<void> {
   const nome = data.nome.trim();
@@ -34,6 +35,7 @@ export async function createMarca(data: {
     universos_culturais: data.universos_culturais,
     o_que_evitar: data.o_que_evitar,
     ambicao_de_marca: data.ambicao_de_marca.trim(),
+    termos_busca: data.termos_busca,
   };
 
   const supabase = createClient();
@@ -59,6 +61,7 @@ export async function updateMarca(
     universos_culturais: string[];
     o_que_evitar: string[];
     ambicao_de_marca: string;
+    termos_busca: string[];
     intervalo_horas: number;
   }
 ): Promise<void> {
@@ -73,6 +76,7 @@ export async function updateMarca(
     universos_culturais: data.universos_culturais,
     o_que_evitar: data.o_que_evitar,
     ambicao_de_marca: data.ambicao_de_marca.trim(),
+    termos_busca: data.termos_busca,
   };
 
   const supabase = createClient();

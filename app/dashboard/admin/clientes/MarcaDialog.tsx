@@ -63,6 +63,7 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
       universos_culturais: toLines(String(fd.get("universos_culturais") || "")),
       o_que_evitar: toLines(String(fd.get("o_que_evitar") || "")),
       ambicao_de_marca: String(fd.get("ambicao_de_marca") || ""),
+      termos_busca: toLines(String(fd.get("termos_busca") || "")),
       intervalo_horas: Number(fd.get("intervalo_horas")) || 6,
     };
     setLoading(true);
@@ -158,6 +159,21 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
                 />
               </label>
             </div>
+
+            <label className="flex flex-col gap-1.5">
+              <span className={LABEL}>Termos de busca</span>
+              <textarea
+                name="termos_busca"
+                rows={3}
+                defaultValue={dna?.termos_busca?.join("\n")}
+                placeholder={"um por linha — palavras-chave que o agente busca nas fontes\nVivo fibra\nWi-Fi 7\ninternet residencial"}
+                className={FIELD}
+              />
+              <span className="text-muted/60 text-[11px]">
+                É o que vai cru na busca do Reddit/News. Use palavras-chave
+                curtas, não descrições. Vazio = usa nome + produto.
+              </span>
+            </label>
 
             <label className="flex flex-col gap-1.5">
               <span className={LABEL}>Tom de voz</span>

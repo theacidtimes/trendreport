@@ -142,6 +142,10 @@ export interface MarcaKnowledge {
   universos_culturais: string[]
   o_que_evitar: string[]
   ambicao_de_marca: string
+  // Termos limpos que alimentam a busca nas fontes (Reddit/News). Separados do
+  // DNA editorial porque este vai cru no search — precisa ser palavra-chave, não
+  // descrição. Ex.: ["Vivo fibra", "Wi-Fi 7", "internet residencial"].
+  termos_busca: string[]
 }
 
 export interface Marca {
