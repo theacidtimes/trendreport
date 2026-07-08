@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import { collectAllData } from './collectData'
-import { scoreHype } from './scoreHype'
+import { scoreHype, scoreForDrop } from './scoreHype'
 import { buildRadarPrompt } from './radarPrompt'
-import { Marca } from '../types'
+import { computeStatus } from './momentum'
+import { processMemory, RetrievedSignal } from './memory'
+import { Marca, RawDataPoint } from '../types'
 import Anthropic from '@anthropic-ai/sdk'
 
 function getSupabase() {
@@ -35,7 +37,29 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
     return
   }
 
-  const { system, user } = buildRadarPrompt(k, rawData)
+  // Fronteira temporal: sinais deste run entram no cérebro depois daqui, então
+  // runStart separa "runs anteriores" do agora ao calcular momentum.
+  const runStart = Date.now()
+
+  // Cérebro vetorial: dedup vs. histórico + memória relevante do cliente.
+  // Falha no embedding não derruba o run — cai pro comportamento sem memória.
+  let freshData: RawDataPoint[] = rawData
+  let retrieved: RetrievedSignal[] = []
+  try {
+    const memory = await processMemory(supabase, marca.id, rawData)
+    freshData = memory.freshData
+    retrieved = memory.retrieved
+  } catch (e) {
+    console.error(`[RADAR] Cérebro indisponível para ${marca.nome}, seguindo sem memória:`, e)
+  }
+
+  if (freshData.length === 0) {
+    console.log(`[RADAR] Nenhum sinal novo para ${marca.nome} (tudo já visto)`)
+    await supabase.from('marcas').update({ ultima_varredura: new Date().toISOString() }).eq('id', marca.id)
+    return
+  }
+
+  const { system, user } = buildRadarPrompt(k, freshData, retrieved)
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1000,
@@ -54,19 +78,32 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
     return
   }
 
-  const rows = drops.map(drop => ({
-    marca_id:                    marca.id,
-    insight_titulo:              drop.insight_titulo,
-    categoria_funil:             drop.categoria_funil,
-    status_hype:                 hype.status,
-    indice_hype:                 hype.total,
-    descricao_fato:              drop.descricao_fato,
-    gancho_produto:              drop.gancho_produto,
-    insight_criativo_cccaramelo: drop.insight_criativo_cccaramelo,
-    links_fontes:                drop.links_fontes || [],
-    score_densidade:             hype.densidade,
-    score_transbordo:            hype.transbordo,
-    score_velocidade:            hype.velocidade
+  // Score e status POR DROP: intensidade a partir das fontes que o drop cita,
+  // status a partir do momentum real vs. histórico da marca no cérebro.
+  const rows = await Promise.all(drops.map(async drop => {
+    const links = drop.links_fontes || []
+    const dropScore = scoreForDrop(rawData, links, hype)
+    const status = await computeStatus(
+      supabase,
+      marca.id,
+      `${drop.insight_titulo}. ${drop.descricao_fato}`,
+      dropScore.total,
+      runStart
+    )
+    return {
+      marca_id:                    marca.id,
+      insight_titulo:              drop.insight_titulo,
+      categoria_funil:             drop.categoria_funil,
+      status_hype:                 status,
+      indice_hype:                 dropScore.total,
+      descricao_fato:              drop.descricao_fato,
+      gancho_produto:              drop.gancho_produto,
+      insight_criativo_cccaramelo: drop.insight_criativo_cccaramelo,
+      links_fontes:                links,
+      score_densidade:             dropScore.densidade,
+      score_transbordo:            dropScore.transbordo,
+      score_velocidade:            dropScore.velocidade
+    }
   }))
 
   const { error } = await supabase.from('trends_radar').insert(rows)

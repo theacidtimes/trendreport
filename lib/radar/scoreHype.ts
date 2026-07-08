@@ -37,3 +37,16 @@ export function scoreHype(data: RawDataPoint[]): HypeScore {
 
   return { total, densidade, transbordo, velocidade, status }
 }
+
+// Intensidade específica de UM drop: pontua apenas os sinais que ele cita como
+// fonte. Se o drop não mapear pra nenhum sinal coletado, usa o score do run.
+export function scoreForDrop(
+  data: RawDataPoint[],
+  links: string[],
+  fallback: HypeScore
+): HypeScore {
+  if (!links.length) return fallback
+  const subset = data.filter(d => links.includes(d.url))
+  if (subset.length === 0) return fallback
+  return scoreHype(subset)
+}

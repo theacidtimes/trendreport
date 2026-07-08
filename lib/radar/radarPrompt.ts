@@ -1,4 +1,5 @@
 import { MarcaKnowledge, RawDataPoint } from '../types'
+import { RetrievedSignal } from './memory'
 
 const CAMADA_CCCARAMELO = `
 Você é o motor criativo da cccaramelo, agência de inteligência cultural brasileira.
@@ -30,6 +31,18 @@ ${news.map(d => `[NEWS] ${d.titulo}\n${d.snippet}\nFonte: ${d.url}`).join('\n\n'
 
 --- TWITTER TRENDS BRASIL ---
 ${twitter.map(d => `[TWITTER] ${d.titulo} — ${d.snippet}`).join('\n') || 'sem dados'}
+`.trim()
+}
+
+function buildCamadaMemoria(retrieved: RetrievedSignal[]): string {
+  if (retrieved.length === 0) return ''
+  return `
+MEMÓRIA HISTÓRICA DESTA MARCA (sinais captados em runs anteriores):
+Use para entender EVOLUÇÃO — o que já vinha se movendo, o que amadureceu, o que
+esfriou. Não repita drops antigos; conecte o momento atual ao histórico quando fizer
+sentido ("isso vinha subindo há semanas", "o assunto X evoluiu para Y").
+
+${retrieved.map(s => `[${s.fonte.toUpperCase()} · ${new Date(s.created_at).toLocaleDateString('pt-BR')}] ${s.conteudo}`).join('\n\n')}
 `.trim()
 }
 
@@ -78,10 +91,16 @@ links_fontes: URLs reais dos dados que embasaram o drop.
 
 export function buildRadarPrompt(
   knowledge: MarcaKnowledge,
-  data: RawDataPoint[]
+  data: RawDataPoint[],
+  retrieved: RetrievedSignal[] = []
 ): { system: string; user: string } {
+  const memoria = buildCamadaMemoria(retrieved)
+  const userBlocks = [buildCamadaInternet(data)]
+  if (memoria) userBlocks.push(memoria)
+  userBlocks.push(OUTPUT_SCHEMA)
+
   return {
     system: [CAMADA_CCCARAMELO, '\n\n---\n\n', buildCamadaMarca(knowledge)].join(''),
-    user:   [buildCamadaInternet(data), '\n\n---\n\n', OUTPUT_SCHEMA].join('')
+    user:   userBlocks.join('\n\n---\n\n')
   }
 }

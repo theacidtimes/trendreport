@@ -10,38 +10,50 @@ export default function MarcaToggle({ marca, onToggle }: {
   const [active, setActive] = useState(marca.status_varredura)
 
   async function handleToggle() {
+    if (loading) return
     setLoading(true)
     const next = !active
     setActive(next)
-    await onToggle(marca.id, next)
-    setLoading(false)
+    try {
+      await onToggle(marca.id, next)
+    } catch {
+      setActive(!next) // reverte se a persistência falhar
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0F0015', border: '0.5px solid #1E0029', borderRadius: 12, padding: '0.875rem 1rem' }}>
-      <div>
-        <div style={{ fontSize: 15, fontWeight: 500, color: '#fff' }}>{marca.nome}</div>
-        <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+    <div className="group flex items-center justify-between gap-4 rounded-xl bg-surface border border-border px-4 py-3.5 transition-colors hover:border-lime/30">
+      <div className="min-w-0">
+        <div className="text-white text-[15px] font-medium truncate">{marca.nome}</div>
+        <div className="text-muted text-xs mt-0.5">
           {marca.ultima_varredura
             ? `última varredura: ${new Date(marca.ultima_varredura).toLocaleString('pt-BR')}`
             : 'nunca varrida'}
         </div>
       </div>
+
       <button
+        type="button"
         onClick={handleToggle}
         disabled={loading}
-        style={{
-          width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-          background: active ? '#81D300' : '#1E0029',
-          position: 'relative', transition: 'background 0.2s'
-        }}
+        role="switch"
+        aria-checked={active}
+        aria-label={active ? `Desativar varredura de ${marca.nome}` : `Ativar varredura de ${marca.nome}`}
+        className={`relative shrink-0 w-12 h-7 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-wait cursor-pointer ${
+          active
+            ? 'bg-lime shadow-[0_0_0_1px_rgba(129,211,0,0.45),0_6px_16px_-6px_rgba(129,211,0,0.55)]'
+            : 'bg-surface-2 border border-border hover:border-lime/50'
+        }`}
       >
-        <span style={{
-          position: 'absolute', top: 2, left: active ? 22 : 2,
-          width: 20, height: 20, borderRadius: 10,
-          background: active ? '#1a1a1a' : '#555',
-          transition: 'left 0.2s'
-        }} />
+        <span
+          className={`absolute top-1 left-1 w-5 h-5 rounded-full transition-all duration-200 group-hover:scale-110 ${
+            active
+              ? 'translate-x-5 bg-black'
+              : 'bg-muted group-hover:bg-white'
+          }`}
+        />
       </button>
     </div>
   )

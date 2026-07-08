@@ -48,11 +48,11 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
           { label: 'VELOCIDADE', value: drop.score_velocidade },
         ].map(({ label, value }) => (
           <div key={label} style={{ flex: 1 }}>
-            <div style={{ fontSize: 9, color: '#555', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
-            <div style={{ height: 4, borderRadius: 2, background: '#1E0029', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${value}%`, background: '#660099', borderRadius: 2 }} />
+            <div style={{ fontSize: 9, color: '#7A6A8A', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
+            <div style={{ height: 6, borderRadius: 3, background: '#241033', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${value}%`, background: 'linear-gradient(90deg, #660099, #81D300)', borderRadius: 3 }} />
             </div>
-            <div style={{ fontSize: 10, color: '#9B8FAA', marginTop: 3 }}>{value}</div>
+            <div style={{ fontSize: 11, color: '#C9BCD8', marginTop: 3, fontWeight: 500 }}>{value}</div>
           </div>
         ))}
       </div>

@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import { checkIsAdmin } from "@/lib/admin";
 import DropsPanel from "@/components/radar/DropsPanel";
 import MarcasManager from "./MarcasManager";
+import NewMarcaDialog from "./NewMarcaDialog";
 import type { Marca } from "@/lib/types";
 
 export default async function RadarPage() {
@@ -49,9 +50,12 @@ export default async function RadarPage() {
           </div>
 
           <section className="flex flex-col gap-3">
-            <h2 className="text-muted text-xs uppercase tracking-[0.14em] font-medium">
-              Marcas monitoradas
-            </h2>
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-muted text-xs uppercase tracking-[0.14em] font-medium">
+                Marcas monitoradas
+              </h2>
+              <NewMarcaDialog />
+            </div>
             <MarcasManager marcas={marcas} />
           </section>
 
