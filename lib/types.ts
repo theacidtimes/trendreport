@@ -167,7 +167,6 @@ export interface TrendDrop {
   indice_hype: number
   descricao_fato: string
   gancho_produto: string
-  insight_criativo_cccaramelo: string
   links_fontes: string[]
   score_densidade: number
   score_transbordo: number

@@ -32,13 +32,9 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
 
       <p style={{ fontSize: 14, color: '#9B8FAA', margin: 0, lineHeight: 1.5 }}>{drop.descricao_fato}</p>
 
-      <div style={{ borderLeft: '2px solid #81D300', paddingLeft: 12, fontSize: 14, color: '#81D300', fontStyle: 'italic', lineHeight: 1.4 }}>
-        {drop.gancho_produto}
-      </div>
-
-      <div style={{ background: '#660099', borderRadius: 10, padding: '0.875rem', fontSize: 13, color: '#fff', lineHeight: 1.5 }}>
-        <span style={{ fontSize: 10, letterSpacing: '0.08em', opacity: 0.7, display: 'block', marginBottom: 4 }}>IDEIA CCCARAMELO</span>
-        {drop.insight_criativo_cccaramelo}
+      <div style={{ borderLeft: '2px solid #81D300', paddingLeft: 12, lineHeight: 1.5 }}>
+        <span style={{ fontSize: 10, letterSpacing: '0.08em', color: '#81D300', display: 'block', marginBottom: 4 }}>CONEXÃO COM PRODUTO</span>
+        <span style={{ fontSize: 14, color: '#C9BCD8' }}>{drop.gancho_produto}</span>
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>

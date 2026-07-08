@@ -271,7 +271,6 @@ async function processMarcaBatch(
       indice_hype:                 dropScore.total,
       descricao_fato:              drop.descricao_fato,
       gancho_produto:              drop.gancho_produto,
-      insight_criativo_cccaramelo: drop.insight_criativo_cccaramelo,
       links_fontes:                links,
       score_densidade:             dropScore.densidade,
       score_transbordo:            dropScore.transbordo,
