@@ -71,7 +71,12 @@ export async function collectNews(keywords: string[]): Promise<RawDataPoint[]> {
     hl: 'pt-br',
     max_pages: 2
   })
-  return items.map(item => ({
+  // Cada item do dataset é uma PÁGINA, não um artigo: os artigos vêm aninhados
+  // em news_results[]. Ler item.title/link no topo devolve undefined e o filtro
+  // descarta tudo (era por isso que News chegava zerado no cérebro).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const articles = items.flatMap((page: any) => page.news_results || [])
+  return articles.map(item => ({
     fonte: 'news' as const,
     titulo: item.title || '',
     url: item.link || '',
