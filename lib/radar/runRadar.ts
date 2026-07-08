@@ -7,6 +7,8 @@ import { processMemory, RetrievedSignal } from './memory'
 import { Marca, RawDataPoint } from '../types'
 import Anthropic from '@anthropic-ai/sdk'
 
+const MODEL = 'claude-sonnet-4-6'
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,6 +17,34 @@ function getSupabase() {
 }
 function getAnthropic() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+}
+
+type SupabaseLike = ReturnType<typeof getSupabase>
+
+// Fecha o run: registra volume/uso em radar_runs e marca a última varredura.
+// Chamado em TODOS os caminhos de saída para o ledger de uso ficar completo.
+async function closeRun(
+  supabase: SupabaseLike,
+  marcaId: string,
+  log: {
+    sinais_captados?: number
+    sinais_novos?: number
+    drops_gerados?: number
+    modelo?: string | null
+    status: string
+  }
+): Promise<void> {
+  await supabase.from('radar_runs').insert({
+    marca_id: marcaId,
+    sinais_captados: log.sinais_captados ?? 0,
+    sinais_novos: log.sinais_novos ?? 0,
+    drops_gerados: log.drops_gerados ?? 0,
+    modelo: log.modelo ?? null,
+    status: log.status
+  })
+  await supabase.from('marcas')
+    .update({ ultima_varredura: new Date().toISOString() })
+    .eq('id', marcaId)
 }
 
 export async function runRadarForMarca(marca: Marca): Promise<void> {
@@ -27,13 +57,14 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
   const rawData = await collectAllData(keywords)
   if (rawData.length < 3) {
     console.log(`[RADAR] Dados insuficientes para ${marca.nome}`)
+    await closeRun(supabase, marca.id, { sinais_captados: rawData.length, status: 'sem_dados' })
     return
   }
 
   const hype = scoreHype(rawData)
   if (hype.total < 20) {
     console.log(`[RADAR] Score baixo (${hype.total}), pulando ${marca.nome}`)
-    await supabase.from('marcas').update({ ultima_varredura: new Date().toISOString() }).eq('id', marca.id)
+    await closeRun(supabase, marca.id, { sinais_captados: rawData.length, status: 'score_baixo' })
     return
   }
 
@@ -55,13 +86,15 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
 
   if (freshData.length === 0) {
     console.log(`[RADAR] Nenhum sinal novo para ${marca.nome} (tudo já visto)`)
-    await supabase.from('marcas').update({ ultima_varredura: new Date().toISOString() }).eq('id', marca.id)
+    await closeRun(supabase, marca.id, {
+      sinais_captados: rawData.length, sinais_novos: 0, status: 'sem_novidade'
+    })
     return
   }
 
   const { system, user } = buildRadarPrompt(k, freshData, retrieved)
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: MODEL,
     max_tokens: 1000,
     system,
     messages: [{ role: 'user', content: user }]
@@ -75,6 +108,9 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
     if (!Array.isArray(drops)) drops = [drops]
   } catch (e) {
     console.error(`[RADAR] Erro ao parsear drops:`, e)
+    await closeRun(supabase, marca.id, {
+      sinais_captados: rawData.length, sinais_novos: freshData.length, modelo: MODEL, status: 'erro'
+    })
     return
   }
 
@@ -110,7 +146,13 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
   if (error) console.error(`[RADAR] Erro ao salvar:`, error)
   else console.log(`[RADAR] ${rows.length} drops salvos para ${marca.nome}`)
 
-  await supabase.from('marcas').update({ ultima_varredura: new Date().toISOString() }).eq('id', marca.id)
+  await closeRun(supabase, marca.id, {
+    sinais_captados: rawData.length,
+    sinais_novos: freshData.length,
+    drops_gerados: rows.length,
+    modelo: MODEL,
+    status: error ? 'erro' : 'ok'
+  })
 }
 
 export async function runAllActiveRadars(): Promise<void> {

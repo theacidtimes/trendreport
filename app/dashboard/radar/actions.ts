@@ -46,4 +46,5 @@ export async function createMarca(data: {
   if (error) throw new Error(error.message);
 
   revalidatePath("/dashboard/radar");
+  revalidatePath("/dashboard/admin/clientes");
 }

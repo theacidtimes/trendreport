@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, LogOut, Plus, Radar, ScrollText } from "lucide-react";
+import { LayoutGrid, LogOut, Plus, Radar, Shield } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
 
@@ -13,7 +13,7 @@ const NAV = [
 ];
 
 const ADMIN_NAV = [
-  { href: "/dashboard/auditoria", label: "Auditoria", icon: ScrollText },
+  { href: "/dashboard/admin", label: "Admin", icon: Shield },
 ];
 
 export default function Sidebar({
@@ -47,7 +47,10 @@ export default function Sidebar({
 
         <nav className="flex flex-col gap-1">
           {nav.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
+            const active =
+              href === "/dashboard"
+                ? pathname === href
+                : pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
                 key={href}
@@ -92,16 +95,22 @@ export default function Sidebar({
           <Logo size="sm" />
         </Link>
         <div className="flex items-center gap-5">
-          {nav.map(({ href, icon: Icon, label }) => (
-            <Link
-              key={href}
-              href={href}
-              aria-label={label}
-              className={pathname === href ? "text-lime" : "text-muted"}
-            >
-              <Icon className="w-5 h-5" strokeWidth={2} />
-            </Link>
-          ))}
+          {nav.map(({ href, icon: Icon, label }) => {
+            const active =
+              href === "/dashboard"
+                ? pathname === href
+                : pathname === href || pathname.startsWith(href + "/");
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-label={label}
+                className={active ? "text-lime" : "text-muted"}
+              >
+                <Icon className="w-5 h-5" strokeWidth={2} />
+              </Link>
+            );
+          })}
           {userEmail && (
             <button onClick={handleSignOut} aria-label="Sair" className="text-muted">
               <LogOut className="w-5 h-5" strokeWidth={2} />
