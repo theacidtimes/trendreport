@@ -121,8 +121,11 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
 
   // Score e status POR DROP: intensidade a partir das fontes que o drop cita,
   // status a partir do momentum real vs. histórico da marca no cérebro.
+  // Anti-alucinação: só sobrevive link que existe de fato nos dados coletados.
+  // Sem isso o modelo às vezes fabrica x.com/search e a UI mostra fonte falsa.
+  const urlsReais = new Set(rawData.map(d => d.url))
   const rows = await Promise.all(drops.map(async drop => {
-    const links = drop.links_fontes || []
+    const links = (drop.links_fontes || []).filter((u: string) => urlsReais.has(u))
     const dropScore = scoreForDrop(rawData, links, hype)
     const status = await computeStatus(
       supabase,

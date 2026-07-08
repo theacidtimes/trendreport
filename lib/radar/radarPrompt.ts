@@ -24,13 +24,13 @@ function buildCamadaInternet(data: RawDataPoint[]): string {
 DADOS COLETADOS NAS ÚLTIMAS 48H:
 
 --- REDDIT (comportamento e conversas reais) ---
-${reddit.map(d => `[REDDIT] ${d.titulo} (${d.comentarios || 0} comentários, ${d.upvotes || 0} upvotes)\n${d.snippet}`).join('\n\n') || 'sem dados'}
+${reddit.map(d => `[REDDIT] ${d.titulo} (${d.comentarios || 0} comentários, ${d.upvotes || 0} upvotes)\n${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}
 
 --- GOOGLE NEWS (transbordo de mídia) ---
 ${news.map(d => `[NEWS] ${d.titulo}\n${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}
 
 --- TWITTER TRENDS BRASIL ---
-${twitter.map(d => `[TWITTER] ${d.titulo} — ${d.snippet}`).join('\n') || 'sem dados'}
+${twitter.map(d => `[TWITTER] ${d.titulo} — ${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}
 `.trim()
 }
 
@@ -86,7 +86,10 @@ BOM: "Seu Wi-Fi 7 não sabe o que é lag. Seus planos de férias, também não."
 RUIM: "Conectar a marca com o momento cultural"
 
 insight_criativo_cccaramelo: ideia ousada que a cccaramelo assinaria.
-links_fontes: URLs reais dos dados que embasaram o drop.
+links_fontes: copie APENAS URLs que aparecem no campo "Fonte:" dos dados acima —
+literalmente, sem alterar. NUNCA invente, adivinhe ou monte URLs (nada de
+x.com/search, google.com/... etc.). Cite as fontes que embasaram o drop; se
+nenhuma tiver URL real, devolva [].
 `
 
 export function buildRadarPrompt(
