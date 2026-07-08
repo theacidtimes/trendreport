@@ -42,25 +42,81 @@ async function runActor(actorId: string, input: object): Promise<any[]> {
   return arr
 }
 
+// Escopo BR curado. O actor IGNORA qualquer parâmetro de subreddit (não existe no
+// schema dele), então a busca varre o Reddit inteiro — o recorte BR é aplicado
+// aqui, filtrando pela comunidade. Sem isso entram r/Nicaragua, r/PuertoRico etc.
+const SUBREDDITS_BR = new Set(
+  ['eu_nvr', 'conversas', 'internetbrasil', 'brasil', 'desabafos'].map(s => s.toLowerCase())
+)
+
+// id do post na URL (compartilhado entre post e seus comentários):
+// .../comments/{postId}/... e .../comments/{postId}/comment/{commentId}/
+function postIdFromUrl(url: string): string | null {
+  const m = url.match(/\/comments\/([a-z0-9]+)\//i)
+  return m ? m[1] : null
+}
+
 export async function collectReddit(keywords: string[]): Promise<RawDataPoint[]> {
   const query = keywords.slice(0, 3).join(' OR ')
+  // includeMediaLinks é o que traz upVotes/numberOfComments — sem ele os contadores
+  // não vêm e a densidade fica sempre zero. sort=relevance + time=month evita o run
+  // vazio que hot+day dava pra termos de nicho. Limites enxutos porque a raspagem de
+  // comentários é lenta (proxy RESIDENTIAL, único disponível na conta) e o
+  // waitForFinish=60 do runActor pega dataset parcial se o run passar disso.
   const items = await runActor('trudax/reddit-scraper-lite', {
     searches: [query],
-    subreddits: ['eu_nvr', 'conversas', 'InternetBrasil', 'brasil', 'desabafos'],
-    maxItems: 30,
+    maxItems: 25,
+    maxPostCount: 12,
     skipComments: false,
-    sort: 'hot',
-    time: 'day'
+    maxComments: 6,
+    includeMediaLinks: true,
+    sort: 'relevance',
+    time: 'month'
   })
-  return items.map(item => ({
-    fonte: 'reddit' as const,
-    titulo: item.title || '',
-    url: item.url || '',
-    snippet: item.selftext?.substring(0, 300) || item.body?.substring(0, 300) || '',
-    comentarios: item.numComments || 0,
-    upvotes: item.score || 0,
-    coletado_em: new Date().toISOString()
-  })).filter(item => item.titulo && item.url)
+
+  // O actor devolve posts e comentários como itens SEPARADOS (dataType). Comentário
+  // não tem título, então o filtro antigo (titulo && url) descartava todos — o agente
+  // nunca lia a conversa. Aqui os comentários são agrupados no post pai e entram no
+  // snippet, que é justamente onde está o sinal cultural (venda casada, ANATEL, etc.).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isBR = (c: any) => SUBREDDITS_BR.has(String(c || '').replace(/^r\//i, '').toLowerCase())
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const posts = items.filter((i: any) => i.dataType === 'post' && isBR(i.communityName))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const comments = items.filter((i: any) => i.dataType === 'comment' && isBR(i.communityName))
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const commentsByPost = new Map<string, any[]>()
+  for (const c of comments) {
+    const pid = postIdFromUrl(c.url || '')
+    if (!pid) continue
+    const arr = commentsByPost.get(pid)
+    if (arr) arr.push(c)
+    else commentsByPost.set(pid, [c])
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return posts.map((p: any) => {
+    const pid = postIdFromUrl(p.url || '')
+    const thread = (pid && commentsByPost.get(pid)) || []
+    const topComments = thread
+      .sort((a, b) => (b.upVotes || 0) - (a.upVotes || 0))
+      .slice(0, 5)
+      .map(c => `- (${c.upVotes || 0}↑) ${String(c.body || '').replace(/\s+/g, ' ').trim().substring(0, 200)}`)
+    const corpo = String(p.body || '').substring(0, 300)
+    const snippet = topComments.length
+      ? `${corpo}\n\nComentários (${p.numberOfComments || 0}):\n${topComments.join('\n')}`
+      : corpo
+    return {
+      fonte: 'reddit' as const,
+      titulo: p.title || '',
+      url: p.url || '',
+      snippet,
+      comentarios: p.numberOfComments || 0,
+      upvotes: p.upVotes || 0,
+      coletado_em: new Date().toISOString()
+    }
+  }).filter(item => item.titulo && item.url)
 }
 
 export async function collectNews(keywords: string[]): Promise<RawDataPoint[]> {
