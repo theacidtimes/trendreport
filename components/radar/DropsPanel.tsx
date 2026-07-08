@@ -1,7 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import { TrendDrop, Marca } from '@/lib/types'
 import DropCard from './DropCard'
+
+// Ritmo do auto-refresh silencioso. O cron gera drops a cada ~15min; 60s pega os novos
+// logo depois de salvos sem martelar a API.
+const POLL_MS = 60_000
 
 type Periodo = '' | 'semana' | 'mes' | 'custom'
 
@@ -26,7 +30,8 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
 
   const marcaAtiva = marcaId || filtroMarca
 
-  useEffect(() => {
+  // silent=true no auto-refresh: atualiza a lista sem acender o loader (evita piscar).
+  const fetchDrops = useCallback(async (silent = false) => {
     const params = new URLSearchParams()
     if (marcaAtiva)   params.set('marca_id', marcaAtiva)
     if (filtroStatus) params.set('status', filtroStatus)
@@ -35,11 +40,30 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
     if (desde) params.set('desde', desde)
     if (periodo === 'custom' && customAte) params.set('ate', new Date(customAte).toISOString())
 
-    setLoading(true)
-    fetch(`/api/radar/drops?${params}`)
-      .then(r => r.json())
-      .then(d => { setDrops(d.drops || []); setLoading(false) })
+    if (!silent) setLoading(true)
+    try {
+      const d = await fetch(`/api/radar/drops?${params}`).then(r => r.json())
+      setDrops(d.drops || [])
+    } finally {
+      if (!silent) setLoading(false)
+    }
   }, [marcaAtiva, filtroStatus, filtroFunil, periodo, customDe, customAte])
+
+  // Carga a cada mudança de filtro (com loader).
+  useEffect(() => { fetchDrops(false) }, [fetchDrops])
+
+  // Auto-refresh silencioso enquanto a aba está visível. Ref evita recriar o intervalo a
+  // cada mudança de filtro sem perder o filtro atual no tick.
+  const fetchRef = useRef(fetchDrops)
+  fetchRef.current = fetchDrops
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === 'visible') fetchRef.current(true)
+    }
+    const id = setInterval(tick, POLL_MS)
+    document.addEventListener('visibilitychange', tick)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick) }
+  }, [])
 
   const filterBtn = (label: string, value: string, current: string, setter: (v: string) => void) => (
     <button
@@ -71,6 +95,19 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
 
   return (
     <div>
+      {/* Loader fino: barra deslizante sutil enquanto os drops carregam. */}
+      <div style={{ height: 2, marginBottom: 14, borderRadius: 2, overflow: 'hidden', background: loading ? 'rgba(129,211,0,0.08)' : 'transparent' }}>
+        {loading && <div className="drops-loader-bar" />}
+      </div>
+      <style>{`
+        .drops-loader-bar {
+          position: relative; height: 100%; width: 35%; border-radius: 2px;
+          background: linear-gradient(90deg, transparent, #81D300, transparent);
+          animation: dropsSlide 1.1s ease-in-out infinite;
+        }
+        @keyframes dropsSlide { 0% { left: -35%; } 100% { left: 100%; } }
+      `}</style>
+
       {/* Filtro por cliente */}
       {!marcaId && marcas.length > 0 && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -103,7 +140,6 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
         {filterBtn('BASE', 'base', filtroFunil, setFiltroFunil)}
       </div>
 
-      {loading && <p style={{ color: '#555', fontSize: 14 }}>carregando drops...</p>}
       {!loading && drops.length === 0 && (
         <p style={{ color: '#555', fontSize: 14 }}>nenhum drop encontrado. ative uma marca e aguarde a próxima varredura.</p>
       )}
