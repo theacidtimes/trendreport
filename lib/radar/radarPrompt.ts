@@ -29,8 +29,8 @@ ${reddit.map(d => `[REDDIT] ${d.titulo} (${d.comentarios || 0} comentários, ${d
 --- GOOGLE NEWS (transbordo de mídia) ---
 ${news.map(d => `[NEWS] ${d.titulo}\n${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}
 
---- TWITTER TRENDS BRASIL ---
-${twitter.map(d => `[TWITTER] ${d.titulo} — ${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}
+--- TWITTER TRENDS BRASIL (só contexto de volume — NÃO tem URL de fonte real) ---
+${twitter.map(d => `[TWITTER] ${d.titulo} — ${d.snippet}`).join('\n') || 'sem dados'}
 `.trim()
 }
 

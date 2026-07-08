@@ -121,9 +121,12 @@ export async function runRadarForMarca(marca: Marca): Promise<void> {
 
   // Score e status POR DROP: intensidade a partir das fontes que o drop cita,
   // status a partir do momentum real vs. histórico da marca no cérebro.
-  // Anti-alucinação: só sobrevive link que existe de fato nos dados coletados.
-  // Sem isso o modelo às vezes fabrica x.com/search e a UI mostra fonte falsa.
-  const urlsReais = new Set(rawData.map(d => d.url))
+  // Anti-alucinação: só sobrevive link que existe de fato nos dados coletados E
+  // que seja fonte real navegável. Twitter Trends não tem post — só página de
+  // busca (x.com/search) — então fica de fora das fontes clicáveis (vira fake).
+  const urlsReais = new Set(
+    rawData.filter(d => d.fonte !== 'twitter').map(d => d.url)
+  )
   const rows = await Promise.all(drops.map(async drop => {
     const links = (drop.links_fontes || []).filter((u: string) => urlsReais.has(u))
     const dropScore = scoreForDrop(rawData, links, hype)
