@@ -10,8 +10,12 @@ async function runActor(actorId: string, input: object): Promise<any[]> {
     return []
   }
 
+  // A REST da Apify exige o ID no formato username~actor (til), não username/actor.
+  // A barra quebra o path e a API responde 404 "no API endpoint at this URL".
+  const actorPath = actorId.replace('/', '~')
+
   const runRes = await fetch(
-    `${APIFY_BASE}/acts/${actorId}/runs?token=${APIFY_TOKEN}&waitForFinish=60`,
+    `${APIFY_BASE}/acts/${actorPath}/runs?token=${APIFY_TOKEN}&waitForFinish=60`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
