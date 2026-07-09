@@ -146,6 +146,11 @@ export interface MarcaKnowledge {
   // DNA editorial porque este vai cru no search — precisa ser palavra-chave, não
   // descrição. Ex.: ["Vivo fibra", "Wi-Fi 7", "internet residencial"].
   termos_busca: string[]
+  // Lane CULTURAL (interesse/contexto), a via principal: termos comportamentais do
+  // público que NÃO citam a marca. Captura o sinal onde a audiência já vive, estilo
+  // interest targeting. Ex. p/ Vivo: ["jogar online", "maratonar série", "home office"].
+  // Vazio = só roda a lane de marca (compat com registros antigos).
+  termos_culturais?: string[]
 }
 
 export interface Marca {

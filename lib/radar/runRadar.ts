@@ -16,7 +16,6 @@ import { Marca, RawDataPoint } from '../types'
 import Anthropic from '@anthropic-ai/sdk'
 
 const MODEL = 'claude-sonnet-4-6'
-const FONTES: Fonte[] = ['reddit', 'news', 'twitter']
 // Run pendura preso derruba o batch inteiro (nunca fica só-terminal). A Apify já
 // impõe timeout próprio, mas um blip na consulta de status pode deixar a linha em
 // 'running' — passado esse teto, tratamos como falha pra não travar a fila.
@@ -64,7 +63,12 @@ async function closeRun(
     .eq('id', marcaId)
 }
 
-function keywordsFor(marca: Marca): string[] {
+// Uma lane é um scrape (fonte + query). O composto nasce daqui: várias lanes por
+// marca, cada uma com seu recorte. O grupo em finalize é count-agnóstico, então N
+// lanes de reddit convivem sem migração — só somam sinais no mesmo batch.
+type ScrapeLane = { fonte: Fonte; keywords: string[] }
+
+function brandKeywords(marca: Marca): string[] {
   const k = marca.yaml_conhecimento
   // termos_busca são as palavras-chave curadas pro search. Fallback pra marca+
   // produto só cobre registros antigos ainda sem termos — o DNA editorial
@@ -74,16 +78,35 @@ function keywordsFor(marca: Marca): string[] {
     : [k.marca, k.produto].filter(Boolean)
 }
 
-// DISPARO: começa os 3 scrapes da marca (sem esperar), grava uma linha de job por
-// fonte e marca a varredura como feita. O ultima_varredura sai daqui pra o isDue não
-// re-disparar a mesma marca antes do resultado voltar num tick seguinte.
+// COMPOSTO: a lane CULTURAL (interesse/contexto, sem citar a marca) é a via
+// principal — captura o sinal onde a audiência já vive, estilo interest targeting
+// do Meta. A lane de MARCA é complemento: pega o que fala da marca direto. Se não
+// há termos_culturais (registro antigo), roda só marca — compat total.
+function lanesFor(marca: Marca): ScrapeLane[] {
+  const k = marca.yaml_conhecimento
+  const brand = brandKeywords(marca)
+  const lanes: ScrapeLane[] = []
+  // Cultural primeiro (Reddit é onde o contexto vive de verdade).
+  if (k.termos_culturais?.length) {
+    lanes.push({ fonte: 'reddit', keywords: k.termos_culturais })
+  }
+  // Complemento de marca: Reddit + News anchorados na marca, e o pulso do Twitter.
+  lanes.push({ fonte: 'reddit', keywords: brand })
+  lanes.push({ fonte: 'news', keywords: brand })
+  lanes.push({ fonte: 'twitter', keywords: brand })
+  return lanes
+}
+
+// DISPARO: começa os scrapes das lanes da marca (sem esperar), grava uma linha de
+// job por lane e marca a varredura como feita. O ultima_varredura sai daqui pra o
+// isDue não re-disparar a mesma marca antes do resultado voltar num tick seguinte.
 async function kickoffMarca(supabase: SupabaseLike, marca: Marca, batchId: string): Promise<void> {
-  const keywords = keywordsFor(marca)
-  const runIds = await Promise.all(FONTES.map(f => startScrape(f, keywords)))
-  const rows = FONTES.map((fonte, i) => ({
+  const lanes = lanesFor(marca)
+  const runIds = await Promise.all(lanes.map(l => startScrape(l.fonte, l.keywords)))
+  const rows = lanes.map((lane, i) => ({
     batch_id: batchId,
     marca_id: marca.id,
-    fonte,
+    fonte: lane.fonte,
     apify_run_id: runIds[i],
     status: runIds[i] ? 'running' : 'failed'
   }))
@@ -91,7 +114,7 @@ async function kickoffMarca(supabase: SupabaseLike, marca: Marca, batchId: strin
   await supabase.from('marcas')
     .update({ ultima_varredura: new Date().toISOString() })
     .eq('id', marca.id)
-  console.log(`[RADAR] Disparado: ${marca.nome} (${rows.filter(r => r.status === 'running').length}/3 fontes)`)
+  console.log(`[RADAR] Disparado: ${marca.nome} (${rows.filter(r => r.status === 'running').length}/${rows.length} lanes)`)
 }
 
 // Poll dos jobs 'running': SUCCEEDED vira 'done' com o dataset guardado; terminal de
@@ -142,7 +165,7 @@ async function finalize(supabase: SupabaseLike, anthropic: AnthropicLike): Promi
 
   await pollRunningJobs(supabase, jobs as ScrapeJob[])
 
-  // Agrupa por batch+marca: cada marca aparece uma vez por batch, com 3 jobs.
+  // Agrupa por batch+marca: cada marca aparece uma vez por batch, com N jobs (lanes).
   const groups = new Map<string, ScrapeJob[]>()
   for (const job of jobs as ScrapeJob[]) {
     const key = `${job.batch_id}|${job.marca_id}`

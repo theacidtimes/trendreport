@@ -62,7 +62,13 @@ Universos culturais: ${knowledge.universos_culturais.join(', ')}
 Ambição de marca: ${knowledge.ambicao_de_marca}
 O que evitar: ${knowledge.o_que_evitar.join(', ')}
 
-Identifique apenas sinais com PERMISSÃO CULTURAL real para esta marca.
+A MAIORIA dos sinais abaixo NÃO cita a marca — é de propósito. Eles vêm de uma
+varredura de INTERESSE e CONTEXTO (o que o público desta marca vive, joga, assiste,
+debate), não de menção direta. Esse é o sinal mais valioso: é onde a audiência está
+antes de virar mainstream. Sinal que fala da marca é o raso, qualquer tracking de
+keyword já pega. Leia o COMPORTAMENTO e conecte à marca por PERMISSÃO CULTURAL.
+
+Identifique apenas sinais com permissão cultural real para esta marca.
 Se o sinal não tiver fit genuíno, ignore. Não force conexões.
 `.trim()
 }
