@@ -85,10 +85,13 @@ function brandKeywords(marca: Marca): string[] {
 function lanesFor(marca: Marca): ScrapeLane[] {
   const k = marca.yaml_conhecimento
   const brand = brandKeywords(marca)
+  const cultural = k.termos_culturais ?? []
   const lanes: ScrapeLane[] = []
-  // Cultural primeiro (Reddit é onde o contexto vive de verdade).
-  if (k.termos_culturais?.length) {
-    lanes.push({ fonte: 'reddit', keywords: k.termos_culturais })
+  // Cultural primeiro: Reddit onde a conversa vive + News pro transbordo do mesmo
+  // interesse na imprensa de negócios/cultura (Exame, Valor, Fast Company etc.).
+  if (cultural.length) {
+    lanes.push({ fonte: 'reddit', keywords: cultural })
+    lanes.push({ fonte: 'news', keywords: cultural })
   }
   // Complemento de marca: Reddit + News anchorados na marca, e o pulso do Twitter.
   lanes.push({ fonte: 'reddit', keywords: brand })

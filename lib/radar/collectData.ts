@@ -11,6 +11,18 @@ function actorPath(actorId: string): string {
   return actorId.replace('/', '~')
 }
 
+// Recorte de imprensa pro News: catch amplo de BR (.com.br cobre folha, estadao, uol,
+// infomoney, exame.com.br, fastcompany.com.br, meioemensagem etc.) + portais fortes que
+// NÃO terminam em .com.br e precisam entrar na mão (globo, valor, exame.com). Editar aqui
+// muda as duas lanes de news (cultural e marca) de uma vez.
+const NEWS_SITES = [
+  '.com.br',
+  'g1.globo.com',
+  'valor.globo.com',
+  'exame.com',
+  'fastcompany.com'
+].map(s => `site:${s}`).join(' OR ')
+
 // Actor + input por fonte. A raspagem de comentários do Reddit e o max_pages do
 // News fazem os runs passarem de 60s, então NÃO dá pra esperar inline — quem dispara
 // (startScrape) não espera; o resultado é buscado num tick posterior via getRunStatus
@@ -40,7 +52,7 @@ function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string; input:
     return {
       actorId: 'johnvc/GoogleNewsAPI',
       input: {
-        q: `${query} site:.com.br OR site:.uol.com.br OR site:.g1.globo.com`,
+        q: `${query} ${NEWS_SITES}`,
         gl: 'br',
         hl: 'pt-br',
         max_pages: 2
