@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Users, Zap, Circle } from "lucide-react";
+import { ArrowUpRight, Zap, Circle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getClienteSummary } from "@/lib/radar/metrics";
 import type { Marca } from "@/lib/types";
@@ -35,10 +35,6 @@ export default async function ClientesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <span className="flex items-center gap-2 text-lime text-xs uppercase tracking-[0.14em] font-medium">
-          <Users className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
-          Clientes
-        </span>
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div className="flex flex-col gap-1">
             <h1 className="font-sans text-white font-bold text-3xl tracking-[-0.01em]">

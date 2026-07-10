@@ -4,7 +4,6 @@ import {
   FilePlus2,
   FileX2,
   Pencil,
-  ScrollText,
   User,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -76,10 +75,6 @@ export default async function UsuariosPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <span className="flex items-center gap-2 text-lime text-xs uppercase tracking-[0.14em] font-medium">
-          <ScrollText className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
-          Usuários & auditoria
-        </span>
         <h1 className="font-sans text-white font-bold text-3xl tracking-[-0.01em]">
           Usuários
         </h1>
