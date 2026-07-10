@@ -151,6 +151,13 @@ export interface MarcaKnowledge {
   // interest targeting. Ex. p/ Vivo: ["jogar online", "maratonar série", "home office"].
   // Vazio = só roda a lane de marca (compat com registros antigos).
   termos_culturais?: string[]
+  // Mesma lane cultural, mas em inglês: alimenta a varredura GLOBAL de early signals
+  // (Wired, The Information, TrendWatching, Variety etc.). O sinal que ainda não chegou
+  // ao BR aparece primeiro na imprensa global de tecnologia/cultura. Vazio = não roda.
+  termos_culturais_en?: string[]
+  // LinkedIn é a ÚNICA fonte ligável por marca (as outras são default). Liga só pra
+  // cliente B2B/B2BC onde o discurso profissional é sinal. Ausente/false = não raspa.
+  linkedin_ativo?: boolean
 }
 
 export interface Marca {
@@ -181,7 +188,7 @@ export interface TrendDrop {
 }
 
 export interface RawDataPoint {
-  fonte: 'reddit' | 'news' | 'twitter'
+  fonte: 'reddit' | 'news' | 'twitter' | 'tiktok' | 'linkedin'
   titulo: string
   url: string
   snippet: string

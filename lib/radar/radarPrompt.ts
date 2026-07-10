@@ -21,22 +21,32 @@ contextualizados como insumo para o time criativo.
 `.trim()
 
 function buildCamadaInternet(data: RawDataPoint[]): string {
-  const reddit  = data.filter(d => d.fonte === 'reddit').slice(0, 10)
-  const news    = data.filter(d => d.fonte === 'news').slice(0, 8)
-  const twitter = data.filter(d => d.fonte === 'twitter').slice(0, 5)
+  const reddit   = data.filter(d => d.fonte === 'reddit').slice(0, 10)
+  const tiktok   = data.filter(d => d.fonte === 'tiktok').slice(0, 8)
+  const twitter  = data.filter(d => d.fonte === 'twitter').slice(0, 8)
+  const linkedin = data.filter(d => d.fonte === 'linkedin').slice(0, 6)
+  const news     = data.filter(d => d.fonte === 'news').slice(0, 8)
 
-  return `
-DADOS COLETADOS NAS ÚLTIMAS 48H:
+  const blocos = [
+    `--- REDDIT (comportamento e conversas reais) ---
+${reddit.map(d => `[REDDIT] ${d.titulo} (${d.comentarios || 0} comentários, ${d.upvotes || 0} upvotes)\n${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}`,
 
---- REDDIT (comportamento e conversas reais) ---
-${reddit.map(d => `[REDDIT] ${d.titulo} (${d.comentarios || 0} comentários, ${d.upvotes || 0} upvotes)\n${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}
+    `--- TIKTOK (o que viraliza em vídeo, cultura visual) ---
+${tiktok.map(d => `[TIKTOK] ${d.titulo} (${d.comentarios || 0} comentários, ${d.upvotes || 0} curtidas)\n${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}`,
 
---- GOOGLE NEWS (transbordo de mídia) ---
-${news.map(d => `[NEWS] ${d.titulo}\n${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}
+    `--- X / TWITTER (conversa em tempo real) ---
+${twitter.map(d => `[TWITTER] ${d.titulo} (${d.comentarios || 0} respostas, ${d.upvotes || 0} curtidas)\n${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}`,
+  ]
 
---- TWITTER TRENDS BRASIL (só contexto de volume — NÃO tem URL de fonte real) ---
-${twitter.map(d => `[TWITTER] ${d.titulo} — ${d.snippet}`).join('\n') || 'sem dados'}
-`.trim()
+  if (linkedin.length) {
+    blocos.push(`--- LINKEDIN (discurso profissional e de mercado) ---
+${linkedin.map(d => `[LINKEDIN] ${d.titulo} (${d.comentarios || 0} comentários, ${d.upvotes || 0} reações)\n${d.snippet}\nFonte: ${d.url}`).join('\n\n')}`)
+  }
+
+  blocos.push(`--- GOOGLE NEWS (transbordo de mídia, âncora factual) ---
+${news.map(d => `[NEWS] ${d.titulo}\n${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}`)
+
+  return `DADOS COLETADOS NAS ÚLTIMAS 48H:\n\n${blocos.join('\n\n')}`.trim()
 }
 
 function buildCamadaMemoria(retrieved: RetrievedSignal[]): string {

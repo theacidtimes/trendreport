@@ -25,6 +25,8 @@ export async function createMarca(data: {
   ambicao_de_marca: string;
   termos_busca: string[];
   termos_culturais?: string[];
+  termos_culturais_en?: string[];
+  linkedin_ativo?: boolean;
   intervalo_horas: number;
 }): Promise<void> {
   const nome = data.nome.trim();
@@ -40,6 +42,8 @@ export async function createMarca(data: {
     ambicao_de_marca: data.ambicao_de_marca.trim(),
     termos_busca: data.termos_busca,
     termos_culturais: data.termos_culturais ?? [],
+    termos_culturais_en: data.termos_culturais_en ?? [],
+    linkedin_ativo: data.linkedin_ativo ?? false,
   };
 
   const supabase = createClient();
@@ -67,6 +71,8 @@ export async function updateMarca(
     ambicao_de_marca: string;
     termos_busca: string[];
     termos_culturais?: string[];
+    termos_culturais_en?: string[];
+    linkedin_ativo?: boolean;
     intervalo_horas: number;
   }
 ): Promise<void> {
@@ -75,17 +81,27 @@ export async function updateMarca(
 
   const supabase = createClient();
 
-  // Preserva termos_culturais quando o form não manda (a lane cultural é curada por
-  // SQL/DNA e não está no form ainda; um update de marca não pode zerá-la).
+  // Preserva campos que o form não manda (termos_culturais e termos_culturais_en são
+  // curados por SQL/DNA, não estão no form; um update de marca não pode zerá-los).
+  // linkedin_ativo vem do form, mas se faltar, mantém o valor atual.
   let termos_culturais = data.termos_culturais;
-  if (termos_culturais === undefined) {
+  let termos_culturais_en = data.termos_culturais_en;
+  let linkedin_ativo = data.linkedin_ativo;
+  if (
+    termos_culturais === undefined ||
+    termos_culturais_en === undefined ||
+    linkedin_ativo === undefined
+  ) {
     const { data: atual } = await supabase
       .from("marcas")
       .select("yaml_conhecimento")
       .eq("id", id)
       .single();
-    termos_culturais =
-      (atual?.yaml_conhecimento as MarcaKnowledge | undefined)?.termos_culturais ?? [];
+    const dna = atual?.yaml_conhecimento as MarcaKnowledge | undefined;
+    if (termos_culturais === undefined) termos_culturais = dna?.termos_culturais ?? [];
+    if (termos_culturais_en === undefined)
+      termos_culturais_en = dna?.termos_culturais_en ?? [];
+    if (linkedin_ativo === undefined) linkedin_ativo = dna?.linkedin_ativo ?? false;
   }
 
   const yaml_conhecimento: MarcaKnowledge = {
@@ -98,6 +114,8 @@ export async function updateMarca(
     ambicao_de_marca: data.ambicao_de_marca.trim(),
     termos_busca: data.termos_busca,
     termos_culturais,
+    termos_culturais_en,
+    linkedin_ativo,
   };
 
   const { error } = await supabase

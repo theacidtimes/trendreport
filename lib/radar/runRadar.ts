@@ -78,25 +78,36 @@ function brandKeywords(marca: Marca): string[] {
     : [k.marca, k.produto].filter(Boolean)
 }
 
-// COMPOSTO: a lane CULTURAL (interesse/contexto, sem citar a marca) é a via
-// principal — captura o sinal onde a audiência já vive, estilo interest targeting
-// do Meta. A lane de MARCA é complemento: pega o que fala da marca direto. Se não
-// há termos_culturais (registro antigo), roda só marca — compat total.
+// COMPOSTO PROPORCIONAL (Brasil 65% / global 20% / setor 15%). A lane CULTURAL
+// (interesse/contexto, sem citar a marca) é o coração dominante: Reddit + TikTok + X,
+// onde a audiência já vive, estilo interest targeting do Meta. News é âncora de MARCA e
+// tem peso mínimo (anti-alucinação, não domina drop). news_global pega early signals antes
+// de chegarem ao BR. LinkedIn é a ÚNICA fonte ligável (B2B/B2BC). Guardas por termo garantem
+// compat: sem termos_culturais roda só marca; sem termos_culturais_en pula o global.
 function lanesFor(marca: Marca): ScrapeLane[] {
   const k = marca.yaml_conhecimento
   const brand = brandKeywords(marca)
   const cultural = k.termos_culturais ?? []
+  const culturalEn = k.termos_culturais_en ?? []
   const lanes: ScrapeLane[] = []
-  // Cultural primeiro: Reddit onde a conversa vive + News pro transbordo do mesmo
-  // interesse na imprensa de negócios/cultura (Exame, Valor, Fast Company etc.).
+
+  // Coração cultural (dominante): a conversa real onde a audiência vive.
   if (cultural.length) {
     lanes.push({ fonte: 'reddit', keywords: cultural })
-    lanes.push({ fonte: 'news', keywords: cultural })
+    lanes.push({ fonte: 'tiktok', keywords: cultural })
+    lanes.push({ fonte: 'twitter', keywords: cultural })
   }
-  // Complemento de marca: Reddit + News anchorados na marca, e o pulso do Twitter.
+  // Early signals global (20%): o sinal antes de virar mainstream no BR.
+  if (culturalEn.length) {
+    lanes.push({ fonte: 'news_global', keywords: culturalEn })
+  }
+  // Âncora de marca: Reddit direto na marca + News pt-br (peso mínimo, só ancoragem factual).
   lanes.push({ fonte: 'reddit', keywords: brand })
   lanes.push({ fonte: 'news', keywords: brand })
-  lanes.push({ fonte: 'twitter', keywords: brand })
+  // Única fonte ligável: LinkedIn, discurso profissional. Só liga se há termo cultural.
+  if (k.linkedin_ativo && cultural.length) {
+    lanes.push({ fonte: 'linkedin', keywords: cultural })
+  }
   return lanes
 }
 
@@ -273,11 +284,11 @@ async function processMarcaBatch(
 
   // Score e status POR DROP: intensidade a partir das fontes que o drop cita,
   // status a partir do momentum real vs. histórico da marca no cérebro.
-  // Anti-alucinação: só sobrevive link que existe de fato nos dados coletados E
-  // que seja fonte real navegável. Twitter Trends não tem post — só página de
-  // busca (x.com/search) — então fica de fora das fontes clicáveis (vira fake).
+  // Anti-alucinação: só sobrevive link que existe de fato nos dados coletados. Todas as
+  // fontes atuais (Reddit, News, TikTok, X real, LinkedIn) trazem URL navegável de verdade
+  // — o antigo Twitter Trends (só página de busca) foi aposentado, então nada é excluído.
   const urlsReais = new Set(
-    rawData.filter(d => d.fonte !== 'twitter').map(d => d.url)
+    rawData.map(d => d.url).filter(Boolean)
   )
   const rows = await Promise.all(drops.map(async drop => {
     const links = (drop.links_fontes || []).filter((u: string) => urlsReais.has(u))

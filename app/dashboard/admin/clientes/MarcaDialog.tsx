@@ -64,7 +64,8 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
       o_que_evitar: toLines(String(fd.get("o_que_evitar") || "")),
       ambicao_de_marca: String(fd.get("ambicao_de_marca") || ""),
       termos_busca: toLines(String(fd.get("termos_busca") || "")),
-      intervalo_horas: Number(fd.get("intervalo_horas")) || 6,
+      linkedin_ativo: fd.get("linkedin_ativo") === "on",
+      intervalo_horas: Number(fd.get("intervalo_horas")) || 8,
     };
     setLoading(true);
     try {
@@ -230,16 +231,32 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
               />
             </label>
 
-            <label className="flex flex-col gap-1.5 max-w-[10rem]">
-              <span className={LABEL}>Intervalo (horas)</span>
-              <input
-                name="intervalo_horas"
-                type="number"
-                min={1}
-                defaultValue={marca?.intervalo_horas ?? 6}
-                className={FIELD}
-              />
-            </label>
+            <div className="flex flex-wrap items-end gap-6">
+              <label className="flex flex-col gap-1.5 max-w-[10rem]">
+                <span className={LABEL}>Intervalo (horas)</span>
+                <input
+                  name="intervalo_horas"
+                  type="number"
+                  min={1}
+                  defaultValue={marca?.intervalo_horas ?? 8}
+                  className={FIELD}
+                />
+              </label>
+              <label className="flex items-center gap-2.5 pb-2.5 cursor-pointer">
+                <input
+                  name="linkedin_ativo"
+                  type="checkbox"
+                  defaultChecked={dna?.linkedin_ativo ?? false}
+                  className="w-4 h-4 rounded accent-lime"
+                />
+                <span className="text-sm text-white">
+                  Varrer LinkedIn
+                  <span className="block text-muted/60 text-[11px]">
+                    ligue para clientes B2B/B2BC
+                  </span>
+                </span>
+              </label>
+            </div>
 
             {error && (
               <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-3.5 py-2.5">

@@ -3,7 +3,9 @@ import { RawDataPoint } from '../types'
 const APIFY_TOKEN = process.env.APIFY_TOKEN!
 const APIFY_BASE = 'https://api.apify.com/v2'
 
-export type Fonte = 'reddit' | 'news' | 'twitter'
+// Fonte de SCRAPE (o que dispara um run). Difere da fonte do RawDataPoint: 'news_global'
+// raspa imprensa global EN mas os itens saem como fonte 'news' (mesma dimensão de score).
+export type Fonte = 'reddit' | 'news' | 'news_global' | 'twitter' | 'tiktok' | 'linkedin'
 
 // A REST da Apify exige o ID no formato username~actor (til), não username/actor.
 // A barra quebra o path e a API responde 404 "no API endpoint at this URL".
@@ -21,6 +23,22 @@ const NEWS_SITES = [
   'valor.globo.com',
   'exame.com',
   'fastcompany.com'
+].map(s => `site:${s}`).join(' OR ')
+
+// Lane GLOBAL de early signals (20% do composto): imprensa internacional que capta o
+// sinal antes de ele chegar ao BR. Mix de tech (Wired, The Information, MIT), forecasting
+// (TrendWatching, Springwise) e cultura/entretenimento (Variety, Billboard, Dazed).
+// Alimentada por termos_culturais_en (a lane cultural traduzida). Editar aqui muda o
+// recorte global de todas as marcas.
+const NEWS_SITES_GLOBAL = [
+  'wired.com',
+  'theinformation.com',
+  'technologyreview.com',
+  'trendwatching.com',
+  'springwise.com',
+  'variety.com',
+  'billboard.com',
+  'dazeddigital.com'
 ].map(s => `site:${s}`).join(' OR ')
 
 // Actor + input por fonte. A raspagem de comentários do Reddit e o max_pages do
@@ -59,7 +77,67 @@ function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string; input:
       }
     }
   }
-  return { actorId: 'data-slayer/twitter-trends-by-location', input: { country: 'Brazil' } }
+  if (fonte === 'news_global') {
+    const query = keywords.slice(0, 3).join(' ')
+    return {
+      actorId: 'johnvc/GoogleNewsAPI',
+      input: {
+        q: `${query} ${NEWS_SITES_GLOBAL}`,
+        gl: 'us',
+        hl: 'en',
+        max_pages: 2
+      }
+    }
+  }
+  if (fonte === 'tiktok') {
+    // Uma query por termo (searchQueries é array), poucos vídeos por query pra segurar
+    // o custo por evento. /video foca em conteúdo (não perfis). MOST_RELEVANT + PAST_MONTH
+    // evita ruído viral velho e run vazio de nicho. proxyCountryCode BR é ESSENCIAL: sem
+    // ele a busca devolve conteúdo global (EN/ES) e o filtro de idioma zera o resultado.
+    return {
+      actorId: 'clockworks/tiktok-scraper',
+      input: {
+        searchQueries: keywords.slice(0, 2),
+        resultsPerPage: 10,
+        searchSection: '/video',
+        videoSearchSorting: 'MOST_RELEVANT',
+        videoSearchDateFilter: 'PAST_MONTH',
+        proxyCountryCode: 'BR'
+      }
+    }
+  }
+  if (fonte === 'linkedin') {
+    // Busca por palavra-chave (searchQueries = query da barra de busca do LinkedIn), sem
+    // cookies. Substitui supreme_coder/linkedin-post, que entrou em manutenção e devolvia
+    // 0 itens. maxPosts é POR query, então 2 termos × 6 = 12 posts. relevance + month
+    // segura volume em termo de nicho sem run vazio. Não raspamos comentários: no LinkedIn
+    // o próprio post é o ensaio (o argumento está no corpo, não na thread) e evita custo
+    // por evento de comentário.
+    return {
+      actorId: 'harvestapi/linkedin-post-search',
+      input: {
+        searchQueries: keywords.slice(0, 2),
+        maxPosts: 6,
+        postedLimit: 'month',
+        sortBy: 'relevance',
+        scrapeComments: false,
+        scrapeReactions: false,
+        profileScraperMode: 'short'
+      }
+    }
+  }
+  // twitter: busca real de tweets (apidojo). Substitui o trends actor, que só dava
+  // label+volume sem conteúdo nem URL. Top + pt trazem a conversa que embasa o drop.
+  const query = keywords.slice(0, 3).join(' OR ')
+  return {
+    actorId: 'apidojo/tweet-scraper',
+    input: {
+      searchTerms: [query],
+      maxItems: 20,
+      sort: 'Top',
+      tweetLanguage: 'pt'
+    }
+  }
 }
 
 // Dispara o run e NÃO espera (waitForFinish=0). Devolve o id do run pra ser pollado
@@ -120,7 +198,9 @@ export async function fetchDataset(datasetId: string): Promise<any[]> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapItems(fonte: Fonte, items: any[]): RawDataPoint[] {
   if (fonte === 'reddit') return mapReddit(items)
-  if (fonte === 'news') return mapNews(items)
+  if (fonte === 'news' || fonte === 'news_global') return mapNews(items)
+  if (fonte === 'tiktok') return mapTikTok(items)
+  if (fonte === 'linkedin') return mapLinkedin(items)
   return mapTwitter(items)
 }
 
@@ -219,13 +299,72 @@ function mapNews(items: any[]): RawDataPoint[] {
   })).filter(item => item.titulo && item.url)
 }
 
+// Tweets reais (apidojo). Agora TEM url e conteúdo, ao contrário do trends actor antigo —
+// por isso o Twitter volta a ser fonte clicável (o filtro anti-alucinação em runRadar
+// deixou de excluí-lo). Engajamento vira densidade/velocidade: likes→upvotes, replies→comentarios.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapTwitter(items: any[]): RawDataPoint[] {
-  return items.map(item => ({
-    fonte: 'twitter' as const,
-    titulo: item.name || item.trend || '',
-    url: `https://x.com/search?q=${encodeURIComponent(item.name || '')}`,
-    snippet: `Volume: ${item.tweetVolume || 'n/d'}`,
-    coletado_em: new Date().toISOString()
-  })).filter(item => item.titulo)
+  return items.map(item => {
+    const texto = String(item.text || item.fullText || '').replace(/\s+/g, ' ').trim()
+    const autor = item.author?.userName ? `@${item.author.userName}` : ''
+    return {
+      fonte: 'twitter' as const,
+      titulo: texto.substring(0, 100),
+      url: item.url || item.twitterUrl || '',
+      snippet: autor ? `${autor}: ${texto}` : texto,
+      comentarios: item.replyCount || 0,
+      upvotes: item.likeCount || 0,
+      coletado_em: new Date().toISOString()
+    }
+  }).filter(item => item.titulo && item.url)
+}
+
+// Vídeos do TikTok por busca de termo. Sem título nativo: o caption (text) vira título e
+// snippet. Filtra por idioma (textLanguage 'pt' ou heurística) pra manter a conversa BR.
+// diggCount (curtidas)→upvotes, commentCount→comentarios alimentam densidade/velocidade.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapTikTok(items: any[]): RawDataPoint[] {
+  return items
+    .filter((i: any) => {
+      const t = String(i.text || '')
+      return t && (i.textLanguage === 'pt' || isPortuguese(t))
+    })
+    .map((i: any) => {
+      const texto = String(i.text || '').replace(/\s+/g, ' ').trim()
+      const autor = i.authorMeta?.nickName || i.authorMeta?.name || ''
+      return {
+        fonte: 'tiktok' as const,
+        titulo: texto.substring(0, 100),
+        url: i.webVideoUrl || '',
+        snippet: `${autor ? autor + ': ' : ''}${texto}\n(${i.playCount || 0} views, ${i.diggCount || 0} curtidas)`,
+        comentarios: i.commentCount || 0,
+        upvotes: i.diggCount || 0,
+        coletado_em: new Date().toISOString()
+      }
+    })
+    .filter(item => item.titulo && item.url)
+}
+
+// Posts do LinkedIn por busca de palavra-chave (harvestapi/linkedin-post-search). Discurso
+// profissional/B2B: o corpo do post JÁ é o argumento (o valor está no texto, não em thread).
+// content vira título+snippet; repost.content cobre o caso de compartilhamento. engagement.likes
+// →upvotes, engagement.comments→comentarios alimentam densidade. LGPD: NÃO carregamos nome de
+// autor pro sinal (o prompt cita a ideia, nunca quem falou); o snippet leva só o conteúdo.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapLinkedin(items: any[]): RawDataPoint[] {
+  return items
+    .map((i: any) => {
+      const corpo = String(i.content || i.repost?.content || i.article?.title || '').replace(/\s+/g, ' ').trim()
+      const titulo = corpo.substring(0, 100)
+      return {
+        fonte: 'linkedin' as const,
+        titulo,
+        url: i.linkedinUrl || i.shareLinkedinUrl || '',
+        snippet: corpo.substring(0, 500),
+        comentarios: i.engagement?.comments || 0,
+        upvotes: i.engagement?.likes || 0,
+        coletado_em: new Date().toISOString()
+      }
+    })
+    .filter(item => item.titulo && item.url)
 }
