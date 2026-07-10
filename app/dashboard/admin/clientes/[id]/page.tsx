@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getClienteSummary, getDailyMetrics } from "@/lib/radar/metrics";
 import MetricChart from "@/components/admin/MetricChart";
 import ClienteExport from "@/components/admin/ClienteExport";
+import PublicLinkButton from "@/components/admin/PublicLinkButton";
 import MarcaDialog from "../MarcaDialog";
 import ActorsBar from "@/components/admin/ActorsBar";
 import type { Marca } from "@/lib/types";
@@ -102,6 +103,7 @@ export default async function ClienteDetailPage({
           </div>
           <div className="flex items-center gap-2 print:hidden">
             <MarcaDialog marca={marca} />
+            <PublicLinkButton marcaId={marca.id} />
             <ClienteExport nome={marca.nome} summary={summary} daily={daily} />
           </div>
         </div>
