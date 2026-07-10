@@ -325,11 +325,11 @@ function mapTwitter(items: any[]): RawDataPoint[] {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapTikTok(items: any[]): RawDataPoint[] {
   return items
-    .filter((i: any) => {
+    .filter((i) => {
       const t = String(i.text || '')
       return t && (i.textLanguage === 'pt' || isPortuguese(t))
     })
-    .map((i: any) => {
+    .map((i) => {
       const texto = String(i.text || '').replace(/\s+/g, ' ').trim()
       const autor = i.authorMeta?.nickName || i.authorMeta?.name || ''
       return {
@@ -353,7 +353,7 @@ function mapTikTok(items: any[]): RawDataPoint[] {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapLinkedin(items: any[]): RawDataPoint[] {
   return items
-    .map((i: any) => {
+    .map((i) => {
       const corpo = String(i.content || i.repost?.content || i.article?.title || '').replace(/\s+/g, ' ').trim()
       const titulo = corpo.substring(0, 100)
       return {
