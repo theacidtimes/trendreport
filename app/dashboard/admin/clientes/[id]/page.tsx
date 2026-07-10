@@ -6,6 +6,7 @@ import { getClienteSummary, getDailyMetrics } from "@/lib/radar/metrics";
 import MetricChart from "@/components/admin/MetricChart";
 import ClienteExport from "@/components/admin/ClienteExport";
 import MarcaDialog from "../MarcaDialog";
+import ActorsBar from "@/components/admin/ActorsBar";
 import type { Marca } from "@/lib/types";
 
 function formatDateTime(iso: string | null): string {
@@ -105,6 +106,8 @@ export default async function ClienteDetailPage({
           </div>
         </div>
       </div>
+
+      <ActorsBar marca={marca} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard

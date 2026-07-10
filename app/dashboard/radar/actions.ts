@@ -15,6 +15,28 @@ export async function toggleMarca(id: string, status: boolean): Promise<void> {
   revalidatePath("/dashboard/admin/clientes");
 }
 
+// LinkedIn é a única lane ligável (as outras — reddit/tiktok/x/news — são default e
+// travadas). linkedin_ativo vive dentro do jsonb yaml_conhecimento, então lê o DNA atual,
+// troca só o flag e regrava (preserva o resto do DNA).
+export async function toggleLinkedin(id: string, active: boolean): Promise<void> {
+  const supabase = createClient();
+  const { data: atual } = await supabase
+    .from("marcas")
+    .select("yaml_conhecimento")
+    .eq("id", id)
+    .single();
+  const dna = (atual?.yaml_conhecimento ?? {}) as MarcaKnowledge;
+  const yaml_conhecimento: MarcaKnowledge = { ...dna, linkedin_ativo: active };
+  const { error } = await supabase
+    .from("marcas")
+    .update({ yaml_conhecimento })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/radar");
+  revalidatePath("/dashboard/admin/clientes");
+  revalidatePath(`/dashboard/admin/clientes/${id}`);
+}
+
 export async function createMarca(data: {
   nome: string;
   produto: string;
