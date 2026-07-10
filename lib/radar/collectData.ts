@@ -109,7 +109,8 @@ function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string; input:
   if (fonte === 'linkedin') {
     // Busca por palavra-chave (searchQueries = query da barra de busca do LinkedIn), sem
     // cookies. Substitui supreme_coder/linkedin-post, que entrou em manutenção e devolvia
-    // 0 itens. maxPosts é POR query, então 2 termos × 6 = 12 posts. relevance + month
+    // 0 itens. maxPosts é POR query, então 2 termos × 12 = 24 candidatos — pool folgado
+    // porque mapLinkedin corta ~metade (engajamento/corpo mínimos). relevance + month
     // segura volume em termo de nicho sem run vazio. Não raspamos comentários: no LinkedIn
     // o próprio post é o ensaio (o argumento está no corpo, não na thread) e evita custo
     // por evento de comentário.
@@ -117,7 +118,7 @@ function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string; input:
       actorId: 'harvestapi/linkedin-post-search',
       input: {
         searchQueries: keywords.slice(0, 2),
-        maxPosts: 6,
+        maxPosts: 12,
         postedLimit: 'month',
         sortBy: 'relevance',
         scrapeComments: false,
@@ -345,6 +346,14 @@ function mapTikTok(items: any[]): RawDataPoint[] {
     .filter(item => item.titulo && item.url)
 }
 
+// harvestapi busca por relevância mas dispersa: o dataset vem com muito post morto
+// (networking "pay it forward", 0 reação) e deriva pra PT-PT/PALOP fora do universo BR.
+// O actor NÃO expõe filtro de geo/idioma no input, então a peneira é aqui. Dois cortes,
+// ambos marca-agnósticos: engajamento mínimo (post sem tração não é sinal, é feed morto) e
+// corpo mínimo (o valor do LinkedIn é o ensaio no texto — saudação de uma linha não conta).
+const LINKEDIN_MIN_ENGAJAMENTO = 3
+const LINKEDIN_MIN_CORPO = 120
+
 // Posts do LinkedIn por busca de palavra-chave (harvestapi/linkedin-post-search). Discurso
 // profissional/B2B: o corpo do post JÁ é o argumento (o valor está no texto, não em thread).
 // content vira título+snippet; repost.content cobre o caso de compartilhamento. engagement.likes
@@ -366,5 +375,10 @@ function mapLinkedin(items: any[]): RawDataPoint[] {
         coletado_em: new Date().toISOString()
       }
     })
-    .filter(item => item.titulo && item.url)
+    .filter(item =>
+      item.titulo &&
+      item.url &&
+      item.snippet.length >= LINKEDIN_MIN_CORPO &&
+      item.upvotes + item.comentarios >= LINKEDIN_MIN_ENGAJAMENTO
+    )
 }
