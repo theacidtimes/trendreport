@@ -65,7 +65,7 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
       ambicao_de_marca: String(fd.get("ambicao_de_marca") || ""),
       termos_busca: toLines(String(fd.get("termos_busca") || "")),
       linkedin_ativo: fd.get("linkedin_ativo") === "on",
-      intervalo_horas: Number(fd.get("intervalo_horas")) || 8,
+      intervalo_horas: Number(fd.get("intervalo_horas")) || 24,
     };
     setLoading(true);
     try {
@@ -238,7 +238,7 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
                   name="intervalo_horas"
                   type="number"
                   min={1}
-                  defaultValue={marca?.intervalo_horas ?? 8}
+                  defaultValue={marca?.intervalo_horas ?? 24}
                   className={FIELD}
                 />
               </label>

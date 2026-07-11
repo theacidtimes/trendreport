@@ -333,7 +333,7 @@ async function processMarcaBatch(
 // a própria cadência: o cron bate de tempos em tempos, mas só dispara quem venceu.
 function isDue(marca: Marca, now: number): boolean {
   if (!marca.ultima_varredura) return true
-  const intervaloMs = (marca.intervalo_horas || 6) * 3_600_000
+  const intervaloMs = (marca.intervalo_horas || 24) * 3_600_000
   return now - new Date(marca.ultima_varredura).getTime() >= intervaloMs
 }
 
