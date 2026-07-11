@@ -3,7 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
 import NewReportDialog from "./NewReportDialog";
-import ReportsBrowser, { type ReportCardData } from "./ReportsBrowser";
+import { type ReportCardData } from "./ReportsBrowser";
+import HomeFeed, { type DropCardData } from "./HomeFeed";
 import { PLATFORM_ICON, PLATFORM_LABEL, type Plataforma } from "@/lib/platforms";
 import { checkIsAdmin } from "@/lib/admin";
 import type { ReportRow } from "@/lib/types";
@@ -58,6 +59,14 @@ export default async function DashboardPage() {
     .from("reports")
     .select("id, slug, cliente, report, created_at, status")
     .order("created_at", { ascending: false });
+
+  const { data: radarDrops } = await supabase
+    .from("trends_radar")
+    .select(
+      "id, insight_titulo, descricao_fato, gancho_produto, status_hype, categoria_funil, indice_hype, created_at, marca:marcas(nome)"
+    )
+    .order("created_at", { ascending: false })
+    .limit(12);
 
   const rows = (reports ?? []) as (Pick<
     ReportRow,
@@ -127,6 +136,31 @@ export default async function DashboardPage() {
     hypeMotivo: r.report?.meta?.hype_motivo ?? "",
     imagemUrl: thumbOf(r),
     corMarca: r.report?.meta?.cor_marca ?? null,
+  }));
+
+  // Drops preditivos (trends_radar) para os 2 bentos do topo. O join marca:marcas
+  // pode vir como objeto ou array conforme a inferência do Supabase — normalizamos.
+  type RadarRow = {
+    id: string;
+    insight_titulo: string;
+    descricao_fato: string;
+    gancho_produto: string;
+    status_hype: DropCardData["statusHype"];
+    categoria_funil: DropCardData["categoriaFunil"];
+    indice_hype: number;
+    created_at: string;
+    marca: { nome: string } | { nome: string }[] | null;
+  };
+  const drops: DropCardData[] = ((radarDrops ?? []) as RadarRow[]).map((d) => ({
+    id: d.id,
+    marcaNome: (Array.isArray(d.marca) ? d.marca[0]?.nome : d.marca?.nome) ?? null,
+    insightTitulo: d.insight_titulo,
+    descricaoFato: d.descricao_fato,
+    ganchoProduto: d.gancho_produto,
+    statusHype: d.status_hype,
+    categoriaFunil: d.categoria_funil,
+    indiceHype: d.indice_hype ?? 0,
+    createdAt: d.created_at,
   }));
 
   return (
@@ -280,7 +314,7 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <ReportsBrowser cards={cards} />
+          <HomeFeed cards={cards} drops={drops} />
         </div>
       </main>
     </div>

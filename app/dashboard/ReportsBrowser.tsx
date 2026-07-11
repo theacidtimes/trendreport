@@ -24,7 +24,7 @@ const SORT_OPTIONS: { value: SortValue; label: string }[] = [
   { value: "hype", label: "Maior hype" },
 ];
 
-function Dropdown({
+export function Dropdown({
   label,
   value,
   options,
@@ -90,8 +90,13 @@ function Dropdown({
   );
 }
 
-export default function ReportsBrowser({ cards }: { cards: ReportCardData[] }) {
-  const [cliente, setCliente] = useState("todos");
+export default function ReportsBrowser({
+  cards,
+  cliente = "todos",
+}: {
+  cards: ReportCardData[];
+  cliente?: string;
+}) {
   const [sort, setSort] = useState<SortValue>("recentes");
   const [pending, setPending] = useState(false);
 
@@ -115,13 +120,6 @@ export default function ReportsBrowser({ cards }: { cards: ReportCardData[] }) {
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);
-
-  const clienteOptions = useMemo(() => {
-    const nomes = Array.from(new Set(cards.map((c) => c.cliente))).sort((a, b) =>
-      a.localeCompare(b, "pt-BR")
-    );
-    return [{ value: "todos", label: "Todos" }, ...nomes.map((n) => ({ value: n, label: n }))];
-  }, [cards]);
 
   const visible = useMemo(() => {
     let list = cards;
@@ -152,12 +150,6 @@ export default function ReportsBrowser({ cards }: { cards: ReportCardData[] }) {
 
         {cards.length > 0 && (
           <div className="flex items-center gap-2">
-            <Dropdown
-              label="Cliente"
-              value={cliente}
-              options={clienteOptions}
-              onChange={(v) => withLoader(() => setCliente(v))}
-            />
             <Dropdown
               label="Ordem"
               value={sort}
