@@ -45,6 +45,16 @@ export default async function PainelPublico({
     .limit(100);
 
   const drops = (dropsData ?? []) as TrendDrop[];
+
+  // Panorama por status/funil pra orientar quem abre o link antes de rolar.
+  const resumo = {
+    em_alta: drops.filter((d) => d.status_hype === "em_alta").length,
+    subindo: drops.filter((d) => d.status_hype === "subindo").length,
+    estabilizando: drops.filter((d) => d.status_hype === "estabilizando").length,
+    growth: drops.filter((d) => d.categoria_funil === "growth").length,
+    base: drops.filter((d) => d.categoria_funil === "base").length,
+  };
+
   const atualizado = drops[0]?.created_at
     ? new Date(drops[0].created_at).toLocaleString("pt-BR", {
         day: "2-digit",
@@ -73,6 +83,39 @@ export default async function PainelPublico({
             {drops.length} drop{drops.length === 1 ? "" : "s"}
             {atualizado ? ` · atualizado em ${atualizado}` : ""}
           </p>
+
+          {drops.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap mt-3">
+              {resumo.em_alta > 0 && (
+                <span className="text-[11px] font-semibold rounded-full bg-lime text-black px-2.5 py-1 tabular-nums">
+                  {resumo.em_alta} em alta
+                </span>
+              )}
+              {resumo.subindo > 0 && (
+                <span className="text-[11px] font-semibold rounded-full bg-purple text-white px-2.5 py-1 tabular-nums">
+                  {resumo.subindo} subindo
+                </span>
+              )}
+              {resumo.estabilizando > 0 && (
+                <span className="text-[11px] font-medium rounded-full border border-border text-muted px-2.5 py-1 tabular-nums">
+                  {resumo.estabilizando} estabilizando
+                </span>
+              )}
+              {(resumo.growth > 0 || resumo.base > 0) && (
+                <span className="w-px h-4 bg-border mx-1" />
+              )}
+              {resumo.growth > 0 && (
+                <span className="text-[11px] font-medium text-muted tabular-nums">
+                  ↗ {resumo.growth} growth
+                </span>
+              )}
+              {resumo.base > 0 && (
+                <span className="text-[11px] font-medium text-muted tabular-nums">
+                  → {resumo.base} base
+                </span>
+              )}
+            </div>
+          )}
         </header>
 
         {drops.length === 0 ? (
