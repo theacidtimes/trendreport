@@ -93,12 +93,17 @@ export function Dropdown({
 export default function ReportsBrowser({
   cards,
   cliente = "todos",
+  externalPending = false,
 }: {
   cards: ReportCardData[];
   cliente?: string;
+  externalPending?: boolean;
 }) {
   const [sort, setSort] = useState<SortValue>("recentes");
   const [pending, setPending] = useState(false);
+  // Combina o loader interno (troca de ordem) com o do pai (troca de cliente),
+  // pra lista e bentos piscarem juntos.
+  const busy = pending || externalPending;
 
   // Guarda o timeout do loader pra não empilhar timers quando o usuário troca
   // vários filtros em sequência.
@@ -172,7 +177,7 @@ export default function ReportsBrowser({
         </div>
       ) : (
         <div className="relative">
-          {pending && (
+          {busy && (
             <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-bg/60 backdrop-blur-sm">
               <Loader2 className="w-6 h-6 text-lime animate-spin" strokeWidth={2.5} />
             </div>
@@ -187,7 +192,7 @@ export default function ReportsBrowser({
           ) : (
             <div
               className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity ${
-                pending ? "opacity-40" : "opacity-100"
+                busy ? "opacity-40" : "opacity-100"
               }`}
             >
               {visible.map((c, i) => (

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Radar, Radio } from "lucide-react";
+import { ArrowUpRight, Loader2, Radar, Radio } from "lucide-react";
 import ReportsBrowser, { Dropdown, type ReportCardData } from "./ReportsBrowser";
 
 export type DropCardData = {
@@ -60,6 +60,25 @@ export default function HomeFeed({
   drops: DropCardData[];
 }) {
   const [cliente, setCliente] = useState("todos");
+  const [pending, setPending] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Loader deliberado ao trocar cliente: mostra o "remanejando" nas duas seções
+  // (bentos + reports) antes de aplicar o novo filtro.
+  function withLoader(apply: () => void) {
+    setPending(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      apply();
+      setPending(false);
+    }, 400);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
 
   // Opções cobrem clientes dos reports E marcas dos drops — o seletor governa as
   // duas seções de uma vez.
@@ -100,11 +119,18 @@ export default function HomeFeed({
             label="Cliente"
             value={cliente}
             options={clienteOptions}
-            onChange={setCliente}
+            onChange={(v) => withLoader(() => setCliente(v))}
           />
         )}
       </div>
 
+      <div className="relative">
+        {pending && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-bg/60 backdrop-blur-sm">
+            <Loader2 className="w-6 h-6 text-lime animate-spin" strokeWidth={2.5} />
+          </div>
+        )}
+        <div className={`transition-opacity ${pending ? "opacity-40" : "opacity-100"}`}>
       {destaque ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* BENTO A — drop em destaque (mais recente do cliente) */}
@@ -221,8 +247,10 @@ export default function HomeFeed({
           </p>
         </div>
       )}
+        </div>
+      </div>
 
-      <ReportsBrowser cards={cards} cliente={cliente} />
+      <ReportsBrowser cards={cards} cliente={cliente} externalPending={pending} />
     </>
   );
 }
