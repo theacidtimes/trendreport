@@ -38,18 +38,16 @@ export default function NewReportDialog() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group sm:col-span-2 rounded-3xl bg-purple p-6 md:p-7 flex items-center justify-between gap-4 text-left transition-colors hover:bg-purple-mid"
+        className="group lg:col-span-2 rounded-2xl bg-purple p-6 md:p-8 flex items-center justify-between gap-4 text-left transition-colors duration-300 ease-spring hover:bg-purple-mid shadow-card"
       >
-        <div className="flex flex-col gap-1">
-          <span className="text-white/60 text-xs uppercase tracking-[0.14em] font-medium">
-            Novo report
-          </span>
-          <h1 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
+        <div className="flex flex-col gap-2">
+          <span className="kicker text-white/60">Novo report</span>
+          <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight text-balance">
             O que está bombando agora?
-          </h1>
+          </h2>
         </div>
-        <span className="shrink-0 w-12 h-12 rounded-full bg-lime text-black flex items-center justify-center group-hover:scale-105 transition-transform">
-          <Plus className="w-6 h-6" strokeWidth={2.5} />
+        <span className="shrink-0 w-12 h-12 rounded-full border border-white/20 bg-white/10 text-white flex items-center justify-center group-hover:bg-white/20 group-hover:scale-105 transition-all duration-300 ease-spring">
+          <Plus className="w-6 h-6" strokeWidth={2} />
         </span>
       </button>
 
@@ -64,13 +62,11 @@ export default function NewReportDialog() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex flex-col gap-2">
-                <span className="text-muted uppercase text-xs tracking-[0.14em] font-medium">
-                  Novo report
-                </span>
-                <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
+                <span className="kicker text-muted-2">Novo report</span>
+                <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
                   Monte o briefing.
                 </h2>
-                <p className="text-muted text-[15px] max-w-md">
+                <p className="text-muted text-[15px] max-w-md leading-relaxed">
                   Preencha os campos abaixo. A gente cuida do resto pra IA entender a marca,
                   a campanha e o contexto que você quer explorar.
                 </p>
@@ -80,7 +76,7 @@ export default function NewReportDialog() {
                 onClick={close}
                 disabled={loading}
                 aria-label="Fechar"
-                className="shrink-0 w-10 h-10 rounded-full border border-border text-muted hover:text-white hover:border-lime/40 transition-colors flex items-center justify-center disabled:opacity-40 disabled:pointer-events-none"
+                className="shrink-0 w-10 h-10 rounded-full border border-border text-muted hover:text-white hover:border-white/20 transition-colors flex items-center justify-center disabled:opacity-40 disabled:pointer-events-none"
               >
                 <X className="w-4 h-4" strokeWidth={2} />
               </button>
