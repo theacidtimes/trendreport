@@ -31,7 +31,7 @@ export default async function RadarPage() {
     <div className="min-h-screen bg-bg">
       <Sidebar userEmail={user?.email} isAdmin={isAdmin} />
 
-      <main className="md:pl-64">
+      <main className="md:pl-20">
         <div className="max-w-6xl mx-auto px-6 py-10 md:py-14 flex flex-col gap-8">
           <div className="flex flex-col gap-1">
             <span className="flex items-center gap-2 text-lime text-xs uppercase tracking-[0.14em] font-medium">

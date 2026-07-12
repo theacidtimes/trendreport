@@ -36,7 +36,7 @@ export default async function DashboardReportPage({
     return (
       <div className="min-h-screen bg-bg">
         <Sidebar userEmail={user?.email} isAdmin={isAdmin} />
-        <main className="md:pl-64">
+        <main className="md:pl-20">
           <PendingReport slug={params.slug} />
         </main>
       </div>
@@ -47,7 +47,7 @@ export default async function DashboardReportPage({
     return (
       <div className="min-h-screen bg-bg">
         <Sidebar userEmail={user?.email} isAdmin={isAdmin} />
-        <main className="md:pl-64">
+        <main className="md:pl-20">
           <div className="min-h-screen md:min-h-0 flex items-center justify-center px-4 py-10 md:py-24">
             <p className="text-red-400 text-sm max-w-md flex items-center gap-2 text-center">
               <TriangleAlert className="w-4 h-4 shrink-0" strokeWidth={2} />
@@ -74,7 +74,7 @@ export default async function DashboardReportPage({
     return (
       <div className="min-h-screen bg-bg">
         <Sidebar userEmail={user?.email} isAdmin={isAdmin} />
-        <main className="md:pl-64">
+        <main className="md:pl-20">
           <ReportEditor
             slug={params.slug}
             initialReport={report}
@@ -89,7 +89,7 @@ export default async function DashboardReportPage({
   return (
     <div className="min-h-screen bg-bg">
       <Sidebar userEmail={user?.email} />
-      <main className="md:pl-64">
+      <main className="md:pl-20">
         <ReportView report={report} geradoEm={geradoEm} standalone={false} briefing={briefing} />
       </main>
       <PublishedActions slug={params.slug} />

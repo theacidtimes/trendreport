@@ -12,9 +12,13 @@ const NAV = [
   { href: "/dashboard/radar", label: "Radar", icon: Radar },
 ];
 
-const ADMIN_NAV = [
-  { href: "/dashboard/admin", label: "Admin", icon: Shield },
-];
+const ADMIN_NAV = [{ href: "/dashboard/admin", label: "Admin", icon: Shield }];
+
+function isActive(pathname: string, href: string) {
+  return href === "/dashboard"
+    ? pathname === href
+    : pathname === href || pathname.startsWith(href + "/");
+}
 
 export default function Sidebar({
   userEmail,
@@ -36,56 +40,68 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-64 md:z-40 border-r border-border bg-bg px-5 py-6">
-        <Link href="/dashboard" className="flex flex-col gap-1 px-1 mb-10">
+      {/* Desktop dock — 80px icon rail that expands to 256px on hover (overlay) */}
+      <aside className="group hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-20 md:hover:w-64 md:z-40 overflow-hidden border-r border-border bg-bg transition-[width] duration-300 ease-spring group-hover:shadow-elevated">
+        <Link
+          href="/dashboard"
+          className="flex flex-col gap-1 h-[68px] justify-center px-[26px]"
+        >
           <Logo size="md" />
-          <span className="text-muted text-[10px] uppercase tracking-[0.14em] pl-[38px]">
+          <span className="kicker text-muted-2 pl-[42px] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             trend report
           </span>
         </Link>
 
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-col gap-1 px-3 mt-6">
           {nav.map(({ href, label, icon: Icon }) => {
-            const active =
-              href === "/dashboard"
-                ? pathname === href
-                : pathname === href || pathname.startsWith(href + "/");
+            const active = isActive(pathname, href);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`group flex items-center gap-3 h-11 px-3 rounded-xl text-sm font-medium transition-colors ${
+                className={`group/item relative flex items-center gap-3 h-12 rounded-xl transition-colors ${
                   active
-                    ? "bg-purple text-white"
-                    : "text-muted hover:text-white hover:bg-surface/60"
+                    ? "bg-surface-2 text-white"
+                    : "text-muted hover:text-white hover:bg-surface/70"
                 }`}
               >
-                <Icon
-                  className={`w-[18px] h-[18px] transition-colors ${
-                    active ? "text-lime" : "text-muted group-hover:text-white"
-                  }`}
-                  strokeWidth={2}
-                />
-                {label}
+                {active && (
+                  <span className="absolute left-0 h-6 w-0.5 rounded-full bg-purple" />
+                )}
+                <span className="grid place-items-center w-11 h-11 shrink-0">
+                  <Icon
+                    className="w-[18px] h-[18px]"
+                    strokeWidth={active ? 2.4 : 2}
+                  />
+                </span>
+                <span className="text-sm font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {label}
+                </span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="flex flex-col gap-3 mt-8 pt-5 border-t border-border">
-          {userEmail && (
-            <div className="flex items-center justify-between gap-2 px-1">
-              <span className="text-muted text-xs truncate">{userEmail}</span>
-              <button
-                onClick={handleSignOut}
-                aria-label="Sair"
-                className="text-muted hover:text-lime transition-colors shrink-0"
-              >
-                <LogOut className="w-4 h-4" strokeWidth={2} />
-              </button>
-            </div>
-          )}
+        <div className="mt-auto px-3 pb-6">
+          <div className="pt-4 border-t border-hairline">
+            <button
+              onClick={handleSignOut}
+              aria-label="Sair"
+              className="group/item flex items-center gap-3 w-full h-12 rounded-xl text-muted hover:text-white hover:bg-surface/70 transition-colors"
+            >
+              <span className="grid place-items-center w-11 h-11 shrink-0">
+                <LogOut className="w-[18px] h-[18px]" strokeWidth={2} />
+              </span>
+              <span className="flex flex-col min-w-0 items-start opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <span className="text-sm font-medium leading-tight">Sair</span>
+                {userEmail && (
+                  <span className="text-[11px] text-muted-2 truncate max-w-[150px] leading-tight">
+                    {userEmail}
+                  </span>
+                )}
+              </span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -94,25 +110,30 @@ export default function Sidebar({
         <Link href="/dashboard" className="flex items-center">
           <Logo size="sm" />
         </Link>
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-4">
           {nav.map(({ href, icon: Icon, label }) => {
-            const active =
-              href === "/dashboard"
-                ? pathname === href
-                : pathname === href || pathname.startsWith(href + "/");
+            const active = isActive(pathname, href);
             return (
               <Link
                 key={href}
                 href={href}
                 aria-label={label}
-                className={active ? "text-lime" : "text-muted"}
+                className={`relative grid place-items-center w-9 h-9 rounded-lg transition-colors ${
+                  active
+                    ? "bg-surface-2 text-white"
+                    : "text-muted hover:text-white"
+                }`}
               >
-                <Icon className="w-5 h-5" strokeWidth={2} />
+                <Icon className="w-5 h-5" strokeWidth={active ? 2.4 : 2} />
               </Link>
             );
           })}
           {userEmail && (
-            <button onClick={handleSignOut} aria-label="Sair" className="text-muted">
+            <button
+              onClick={handleSignOut}
+              aria-label="Sair"
+              className="text-muted hover:text-white transition-colors"
+            >
               <LogOut className="w-5 h-5" strokeWidth={2} />
             </button>
           )}

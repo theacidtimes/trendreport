@@ -19,7 +19,7 @@ export default function NewReportPage() {
     <div className="min-h-screen bg-bg">
       <Sidebar userEmail={userEmail} isAdmin={isAdmin} />
 
-      <main className="md:pl-64">
+      <main className="md:pl-20">
         <div className="min-h-screen md:min-h-0 flex items-center justify-center px-4 py-10 md:py-24">
           <div className="w-full max-w-2xl flex flex-col gap-6">
             <div className="flex flex-col gap-2">

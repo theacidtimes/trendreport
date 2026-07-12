@@ -20,7 +20,7 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen bg-bg">
       <Sidebar userEmail={user.email} isAdmin />
-      <main className="md:pl-64 print:pl-0">
+      <main className="md:pl-20 print:pl-0">
         <div className="max-w-6xl mx-auto px-6 py-10 md:py-14 flex flex-col gap-8">
           <AdminTabs />
           {children}
