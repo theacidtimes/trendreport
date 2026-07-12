@@ -38,16 +38,16 @@ export default function NewReportDialog() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group lg:col-span-2 rounded-2xl bg-purple p-6 md:p-8 flex items-center justify-between gap-4 text-left transition-colors duration-300 ease-spring hover:bg-purple-mid shadow-card"
+        className="group sm:col-span-2 rounded-3xl bg-purple p-6 md:p-7 flex items-center justify-between gap-4 text-left transition-colors duration-300 ease-spring hover:bg-purple-mid shadow-card"
       >
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           <span className="kicker text-white/60">Novo report</span>
-          <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight text-balance">
+          <h1 className="font-sans text-white font-semibold text-2xl md:text-3xl leading-tight tracking-[-0.01em]">
             O que está bombando agora?
-          </h2>
+          </h1>
         </div>
-        <span className="shrink-0 w-12 h-12 rounded-full border border-white/20 bg-white/10 text-white flex items-center justify-center group-hover:bg-white/20 group-hover:scale-105 transition-all duration-300 ease-spring">
-          <Plus className="w-6 h-6" strokeWidth={2} />
+        <span className="shrink-0 w-12 h-12 rounded-full bg-lime text-black flex items-center justify-center group-hover:scale-105 transition-transform duration-300 ease-spring">
+          <Plus className="w-6 h-6" strokeWidth={2.5} />
         </span>
       </button>
 
