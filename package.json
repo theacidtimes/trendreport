@@ -13,11 +13,14 @@
     "@anthropic-ai/sdk": "^0.109.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.42.2",
     "js-yaml": "^5.2.1",
     "lucide-react": "^1.23.0",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",
+    "tailwind-merge": "^3.6.0",
     "ws": "^8.21.0"
   },
   "devDependencies": {

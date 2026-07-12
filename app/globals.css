@@ -2,27 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Editorial Intelligence Desk — foundation tokens
+  Dark, warm-neutral base. Color communicates meaning, not decoration.
+  Token names are preserved so existing screens inherit the new identity.
+*/
 :root {
-  --bg: #060009;
-  --surface: #0f0015;
-  --surface-2: #170023;
-  --purple: #660099;
-  --purple-mid: #370053;
+  /* Surfaces — rich warm-neutral, never pure black */
+  --bg: #0b0b0b;
+  --surface: #121212;
+  --surface-2: #181818;
+  --surface-3: #202020;
+
+  /* Lines — very subtle */
+  --border: #232323;
+  --hairline: rgba(245, 243, 239, 0.07);
+
+  /* Text — warm white to soft gray */
+  --white: #f5f3ef;
+  --muted: #a8a29e;
+  --muted-2: #6e6a66;
+
+  /* Signature accents (brand DNA) — used sparingly, not to decorate */
+  --purple: #a063e8;
+  --purple-mid: #4a2e63;
   --lime: #81d300;
-  --white: #ffffff;
-  --muted: #9b8faa;
-  --border: #1e0029;
+
+  /* Category accents — the only colors that carry meaning */
+  --cat-business: #c6a15b;
+  --cat-technology: #6e93c7;
+  --cat-culture: #b27bb0;
+  --cat-sports: #d9843f;
+  --cat-agro: #7fa650;
 }
 
 body {
   color: var(--white);
   background: var(--bg);
   font-family: var(--font-inter), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: var(--lime);
-  color: #060009;
+  background: color-mix(in srgb, var(--purple) 30%, transparent);
+  color: var(--white);
 }
 
 ::-webkit-scrollbar {
@@ -35,9 +59,13 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--surface-2);
+  background: var(--surface-3);
   border-radius: 999px;
   border: 2px solid var(--bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2b2b2b;
 }
 
 @layer utilities {
@@ -45,8 +73,178 @@ body {
     text-wrap: balance;
   }
 
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
   .tabular-nums {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* ---- Editorial typography primitives ---- */
+
+  /* Uppercase label / eyebrow — the connective tissue of the layout */
+  .kicker {
+    font-family: var(--font-space-grotesk), sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--muted);
+  }
+
+  /* Serif display headline */
+  .display {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-weight: 500;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    font-size: clamp(2.75rem, 5vw, 4.75rem);
+    color: var(--white);
+  }
+
+  .headline {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-weight: 500;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    font-size: clamp(1.9rem, 3.2vw, 2.9rem);
+    color: var(--white);
+  }
+
+  /* Intro paragraph after a headline */
+  .standfirst {
+    font-family: var(--font-inter), sans-serif;
+    font-size: 1.2rem;
+    line-height: 1.6;
+    letter-spacing: -0.005em;
+    color: var(--muted);
+  }
+
+  /* Editorial pull quote */
+  .pull-quote {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(1.5rem, 2.6vw, 2.25rem);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--white);
+  }
+
+  /* ---- Lines ---- */
+  .hairline {
+    border-color: var(--hairline);
+  }
+
+  /* ---- Category system ---- */
+  /* Foreground color + subtle tint + subtle border, driven by --cat */
+  .cat {
+    color: var(--cat);
+  }
+  .cat-dot {
+    background: var(--cat);
+  }
+  .cat-tint {
+    background: color-mix(in srgb, var(--cat) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--cat) 24%, transparent);
+  }
+  .cat-business {
+    --cat: var(--cat-business);
+  }
+  .cat-technology {
+    --cat: var(--cat-technology);
+  }
+  .cat-culture {
+    --cat: var(--cat-culture);
+  }
+  .cat-sports {
+    --cat: var(--cat-sports);
+  }
+  .cat-agro {
+    --cat: var(--cat-agro);
+  }
+
+  /* Chip = kicker inside a category tint */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    font-family: var(--font-space-grotesk), sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.66rem;
+    font-weight: 500;
+    color: var(--cat);
+    background: color-mix(in srgb, var(--cat) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--cat) 24%, transparent);
+  }
+
+  /* ---- Signal strength / trend meter (allowed gradient use) ---- */
+  .signal-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+  .signal-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--cat, var(--purple)) 40%, transparent),
+      var(--cat, var(--purple))
+    );
+  }
+}
+
+/* ---- Motion — invisible, calm, never decorative ---- */
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes blur-in {
+  0% {
+    opacity: 0;
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -65,4 +263,14 @@ body {
 
 .typing-dot {
   animation: typing-dot 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
