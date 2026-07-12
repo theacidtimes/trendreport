@@ -105,11 +105,9 @@ export default function HomeFeed({
     <>
       {/* RADAR RECENTE — bentos preditivos, filtrados pelo seletor de cliente */}
       <div className="flex items-end justify-between gap-4 flex-wrap pt-6">
-        <div className="flex flex-col gap-1">
-          <span className="text-muted text-xs uppercase tracking-[0.14em] font-medium">
-            Sinais preditivos do radar
-          </span>
-          <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
+        <div className="flex flex-col gap-1.5">
+          <span className="kicker text-muted-2">Sinais preditivos do radar</span>
+          <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
             Radar recente
           </h2>
         </div>
@@ -136,7 +134,7 @@ export default function HomeFeed({
           {/* BENTO A — drop em destaque (mais recente do cliente) */}
           <Link
             href="/dashboard/radar"
-            className="group rounded-3xl bg-surface border border-border p-6 flex flex-col gap-4 hover:border-lime/40 transition-colors"
+            className="group rounded-3xl bg-surface border border-border p-6 flex flex-col gap-4 hover:border-white/20 transition-colors shadow-card"
           >
             <div className="flex items-center gap-2 flex-wrap">
               {showMarca && destaque.marcaNome && (
@@ -182,7 +180,7 @@ export default function HomeFeed({
 
             <div className="mt-auto flex items-center justify-between text-[11px] text-muted">
               <span>{relativo(destaque.createdAt)}</span>
-              <span className="flex items-center gap-1 group-hover:text-lime transition-colors">
+              <span className="flex items-center gap-1 group-hover:text-white transition-colors">
                 Ver no radar
                 <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={2.5} />
               </span>
@@ -190,12 +188,10 @@ export default function HomeFeed({
           </Link>
 
           {/* BENTO B — últimos sinais (feed compacto) */}
-          <div className="rounded-3xl bg-surface border border-border p-6 flex flex-col gap-4">
-            <div className="flex items-center gap-2 text-muted">
+          <div className="rounded-3xl bg-surface border border-border p-6 flex flex-col gap-4 shadow-card">
+            <div className="flex items-center gap-2 text-muted-2">
               <Radio className="w-4 h-4 text-lime shrink-0" strokeWidth={2.2} />
-              <span className="text-xs uppercase tracking-[0.14em] font-medium">
-                Últimos sinais
-              </span>
+              <span className="kicker">Últimos sinais</span>
             </div>
             {feed.length > 0 ? (
               <div className="flex flex-col gap-2">
@@ -203,7 +199,7 @@ export default function HomeFeed({
                   <Link
                     key={d.id}
                     href="/dashboard/radar"
-                    className="group flex items-center gap-2 rounded-xl bg-black/30 border border-border px-3 py-2.5 hover:border-lime/40 transition-colors"
+                    className="group flex items-center gap-2 rounded-xl bg-surface-2 border border-border px-3 py-2.5 hover:border-white/20 transition-colors"
                   >
                     <span
                       className={`shrink-0 w-1.5 h-1.5 rounded-full ${statusDotClass(
@@ -222,7 +218,7 @@ export default function HomeFeed({
                       {d.indiceHype}
                     </span>
                     <ArrowUpRight
-                      className="w-3.5 h-3.5 text-muted shrink-0 group-hover:text-lime transition-colors"
+                      className="w-3.5 h-3.5 text-muted-2 shrink-0 group-hover:text-white transition-colors"
                       strokeWidth={2.5}
                     />
                   </Link>

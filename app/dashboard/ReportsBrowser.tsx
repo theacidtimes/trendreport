@@ -54,11 +54,9 @@ export function Dropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-xl bg-surface border border-border px-3.5 py-2.5 text-sm text-white hover:border-lime/40 transition-colors"
+        className="flex items-center gap-2 rounded-xl bg-surface border border-border px-3.5 py-2.5 text-sm text-white hover:border-white/20 transition-colors"
       >
-        <span className="text-muted text-[11px] uppercase tracking-[0.1em] font-medium">
-          {label}
-        </span>
+        <span className="kicker text-muted-2 text-[11px]">{label}</span>
         <span className="font-medium max-w-[10rem] truncate">{current}</span>
         <ChevronDown
           className={`w-4 h-4 text-muted shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
@@ -77,7 +75,7 @@ export function Dropdown({
                 setOpen(false);
               }}
               className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm text-left transition-colors ${
-                o.value === value ? "bg-black/40 text-lime" : "text-white hover:bg-black/30"
+                o.value === value ? "bg-surface-2 text-white" : "text-muted hover:bg-surface-2 hover:text-white"
               }`}
             >
               <span className="truncate">{o.label}</span>
@@ -144,11 +142,11 @@ export default function ReportsBrowser({
   return (
     <>
       <div className="flex items-end justify-between gap-4 flex-wrap pt-6">
-        <div className="flex flex-col gap-1">
-          <span className="text-muted text-xs uppercase tracking-[0.14em] font-medium">
+        <div className="flex flex-col gap-1.5">
+          <span className="kicker text-muted-2">
             {visible.length} {visible.length === 1 ? "report" : "reports"}
           </span>
-          <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
+          <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
             Seus reports
           </h2>
         </div>

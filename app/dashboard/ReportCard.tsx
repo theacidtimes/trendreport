@@ -58,7 +58,7 @@ export default function ReportCard({
   return (
     <Link
       href={`/dashboard/${slug}`}
-      className={`group flex flex-col rounded-3xl overflow-hidden border border-border transition-colors hover:border-lime/40 ${bg}`}
+      className={`group flex flex-col rounded-3xl overflow-hidden border border-border transition-colors hover:border-white/20 shadow-card ${bg}`}
     >
       {/* IMAGE */}
       <div
