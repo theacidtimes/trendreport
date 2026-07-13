@@ -50,6 +50,7 @@ export interface CanvasGraph {
 const TARGET_SIZE = 4;
 const K_MIN = 3;
 const K_MAX = 12;
+const MAX_THEME = 8; // nenhum tema domina: acima disso, divide em sub-temas
 const WEB_MIN = 0.42; // liga dois temas na teia acima disso (cosine dos centróides)
 const WEB_PER_NODE = 2; // cada tema mostra até N correlações mais fortes
 
@@ -142,6 +143,75 @@ function agglomerate(vectors: number[][], kTarget: number): number[][] {
   }
 
   return members.filter((m): m is number[] => m !== null);
+}
+
+// 2-means esférico (cosseno) pra dividir um tema. Sementes = par mais oposto do
+// grupo, depois algumas iterações de Lloyd. Determinístico entre navegações.
+function bisect(idxs: number[], unit: number[][], dim: number): [number[], number[]] {
+  const dot = (a: number[], b: number[]) => {
+    let s = 0;
+    for (let k = 0; k < dim; k++) s += a[k] * b[k];
+    return s;
+  };
+  let a = idxs[0];
+  let b = idxs[1] ?? idxs[0];
+  let worst = Infinity;
+  for (let x = 0; x < idxs.length; x++)
+    for (let y = x + 1; y < idxs.length; y++) {
+      const s = dot(unit[idxs[x]], unit[idxs[y]]);
+      if (s < worst) {
+        worst = s;
+        a = idxs[x];
+        b = idxs[y];
+      }
+    }
+  let ca = unit[a].slice();
+  let cb = unit[b].slice();
+  let g1: number[] = [];
+  let g2: number[] = [];
+  const centroid = (g: number[]) => {
+    const c = new Array(dim).fill(0);
+    for (const i of g) for (let k = 0; k < dim; k++) c[k] += unit[i][k];
+    return normalize(c);
+  };
+  for (let it = 0; it < 4; it++) {
+    g1 = [];
+    g2 = [];
+    for (const i of idxs) (dot(unit[i], ca) >= dot(unit[i], cb) ? g1 : g2).push(i);
+    if (!g1.length || !g2.length) break;
+    ca = centroid(g1);
+    cb = centroid(g2);
+  }
+  if (!g1.length || !g2.length) {
+    const mid = Math.ceil(idxs.length / 2);
+    return [idxs.slice(0, mid), idxs.slice(mid)];
+  }
+  return [g1, g2];
+}
+
+// Nenhum tema domina o mapa: divide recursivamente qualquer cluster acima do
+// teto até todos caberem — o "blob" de 23 vira 3 sub-temas coerentes.
+function capThemeSizes(
+  clusters: number[][],
+  vectors: number[][],
+  maxTheme: number
+): number[][] {
+  const dim = vectors[0].length;
+  const unit = vectors.map(normalize);
+  const out: number[][] = [];
+  const queue = [...clusters];
+  while (queue.length) {
+    const c = queue.pop()!;
+    if (c.length > maxTheme) {
+      const [x, y] = bisect(c, unit, dim);
+      if (x.length && y.length && x.length < c.length && y.length < c.length) {
+        queue.push(x, y);
+        continue;
+      }
+    }
+    out.push(c);
+  }
+  return out;
 }
 
 // Cache por processo: re-embedar a cada navegação é desperdício. Chaveado por
@@ -385,7 +455,11 @@ export async function buildCanvasGraph(
       drops.length,
       Math.max(K_MIN, Math.min(K_MAX, Math.round(drops.length / TARGET_SIZE)))
     );
-    clusters = agglomerate(vectors, kTarget).sort((a, b) => b.length - a.length);
+    clusters = capThemeSizes(
+      agglomerate(vectors, kTarget),
+      vectors,
+      MAX_THEME
+    ).sort((a, b) => b.length - a.length);
   } else {
     // fallback estrutural: agrupa por categoria+status ou fonte compartilhada
     const dsu = new DSU(drops.length);
