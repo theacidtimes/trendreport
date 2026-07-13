@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import BriefingForm from "@/components/BriefingForm";
+import AnimatedPlusBadge from "@/components/AnimatedPlusBadge";
 
 export default function NewReportDialog() {
   const [open, setOpen] = useState(false);
@@ -38,22 +40,20 @@ export default function NewReportDialog() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group sm:col-span-2 rounded-3xl bg-purple p-6 md:p-7 flex items-center justify-between gap-4 text-left transition-colors duration-300 ease-spring hover:bg-purple-mid shadow-card"
+        className="group sm:col-span-2 rounded-3xl bg-gradient-to-br from-surface-2 via-surface to-black border border-border p-6 md:p-7 flex items-center justify-between gap-4 text-left transition-colors duration-300 ease-spring hover:border-purple/40 shadow-card"
       >
         <div className="flex flex-col gap-1.5">
-          <span className="kicker text-white/60">Novo report</span>
-          <h1 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
+          <span className="kicker text-purple/60">Novo report</span>
+          <h1 className="font-serif text-purple font-medium text-2xl md:text-3xl leading-tight">
             O que está bombando agora?
           </h1>
         </div>
-        <span className="shrink-0 w-12 h-12 rounded-full bg-lime text-black flex items-center justify-center group-hover:scale-105 transition-transform duration-300 ease-spring">
-          <Plus className="w-6 h-6" strokeWidth={2.5} />
-        </span>
+        <AnimatedPlusBadge />
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 backdrop-blur-sm p-4 sm:p-6 md:p-10"
+          className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 backdrop-blur-sm p-4 sm:p-6 md:p-10"
           onClick={close}
         >
           <div
@@ -84,7 +84,8 @@ export default function NewReportDialog() {
 
             <BriefingForm onLoadingChange={setLoading} />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

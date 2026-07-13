@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Plus, TriangleAlert, X } from "lucide-react";
+import { ArrowRight, Loader2, Plus, TriangleAlert, Upload, X } from "lucide-react";
 import * as yaml from "js-yaml";
 
 function todayISO(): string {
@@ -41,6 +41,39 @@ export default function BriefingForm({
 
   function removeMeme(index: number) {
     setMemes((prev) => (prev.length === 1 ? [""] : prev.filter((_, i) => i !== index)));
+  }
+
+  async function handleYamlUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permite reenviar o mesmo arquivo
+    if (!file) return;
+
+    setError("");
+    try {
+      const text = await file.text();
+      const parsed = yaml.load(text);
+
+      if (!parsed || typeof parsed !== "object") {
+        setError("Arquivo YAML inválido.");
+        return;
+      }
+
+      const b = parsed as Record<string, unknown>;
+      const str = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
+
+      if (b.data != null) setData(str(b.data));
+      if (b.cliente != null) setCliente(str(b.cliente));
+      if (b.tom != null) setTom(str(b.tom));
+      if (b.contexto != null) setContexto(str(b.contexto));
+      if (b.quero != null) setQuero(str(b.quero));
+
+      if (Array.isArray(b.memes_que_vi)) {
+        const list = b.memes_que_vi.map(str).filter(Boolean);
+        setMemes(list.length > 0 ? list : [""]);
+      }
+    } catch {
+      setError("Não foi possível ler o YAML. Confira o formato.");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -107,6 +140,23 @@ export default function BriefingForm({
   return (
     <>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <label className="group flex items-center gap-3 rounded-xl border border-dashed border-border bg-surface/60 px-4 py-3 cursor-pointer hover:border-lime/40 transition-colors">
+          <span className="shrink-0 w-9 h-9 rounded-lg bg-surface-2 border border-border grid place-items-center text-muted group-hover:text-lime transition-colors">
+            <Upload className="w-4 h-4" strokeWidth={2} />
+          </span>
+          <span className="flex flex-col">
+            <span className="text-white text-sm font-medium">Já tem um briefing pronto?</span>
+            <span className="text-muted text-[13px]">Suba um arquivo .yaml e a gente preenche os campos.</span>
+          </span>
+          <input
+            type="file"
+            accept=".yaml,.yml,text/yaml,application/x-yaml"
+            onChange={handleYamlUpload}
+            disabled={loading}
+            className="sr-only"
+          />
+        </label>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-muted text-[11px] uppercase tracking-[0.1em] font-medium font-body">
@@ -217,7 +267,7 @@ export default function BriefingForm({
         <button
           type="submit"
           disabled={loading}
-          className="bg-lime text-black font-semibold text-[15px] tracking-[-0.01em] h-14 rounded-full w-full flex items-center justify-center gap-2 shadow-lime hover:brightness-105 transition-[filter] disabled:opacity-70 disabled:pointer-events-none"
+          className="self-end bg-lime text-black font-semibold text-sm tracking-[-0.01em] h-11 px-6 rounded-full inline-flex items-center justify-center gap-2 hover:brightness-105 transition-[filter] disabled:opacity-70 disabled:pointer-events-none"
         >
           {loading ? (
             <>
