@@ -276,7 +276,7 @@ body {
 }
 
 /* React Flow zoom controls — match editorial dark theme */
-.react-flow__controls-button {
+.react-flow .react-flow__controls-button {
   background: var(--surface-2);
   border: none;
   border-bottom: 1px solid var(--border);
@@ -284,14 +284,14 @@ body {
   width: 30px;
   height: 30px;
 }
-.react-flow__controls-button:last-child {
+.react-flow .react-flow__controls-button:last-child {
   border-bottom: none;
 }
-.react-flow__controls-button:hover {
+.react-flow .react-flow__controls-button:hover {
   background: var(--surface-3);
   color: #fff;
 }
-.react-flow__controls-button svg {
+.react-flow .react-flow__controls-button svg {
   fill: currentColor;
   max-width: 14px;
   max-height: 14px;
