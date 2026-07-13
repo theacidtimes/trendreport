@@ -378,23 +378,17 @@ export async function buildCanvasGraph(
   );
 
   const vectors = await getDropVectors(marcaId, drops);
-  const dsu = new DSU(drops.length);
+  let clusters: number[][];
 
   if (vectors) {
-    for (let i = 0; i < drops.length; i++) {
-      const sims: { j: number; s: number }[] = [];
-      for (let j = 0; j < drops.length; j++) {
-        if (i === j) continue;
-        sims.push({ j, s: cosine(vectors[i], vectors[j]) });
-      }
-      sims.sort((a, b) => b.s - a.s);
-      for (const { j, s } of sims.slice(0, NEIGHBORS_K)) {
-        if (s < EDGE_MIN) break;
-        if (s >= CLUSTER_MIN) dsu.union(i, j);
-      }
-    }
+    const kTarget = Math.min(
+      drops.length,
+      Math.max(K_MIN, Math.min(K_MAX, Math.round(drops.length / TARGET_SIZE)))
+    );
+    clusters = agglomerate(vectors, kTarget).sort((a, b) => b.length - a.length);
   } else {
     // fallback estrutural: agrupa por categoria+status ou fonte compartilhada
+    const dsu = new DSU(drops.length);
     const urlOf = (d: TrendDrop) => new Set(d.links_fontes ?? []);
     for (let i = 0; i < drops.length; i++) {
       for (let j = i + 1; j < drops.length; j++) {
@@ -406,18 +400,14 @@ export async function buildCanvasGraph(
         if (sameBucket || shared) dsu.union(i, j);
       }
     }
+    const groups = new Map<number, number[]>();
+    for (let i = 0; i < drops.length; i++) {
+      const r = dsu.find(i);
+      if (!groups.has(r)) groups.set(r, []);
+      groups.get(r)!.push(i);
+    }
+    clusters = Array.from(groups.values()).sort((a, b) => b.length - a.length);
   }
-
-  // agrupa índices por raiz do union-find, ordena por tamanho desc
-  const groups = new Map<number, number[]>();
-  for (let i = 0; i < drops.length; i++) {
-    const r = dsu.find(i);
-    if (!groups.has(r)) groups.set(r, []);
-    groups.get(r)!.push(i);
-  }
-  const clusters = Array.from(groups.values()).sort(
-    (a, b) => b.length - a.length
-  );
 
   const labels = labelClusters(clusters, drops, brandTokens);
   const pos = layout(clusters.length);
@@ -490,32 +480,32 @@ export async function buildCanvasGraph(
     kind: "spine" as const,
   }));
 
-  // teia: cada tema liga ao vizinho mais próximo acima do limiar (esparso)
+  // teia: cada tema liga aos vizinhos mais fortes acima do limiar (esparso, mas
+  // mostra correlações múltiplas — não só o vínculo #1)
   const web: CanvasEdge[] = [];
   const seen = new Set<string>();
   if (vectors) {
     for (let i = 0; i < clusters.length; i++) {
-      let best = -1;
-      let bestS = WEB_MIN;
+      if (!centroids[i]) continue;
+      const neigh: { j: number; s: number }[] = [];
       for (let j = 0; j < clusters.length; j++) {
-        if (i === j || !centroids[i] || !centroids[j]) continue;
+        if (i === j || !centroids[j]) continue;
         const s = cosine(centroids[i]!, centroids[j]!);
-        if (s > bestS) {
-          bestS = s;
-          best = j;
-        }
+        if (s >= WEB_MIN) neigh.push({ j, s });
       }
-      if (best === -1) continue;
-      const key = i < best ? `${i}-${best}` : `${best}-${i}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      web.push({
-        id: `web-${key}`,
-        source: `theme-${i}`,
-        target: `theme-${best}`,
-        weight: bestS,
-        kind: "web",
-      });
+      neigh.sort((a, b) => b.s - a.s);
+      for (const { j, s } of neigh.slice(0, WEB_PER_NODE)) {
+        const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        web.push({
+          id: `web-${key}`,
+          source: `theme-${i}`,
+          target: `theme-${j}`,
+          weight: s,
+          kind: "web",
+        });
+      }
     }
   } else {
     // fallback: liga temas que compartilham alguma fonte
