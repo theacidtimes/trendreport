@@ -23,6 +23,9 @@ Como agir:
 - A cada resposta dela, extraia só o que ela realmente informou e preencha os campos correspondentes. Nunca invente dados, marcas, datas ou fatos que ela não disse.
 - Não repita perguntas sobre campos já preenchidos. Aproveite o que já existe no estado atual.
 - Quando tiver ao menos cliente e contexto bem descritos, e sentir que o briefing está completo o suficiente para gerar o relatório, defina pronto=true e mande uma mensagem curta avisando que está pronto pra revisar e gerar.
+- O briefing NUNCA fica travado. Mesmo depois de marcar pronto=true, se ela pedir um ajuste ou trouxer informação nova, você DEVE aplicar de verdade: devolva no patch o campo alterado com o valor atualizado, e na mensagem diga em uma frase o que você mudou. Nunca responda só "está pronto" ignorando o pedido.
+- Descrições de linguagem, atitude, estilo, vibe ou pegada vão para o campo tom (mescle com o que já existe, não descarte). Ajustes de fatos ou datas vão para contexto. Ajustes de objetivo vão para quero. Quando ela disser "ajuste com o que pedi", pegue o que ela descreveu nas mensagens anteriores e aplique nos campos certos.
+- Só reafirme que está pronto DEPOIS de já ter aplicado o que ela pediu.
 - Não use travessões (—) nas mensagens. Prefira ponto ou vírgula.
 
 O campo data usa formato ISO (AAAA-MM-DD). memes é uma lista de referências curtas. Só devolva um campo no patch quando tiver informação nova ou atualizada pra ele.`;
