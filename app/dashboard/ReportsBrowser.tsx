@@ -156,7 +156,27 @@ export default function ReportsBrowser({
         </div>
 
         {cards.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-5 text-sm">
+              <span className="flex flex-col">
+                <span className="kicker text-muted-2 text-[10px]">Total</span>
+                <span className="font-serif text-white font-medium text-2xl tabular-nums leading-none">
+                  {reportsTotal}
+                </span>
+              </span>
+              {reportsAvgHype !== null && (
+                <>
+                  <span className="w-px h-8 bg-border" />
+                  <span className="flex flex-col">
+                    <span className="kicker text-muted-2 text-[10px]">Hype médio</span>
+                    <span className="font-serif text-white font-medium text-2xl tabular-nums leading-none">
+                      {reportsAvgHype}
+                    </span>
+                  </span>
+                </>
+              )}
+            </div>
+            <span className="w-px h-8 bg-border" />
             <Dropdown
               label="Ordem"
               value={sort}
