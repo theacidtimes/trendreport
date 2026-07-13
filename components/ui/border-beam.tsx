@@ -1,41 +1,28 @@
 "use client";
 
-import { motion, type MotionStyle, type Transition } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface BorderBeamProps {
   className?: string;
-  size?: number;
   duration?: number;
-  delay?: number;
   borderWidth?: number;
-  colorFrom?: string;
-  colorTo?: string;
-  transition?: Transition;
-  style?: React.CSSProperties;
-  reverse?: boolean;
-  initialOffset?: number;
 }
 
+// Borda em gradiente na perímetro inteira: um conic-gradient roxo/lime (mesma
+// dupla do AnimatedPlusBadge) girando devagar, recortado num anel fino via
+// máscara padding/XOR — só longhands, senão o shorthand `mask` zera o composite.
 export function BorderBeam({
   className,
-  size = 60,
-  delay = 0,
-  duration = 7,
+  duration = 8,
   borderWidth = 1.5,
-  colorFrom = "#a063e8",
-  colorTo = "#81d300",
-  transition,
-  style,
-  reverse = false,
-  initialOffset = 0,
 }: BorderBeamProps) {
   return (
     <div
-      className="pointer-events-none absolute inset-0 rounded-[inherit]"
-      // Recorta o feixe num anel fino: dois gradientes opacos (content-box vs
-      // border-box) combinados com XOR sobram só a faixa do "padding" = a borda.
-      // Só longhands — o shorthand `mask` zeraria mask-composite pro valor inicial.
+      className={cn(
+        "pointer-events-none absolute inset-0 rounded-[inherit]",
+        className
+      )}
       style={{
         padding: `${borderWidth}px`,
         maskImage: "linear-gradient(#000, #000), linear-gradient(#000, #000)",
@@ -48,33 +35,14 @@ export function BorderBeam({
       }}
     >
       <motion.div
-        className={cn(
-          "absolute aspect-square",
-          "bg-gradient-to-l from-[var(--color-from)] via-[var(--color-to)] to-transparent",
-          className
-        )}
-        style={
-          {
-            width: size,
-            offsetPath: `rect(0 auto auto 0 round ${size}px)`,
-            "--color-from": colorFrom,
-            "--color-to": colorTo,
-            ...style,
-          } as MotionStyle
-        }
-        initial={{ offsetDistance: `${initialOffset}%` }}
-        animate={{
-          offsetDistance: reverse
-            ? [`${100 - initialOffset}%`, `${-initialOffset}%`]
-            : [`${initialOffset}%`, `${100 + initialOffset}%`],
+        aria-hidden
+        className="absolute left-1/2 top-1/2 aspect-square w-[150%] -translate-x-1/2 -translate-y-1/2"
+        style={{
+          background:
+            "conic-gradient(from 0deg, #81d300, #a063e8, #81d300, #a063e8, #81d300)",
         }}
-        transition={{
-          repeat: Infinity,
-          ease: "linear",
-          duration,
-          delay: -delay,
-          ...transition,
-        }}
+        animate={{ rotate: 360 }}
+        transition={{ repeat: Infinity, ease: "linear", duration }}
       />
     </div>
   );

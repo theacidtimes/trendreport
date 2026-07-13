@@ -41,9 +41,9 @@ export default function NewReportDialog() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group relative sm:col-span-2 rounded-3xl bg-gradient-to-br from-surface-2 via-surface to-black border border-purple/40 p-7 md:p-8 flex items-center justify-between gap-4 text-left transition-colors duration-300 ease-spring hover:border-purple/60 shadow-card"
+        className="group relative sm:col-span-2 rounded-3xl bg-gradient-to-br from-surface-2 via-surface to-black p-7 md:p-8 flex items-center justify-between gap-4 text-left shadow-card"
       >
-        <BorderBeam size={70} duration={7} />
+        <BorderBeam duration={8} />
         <div className="flex flex-col gap-1.5">
           <span className="kicker text-purple/60">Novo report</span>
           <h1 className="font-serif text-purple font-medium text-3xl md:text-4xl leading-tight">
