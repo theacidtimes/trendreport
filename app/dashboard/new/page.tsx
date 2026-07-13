@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/Sidebar";
-import BriefingForm from "@/components/BriefingForm";
+import BriefingComposer from "@/components/briefing/BriefingComposer";
 
 export default function NewReportPage() {
   const [userEmail, setUserEmail] = useState<string | undefined>();
@@ -21,7 +21,7 @@ export default function NewReportPage() {
 
       <main className="md:pl-20">
         <div className="min-h-screen md:min-h-0 flex items-center justify-center px-4 py-10 md:py-24">
-          <div className="w-full max-w-2xl flex flex-col gap-6">
+          <div className="w-full max-w-5xl flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <span className="text-muted uppercase text-xs tracking-[0.14em] font-medium">
                 Novo report
@@ -35,7 +35,7 @@ export default function NewReportPage() {
               </p>
             </div>
 
-            <BriefingForm />
+            <BriefingComposer />
           </div>
         </div>
       </main>
