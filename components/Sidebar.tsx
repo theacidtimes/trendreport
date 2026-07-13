@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, LogOut, Plus, Radar, Shield } from "lucide-react";
+import { LayoutGrid, LogOut, Plus, Radar, Shield, Waypoints } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
 
@@ -10,6 +10,7 @@ const NAV = [
   { href: "/dashboard/new", label: "Novo report", icon: Plus },
   { href: "/dashboard", label: "Reports", icon: LayoutGrid },
   { href: "/dashboard/radar", label: "Radar", icon: Radar },
+  { href: "/dashboard/mapa", label: "Mapa semântico", icon: Waypoints },
 ];
 
 const ADMIN_NAV = [{ href: "/dashboard/admin", label: "Admin", icon: Shield }];

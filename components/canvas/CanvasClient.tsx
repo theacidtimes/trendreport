@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import Link from "next/link";
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -26,7 +26,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toPng } from "html-to-image";
-import { ArrowLeft, Download, FileJson, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Download, FileJson, Sparkles } from "lucide-react";
 import type { CanvasGraph } from "@/lib/canvas/buildGraph";
 
 const PALETTE = [
@@ -161,7 +161,68 @@ function download(dataUrl: string, name: string) {
   a.click();
 }
 
-function Toolbar({ graph }: { graph: CanvasGraph }) {
+function MarcaSwitcher({
+  marcas,
+  activeId,
+}: {
+  marcas: { id: string; nome: string }[];
+  activeId: string;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const active = marcas.find((m) => m.id === activeId);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 rounded-full border border-border bg-surface/80 backdrop-blur pl-4 pr-3 py-1.5 text-white hover:border-white/20 transition-colors"
+      >
+        <span className="font-serif text-sm leading-none">
+          {active?.nome ?? "Selecionar cliente"}
+        </span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-muted-2 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute top-full left-0 mt-2 z-20 min-w-[200px] max-h-[60vh] overflow-y-auto rounded-2xl border border-border bg-surface-2/95 backdrop-blur p-1.5 shadow-elevated">
+            {marcas.map((m) => {
+              const isActive = m.id === activeId;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    setOpen(false);
+                    if (!isActive) router.push(`/dashboard/mapa/${m.id}`);
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+                    isActive
+                      ? "text-white bg-surface"
+                      : "text-muted hover:text-white hover:bg-surface/70"
+                  }`}
+                >
+                  <span className="font-serif leading-tight flex-1">{m.nome}</span>
+                  {isActive && <Check className="w-3.5 h-3.5 text-lime shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Toolbar({
+  graph,
+  marcas,
+}: {
+  graph: CanvasGraph;
+  marcas: { id: string; nome: string }[];
+}) {
   const { getNodes } = useReactFlow();
 
   const onExportPng = useCallback(() => {
@@ -197,15 +258,8 @@ function Toolbar({ graph }: { graph: CanvasGraph }) {
 
   return (
     <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-      <Link
-        href="/dashboard/radar"
-        className="w-9 h-9 rounded-full border border-border bg-surface/80 backdrop-blur text-muted hover:text-white hover:border-white/20 transition-colors grid place-items-center"
-        aria-label="Voltar"
-      >
-        <ArrowLeft className="w-4 h-4" />
-      </Link>
+      <MarcaSwitcher marcas={marcas} activeId={graph.marca.id} />
       <div className="rounded-full border border-border bg-surface/80 backdrop-blur px-4 py-1.5 flex items-center gap-2.5">
-        <span className="font-serif text-white text-sm">{graph.marca.nome}</span>
         <span className="text-muted-2 text-[11px]">
           {graph.meta.drops} drops · {graph.meta.clusters} grupos
         </span>
@@ -235,7 +289,13 @@ function Toolbar({ graph }: { graph: CanvasGraph }) {
   );
 }
 
-export default function CanvasClient({ graph }: { graph: CanvasGraph }) {
+export default function CanvasClient({
+  graph,
+  marcas,
+}: {
+  graph: CanvasGraph;
+  marcas: { id: string; nome: string }[];
+}) {
   const initialNodes = useMemo<Node[]>(
     () =>
       graph.nodes.map((n) => ({
@@ -282,7 +342,7 @@ export default function CanvasClient({ graph }: { graph: CanvasGraph }) {
   return (
     <ReactFlowProvider>
       <div className="relative w-full h-full">
-        <Toolbar graph={graph} />
+        <Toolbar graph={graph} marcas={marcas} />
         <ReactFlow
           nodes={nodes}
           edges={edges}
