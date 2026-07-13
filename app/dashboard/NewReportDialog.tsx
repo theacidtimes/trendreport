@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import BriefingForm from "@/components/BriefingForm";
 import AnimatedPlusBadge from "@/components/AnimatedPlusBadge";
-import { BorderBeam } from "@/components/ui/border-beam";
+import { ShineBorder } from "@/components/ui/shine-border";
 
 export default function NewReportDialog() {
   const [open, setOpen] = useState(false);
@@ -41,9 +41,13 @@ export default function NewReportDialog() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group relative sm:col-span-2 rounded-3xl bg-gradient-to-br from-surface-2 via-surface to-black p-7 md:p-8 flex items-center justify-between gap-4 text-left shadow-card"
+        className="group relative overflow-hidden sm:col-span-2 rounded-3xl bg-gradient-to-br from-surface-2 via-surface to-black p-7 md:p-8 flex items-center justify-between gap-4 text-left shadow-card"
       >
-        <BorderBeam />
+        <ShineBorder
+          borderWidth={1.5}
+          duration={12}
+          shineColor={["#a063e8", "#81d300"]}
+        />
         <div className="flex flex-col gap-1.5">
           <span className="kicker text-purple/60">Novo report</span>
           <h1 className="font-serif text-purple font-medium text-3xl md:text-4xl leading-tight">

@@ -79,12 +79,18 @@ const config: Config = {
           "0%": { opacity: "0", transform: "scale(0.98)" },
           "100%": { opacity: "1", transform: "scale(1)" },
         },
+        shine: {
+          "0%": { "background-position": "0% 0%" },
+          "50%": { "background-position": "100% 100%" },
+          to: { "background-position": "0% 0%" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.4s ease-out both",
         "fade-up": "fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
         "blur-in": "blur-in 0.5s ease-out both",
         "scale-in": "scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both",
+        shine: "shine var(--duration) infinite linear",
       },
       transitionTimingFunction: {
         spring: "cubic-bezier(0.16, 1, 0.3, 1)",
