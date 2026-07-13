@@ -8,6 +8,7 @@ import HomeFeed, { type DropCardData } from "./HomeFeed";
 import { PLATFORM_ICON, PLATFORM_LABEL, type Plataforma } from "@/lib/platforms";
 import { checkIsAdmin } from "@/lib/admin";
 import type { ReportRow } from "@/lib/types";
+import { NumberTicker } from "@/components/ui/number-ticker";
 
 function HypeGauge({ value }: { value: number }) {
   const r = 42;
@@ -37,9 +38,10 @@ function HypeGauge({ value }: { value: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-serif text-white font-medium text-5xl tabular-nums leading-none">
-          {value}
-        </span>
+        <NumberTicker
+          value={value}
+          className="font-serif text-white font-medium text-5xl tabular-nums leading-none"
+        />
         <span className="text-muted-2 text-xs font-medium mt-1">/100</span>
       </div>
     </div>
@@ -222,9 +224,10 @@ export default async function DashboardPage() {
                     <span className="kicker">Sinais monitorados</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-serif text-white font-medium text-4xl tabular-nums leading-none">
-                      {radarSignalsTotal.toLocaleString("pt-BR")}
-                    </span>
+                    <NumberTicker
+                      value={radarSignalsTotal}
+                      className="font-serif text-white font-medium text-4xl tabular-nums leading-none"
+                    />
                     <span className="text-muted text-xs mt-1.5">
                       posts, threads e notícias captados pelo radar
                     </span>
@@ -310,15 +313,14 @@ export default async function DashboardPage() {
                 <div className="flex-1 rounded-3xl bg-black border border-border p-6 flex flex-col gap-2 min-h-[16rem] shadow-card">
                   <span className="kicker text-muted-2">Drops esta semana</span>
                   <div className="flex-1 flex items-center justify-center">
-                    <span
+                    <NumberTicker
+                      value={radarDropsWeek}
                       className="font-serif font-medium tabular-nums text-transparent bg-clip-text text-[6.5rem] md:text-[8rem] leading-none"
                       style={{
                         backgroundImage:
                           "linear-gradient(160deg, #a063e8 0%, #4a2e63 60%, #181818 100%)",
                       }}
-                    >
-                      {radarDropsWeek}
-                    </span>
+                    />
                   </div>
                   <span className="text-muted text-xs">sinais que viraram oportunidade</span>
                 </div>
