@@ -1,4 +1,5 @@
 'use client'
+import { Clock } from 'lucide-react'
 import { TrendDrop } from '@/lib/types'
 
 const SERIF = 'var(--font-fraunces), Georgia, serif'
@@ -35,11 +36,16 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
         <span style={{ fontSize: 11, fontWeight: 500, color: f.color, letterSpacing: '0.06em', marginLeft: 'auto' }}>{f.label}</span>
       </div>
 
-      {/* hype hero — treated like a price block */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 52, lineHeight: 1, color: '#f5f3ef', fontVariantNumeric: 'tabular-nums' }}>{drop.indice_hype}</span>
-        <span style={{ fontSize: 15, color: '#6e6a66' }}>/100</span>
-        <span style={{ fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6e6a66', marginLeft: 'auto', fontFamily: 'var(--font-space-grotesk), sans-serif' }}>índice hype</span>
+      {/* meta row — captured time (left) + compact hype index (right) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6e6a66', fontVariantNumeric: 'tabular-nums' }}>
+          <Clock size={13} strokeWidth={2} />
+          {new Date(drop.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+        </span>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#a8a29e', fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6e6a66', marginRight: 6, fontFamily: 'var(--font-space-grotesk), sans-serif' }}>Índice hype</span>
+          <span style={{ color: '#f5f3ef', fontWeight: 500 }}>{drop.indice_hype}</span>/100
+        </span>
       </div>
 
       <div style={{ height: 1, background: '#232323' }} />
@@ -80,10 +86,6 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
           ))}
         </div>
       )}
-
-      <div style={{ fontSize: 11, color: '#6e6a66' }}>
-        {new Date(drop.created_at).toLocaleString('pt-BR')}
-      </div>
     </div>
   )
 }
