@@ -1,4 +1,4 @@
-import { ArrowUpRight, CalendarClock, Flame, Radio, TrendingUp } from "lucide-react";
+import { ArrowUpRight, Flame, Radio, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
@@ -23,7 +23,7 @@ function HypeGauge({ value }: { value: number }) {
             <stop offset="100%" stopColor="#a063e8" />
           </linearGradient>
         </defs>
-        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(11,11,11,0.08)" strokeWidth="9" />
+        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(245,243,239,0.08)" strokeWidth="9" />
         <circle
           cx="50"
           cy="50"
@@ -37,10 +37,10 @@ function HypeGauge({ value }: { value: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-serif text-black font-medium text-5xl tabular-nums leading-none">
+        <span className="font-serif text-white font-medium text-5xl tabular-nums leading-none">
           {value}
         </span>
-        <span className="text-black/40 text-xs font-medium mt-1">/100</span>
+        <span className="text-muted-2 text-xs font-medium mt-1">/100</span>
       </div>
     </div>
   );
@@ -83,46 +83,47 @@ export default async function DashboardPage() {
     ? Math.round(hypeValues.reduce((a, b) => a + b, 0) / hypeValues.length)
     : null;
 
-  // Insights derivados APENAS de dados reais já armazenados nos reports —
-  // nenhum número aqui é inventado; tudo vem de report.fontes / tendencias / meta.
-  const platformTotals: Record<Plataforma, number> = {
-    instagram: 0,
-    twitter: 0,
-    tiktok: 0,
-    reddit: 0,
-    news: 0,
-  };
-  for (const r of rows) {
-    const f = r.report?.fontes;
-    if (!f) continue;
-    platformTotals.instagram += f.instagram ?? 0;
-    platformTotals.twitter += f.twitter ?? 0;
-    platformTotals.tiktok += f.tiktok ?? 0;
-    platformTotals.reddit += f.reddit ?? 0;
-    platformTotals.news += f.news ?? 0;
-  }
-  const totalSignals = Object.values(platformTotals).reduce((a, b) => a + b, 0);
-  const topPlatformEntry = (
-    Object.entries(platformTotals) as [Plataforma, number][]
-  ).sort((a, b) => b[1] - a[1])[0];
-  const topPlatform =
-    topPlatformEntry && topPlatformEntry[1] > 0 ? topPlatformEntry[0] : null;
+  // Métricas do RADAR — motor always-on, populado por cron independente de report.
+  // O topo da home reflete o que o radar está captando agora, não agregados de report,
+  // então nunca fica vazio esperando o primeiro relatório. Tudo é count real; nada inventado.
+  const seteDiasAtras = new Date(
+    Date.now() - 7 * 24 * 60 * 60 * 1000
+  ).toISOString();
+  const [signalsTotalRes, redditRes, newsRes, twitterRes, dropsWeekRes] =
+    await Promise.all([
+      supabase.from("radar_raw_data").select("*", { count: "exact", head: true }),
+      supabase
+        .from("radar_raw_data")
+        .select("*", { count: "exact", head: true })
+        .eq("fonte", "reddit"),
+      supabase
+        .from("radar_raw_data")
+        .select("*", { count: "exact", head: true })
+        .eq("fonte", "news"),
+      supabase
+        .from("radar_raw_data")
+        .select("*", { count: "exact", head: true })
+        .eq("fonte", "twitter"),
+      supabase
+        .from("trends_radar")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", seteDiasAtras),
+    ]);
 
-  const hotTrends = rows
-    .flatMap((r) =>
-      (r.report?.tendencias ?? [])
-        .filter((t) => t.status === "em_alta" || t.status === "subindo")
-        .map((t) => ({
-          titulo: t.titulo,
-          status: t.status,
-          slug: r.slug,
-          cliente: r.cliente,
-        }))
-    )
-    .slice(0, 4);
+  const radarSignalsTotal = signalsTotalRes.count ?? 0;
+  const radarDropsWeek = dropsWeekRes.count ?? 0;
 
-  const proximoGatilho = rows[0]?.report?.meta?.proximo_gatilho ?? null;
-  const TopPlatformIcon = topPlatform ? PLATFORM_ICON[topPlatform] : null;
+  const radarPlatforms = (
+    [
+      ["reddit", redditRes.count ?? 0],
+      ["news", newsRes.count ?? 0],
+      ["twitter", twitterRes.count ?? 0],
+    ] as [Plataforma, number][]
+  ).sort((a, b) => b[1] - a[1]);
+  const topRadarPlatform = radarPlatforms[0][1] > 0 ? radarPlatforms[0] : null;
+  const TopPlatformIcon = topRadarPlatform
+    ? PLATFORM_ICON[topRadarPlatform[0]]
+    : null;
 
   // Dados serializáveis dos cards — a filtragem/ordenação por cliente e data
   // acontece client-side no ReportsBrowser (sem recarregar a página).
@@ -162,6 +163,19 @@ export default async function DashboardPage() {
     indiceHype: d.indice_hype ?? 0,
     createdAt: d.created_at,
   }));
+
+  // Pulso do radar = hype médio dos drops ativos (em alta / subindo); cai pra
+  // média geral dos drops recentes se nenhum estiver ativo.
+  const activeDrops = drops.filter(
+    (d) => d.statusHype === "em_alta" || d.statusHype === "subindo"
+  );
+  const pulseBase = activeDrops.length ? activeDrops : drops;
+  const radarPulse = pulseBase.length
+    ? Math.round(
+        pulseBase.reduce((a, d) => a + d.indiceHype, 0) / pulseBase.length
+      )
+    : null;
+  const liveDrops = drops.slice(0, 4);
 
   return (
     <div className="min-h-screen bg-bg">
