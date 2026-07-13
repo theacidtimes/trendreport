@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import BriefingForm from "@/components/BriefingForm";
+import BriefingComposer from "@/components/briefing/BriefingComposer";
 import AnimatedPlusBadge from "@/components/AnimatedPlusBadge";
 import { ShineBorder } from "@/components/ui/shine-border";
 
@@ -63,7 +63,7 @@ export default function NewReportDialog() {
           onClick={close}
         >
           <div
-            className="relative w-full max-w-2xl my-auto rounded-3xl bg-bg border border-border p-6 md:p-8 flex flex-col gap-6"
+            className="relative w-full max-w-5xl my-auto rounded-3xl bg-bg border border-border p-6 md:p-8 flex flex-col gap-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
@@ -88,7 +88,7 @@ export default function NewReportDialog() {
               </button>
             </div>
 
-            <BriefingForm onLoadingChange={setLoading} />
+            <BriefingComposer onLoadingChange={setLoading} />
           </div>
         </div>,
         document.body

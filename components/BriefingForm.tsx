@@ -4,24 +4,37 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Plus, TriangleAlert, Upload, X } from "lucide-react";
 import * as yaml from "js-yaml";
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+import {
+  useBriefingState,
+  type BriefingState,
+} from "@/components/briefing/useBriefingState";
 
 export default function BriefingForm({
   onLoadingChange,
+  state,
 }: {
   onLoadingChange?: (loading: boolean) => void;
+  state?: BriefingState;
 }) {
   const router = useRouter();
 
-  const [cliente, setCliente] = useState("");
-  const [tom, setTom] = useState("");
-  const [data, setData] = useState(todayISO());
-  const [contexto, setContexto] = useState("");
-  const [memes, setMemes] = useState<string[]>([""]);
-  const [quero, setQuero] = useState("");
+  // Controlado quando o modal passa um estado compartilhado (pra o assistente
+  // preencher junto); senão, gerencia o próprio (uso avulso em /dashboard/new).
+  const internal = useBriefingState();
+  const {
+    cliente,
+    setCliente,
+    tom,
+    setTom,
+    data,
+    setData,
+    contexto,
+    setContexto,
+    memes,
+    setMemes,
+    quero,
+    setQuero,
+  } = state ?? internal;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
