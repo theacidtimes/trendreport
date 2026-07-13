@@ -192,11 +192,12 @@ function labelClusters(
   // document frequency entre clusters
   const df = new Map<string, number>();
   for (const { tf } of perCluster) {
-    for (const key of tf.keys()) df.set(key, (df.get(key) ?? 0) + 1);
+    for (const key of Array.from(tf.keys()))
+      df.set(key, (df.get(key) ?? 0) + 1);
   }
 
   return perCluster.map(({ tf, display }) => {
-    const ranked = [...tf.entries()]
+    const ranked = Array.from(tf.entries())
       .map(([key, freq]) => {
         const isBigram = key.includes(" ");
         const idf = Math.log(1 + N / (df.get(key) ?? 1));
@@ -212,11 +213,13 @@ function labelClusters(
       if (chosen.length >= 3) break;
       const parts = key.split(" ");
       // evita repetir um unigrama já contido num bigrama escolhido (e vice-versa)
-      if (parts.some((p) => used.has(p))) continue;
+      if (parts.some((p: string) => used.has(p))) continue;
       const dm = display.get(key)!;
-      const bestDisplay = [...dm.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      const bestDisplay = Array.from(dm.entries()).sort(
+        (a, b) => b[1] - a[1]
+      )[0][0];
       chosen.push(titleCase(bestDisplay));
-      parts.forEach((p) => used.add(p));
+      parts.forEach((p: string) => used.add(p));
     }
 
     const keywords = chosen;
