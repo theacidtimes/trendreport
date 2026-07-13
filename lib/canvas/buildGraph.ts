@@ -94,8 +94,7 @@ async function getDropVectors(
 // Distribui as posições: núcleo no centro, um anel por agrupamento, drops
 // dispostos num círculo interno ao redor do centro do cluster.
 function layout(
-  clusters: number[][], // índices de drops por cluster
-  drops: TrendDrop[]
+  clusters: number[][] // índices de drops por cluster
 ): Map<number, { x: number; y: number }> {
   const pos = new Map<number, { x: number; y: number }>();
   const C = clusters.length;
@@ -233,7 +232,7 @@ export async function buildCanvasGraph(
     members.forEach((idx: number) => clusterOf.set(idx, ci))
   );
 
-  const pos = layout(clusters, drops);
+  const pos = layout(clusters);
 
   const nodes: CanvasNode[] = [
     {
