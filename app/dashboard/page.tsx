@@ -183,148 +183,152 @@ export default async function DashboardPage() {
 
       <main className="md:pl-20">
         <div className="max-w-6xl mx-auto px-6 md:px-10 py-10 md:py-14 flex flex-col gap-4">
-          {/* HERO CLUSTER: insight bentos + stats */}
-          <div className="animate-fade-up grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* LEFT: bento de insights derivados dos reports */}
-            <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* CTA — abre o briefing num modal na própria página (sem trocar de rota) */}
-              <NewReportDialog />
+          {/* PULSO AO VIVO — área nobre alimentada pelo RADAR (sempre populada) */}
+          <div className="animate-fade-up flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <span className="kicker text-muted-2">O que o radar está vendo agora</span>
+              <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
+                Pulso ao vivo
+              </h2>
+            </div>
 
-              {/* Sinais monitorados — soma real de report.fontes */}
-              <div className="rounded-3xl bg-surface border border-border p-6 flex flex-col justify-between gap-4 min-h-[9rem] shadow-card">
-                <div className="flex items-center gap-2 text-muted-2">
-                  <Radio className="w-4 h-4 text-lime shrink-0" strokeWidth={2.2} />
-                  <span className="kicker">Sinais monitorados</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-serif text-white font-medium text-4xl tabular-nums leading-none">
-                    {totalSignals}
-                  </span>
-                  <span className="text-muted text-xs mt-1.5">
-                    posts, tweets e threads coletados
-                  </span>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* CTA — abre o briefing num modal na própria página (sem trocar de rota) */}
+                <NewReportDialog />
 
-              {/* Plataforma em destaque — maior volume real coletado */}
-              <div className="rounded-3xl bg-surface border border-border p-6 flex flex-col justify-between gap-4 min-h-[9rem] shadow-card">
-                <div className="flex items-center gap-2 text-muted-2">
-                  <TrendingUp className="w-4 h-4 text-lime shrink-0" strokeWidth={2.2} />
-                  <span className="kicker">Plataforma em destaque</span>
-                </div>
-                {topPlatform && TopPlatformIcon ? (
-                  <div className="flex items-center gap-3">
-                    <span className="w-10 h-10 rounded-full border border-border bg-surface-2 grid place-items-center shrink-0">
-                      <TopPlatformIcon className="w-5 h-5 text-white" strokeWidth={2} />
+                {/* Sinais monitorados — count real de radar_raw_data */}
+                <div className="rounded-3xl bg-surface border border-border p-6 flex flex-col justify-between gap-4 min-h-[9rem] shadow-card">
+                  <div className="flex items-center gap-2 text-muted-2">
+                    <Radio className="w-4 h-4 text-lime shrink-0" strokeWidth={2.2} />
+                    <span className="kicker">Sinais monitorados</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-serif text-white font-medium text-4xl tabular-nums leading-none">
+                      {radarSignalsTotal.toLocaleString("pt-BR")}
                     </span>
-                    <div className="flex flex-col">
-                      <span className="font-serif text-white font-medium text-xl leading-tight">
-                        {PLATFORM_LABEL[topPlatform]}
+                    <span className="text-muted text-xs mt-1.5">
+                      posts, threads e notícias captados pelo radar
+                    </span>
+                  </div>
+                </div>
+
+                {/* Plataforma em destaque — top fonte do radar */}
+                <div className="rounded-3xl bg-surface border border-border p-6 flex flex-col justify-between gap-4 min-h-[9rem] shadow-card">
+                  <div className="flex items-center gap-2 text-muted-2">
+                    <TrendingUp className="w-4 h-4 text-lime shrink-0" strokeWidth={2.2} />
+                    <span className="kicker">Plataforma em destaque</span>
+                  </div>
+                  {topRadarPlatform && TopPlatformIcon ? (
+                    <div className="flex items-center gap-3">
+                      <span className="w-10 h-10 rounded-full border border-border bg-surface-2 grid place-items-center shrink-0">
+                        <TopPlatformIcon className="w-5 h-5 text-white" strokeWidth={2} />
                       </span>
-                      <span className="text-muted text-xs tabular-nums">
-                        {platformTotals[topPlatform]} sinais
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="font-serif text-white font-medium text-xl leading-tight">
+                          {PLATFORM_LABEL[topRadarPlatform[0]]}
+                        </span>
+                        <span className="text-muted text-xs tabular-nums">
+                          {topRadarPlatform[1].toLocaleString("pt-BR")} sinais
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <span className="text-muted text-sm">Ainda sem dados coletados</span>
-                )}
-              </div>
-
-              {/* Em alta agora — tendências reais com status em_alta/subindo */}
-              <div className="sm:col-span-2 rounded-3xl bg-surface border border-border p-6 flex flex-col gap-4 shadow-card">
-                <div className="flex items-center gap-2 text-muted-2">
-                  <Flame className="w-4 h-4 text-lime shrink-0" strokeWidth={2.2} />
-                  <span className="kicker">Em alta agora</span>
+                  ) : (
+                    <span className="text-muted text-sm">Radar ainda sem sinais captados</span>
+                  )}
                 </div>
-                {hotTrends.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {hotTrends.map((t, i) => (
-                      <Link
-                        key={`${t.slug}-${i}`}
-                        href={`/dashboard/${t.slug}`}
-                        className="group flex items-center gap-2 rounded-xl bg-surface-2 border border-border px-3 py-2.5 hover:border-white/20 transition-colors"
-                      >
-                        <span
-                          className={`shrink-0 w-1.5 h-1.5 rounded-full ${
-                            t.status === "em_alta" ? "bg-lime" : "bg-purple"
-                          }`}
-                        />
-                        <span className="flex-1 min-w-0 truncate text-white text-sm">
-                          {t.titulo}
-                        </span>
-                        <span className="shrink-0 text-muted-2 text-[11px] truncate max-w-[6rem]">
-                          {t.cliente}
-                        </span>
-                        <ArrowUpRight
-                          className="w-3.5 h-3.5 text-muted-2 shrink-0 group-hover:text-white transition-colors"
-                          strokeWidth={2.5}
-                        />
-                      </Link>
-                    ))}
+
+                {/* Radar ao vivo — drops recentes do radar */}
+                <div className="sm:col-span-2 rounded-3xl bg-surface border border-border p-6 flex flex-col gap-4 shadow-card">
+                  <div className="flex items-center gap-2 text-muted-2">
+                    <Flame className="w-4 h-4 text-lime shrink-0" strokeWidth={2.2} />
+                    <span className="kicker">Radar ao vivo</span>
                   </div>
-                ) : (
-                  <span className="text-muted text-sm">
-                    Nenhuma tendência em alta nos reports atuais.
-                  </span>
-                )}
+                  {liveDrops.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {liveDrops.map((d) => (
+                        <Link
+                          key={d.id}
+                          href="/dashboard/radar"
+                          className="group flex items-center gap-2 rounded-xl bg-surface-2 border border-border px-3 py-2.5 hover:border-white/20 transition-colors"
+                        >
+                          <span
+                            className={`shrink-0 w-1.5 h-1.5 rounded-full ${
+                              d.statusHype === "em_alta"
+                                ? "bg-lime"
+                                : d.statusHype === "subindo"
+                                ? "bg-purple"
+                                : "bg-muted"
+                            }`}
+                          />
+                          <span className="flex-1 min-w-0 truncate text-white text-sm">
+                            {d.insightTitulo}
+                          </span>
+                          {d.marcaNome && (
+                            <span className="shrink-0 text-muted-2 text-[11px] truncate max-w-[6rem]">
+                              {d.marcaNome}
+                            </span>
+                          )}
+                          <span className="shrink-0 text-muted text-[11px] tabular-nums">
+                            {d.indiceHype}
+                          </span>
+                          <ArrowUpRight
+                            className="w-3.5 h-3.5 text-muted-2 shrink-0 group-hover:text-white transition-colors"
+                            strokeWidth={2.5}
+                          />
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-muted text-sm">
+                      Nenhum drop capturado ainda. O radar preenche esta seção conforme raspa sinais.
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Próximo gatilho — do report mais recente */}
-              {proximoGatilho?.evento && (
-                <div className="sm:col-span-2 rounded-3xl bg-surface border border-border p-6 flex items-start gap-3 shadow-card">
-                  <span className="w-9 h-9 rounded-full border border-border bg-surface-2 grid place-items-center shrink-0">
-                    <CalendarClock className="w-4 h-4 text-lime" strokeWidth={2.2} />
-                  </span>
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="kicker text-muted-2">
-                      Próximo gatilho {proximoGatilho.data ? `· ${proximoGatilho.data}` : ""}
+              {/* RIGHT: stats do radar */}
+              <div className="lg:col-span-4 flex flex-col gap-4">
+                <div className="flex-1 rounded-3xl bg-black border border-border p-6 flex flex-col gap-2 min-h-[16rem] shadow-card">
+                  <span className="kicker text-muted-2">Drops esta semana</span>
+                  <div className="flex-1 flex items-center justify-center">
+                    <span
+                      className="font-serif font-medium tabular-nums text-transparent bg-clip-text text-[6.5rem] md:text-[8rem] leading-none"
+                      style={{
+                        backgroundImage:
+                          "linear-gradient(160deg, #a063e8 0%, #4a2e63 60%, #181818 100%)",
+                      }}
+                    >
+                      {radarDropsWeek}
                     </span>
-                    <span className="font-serif text-white text-lg leading-snug">
-                      {proximoGatilho.evento}
-                    </span>
-                    {proximoGatilho.destaque && (
-                      <span className="text-muted text-sm leading-relaxed">
-                        {proximoGatilho.destaque}
+                  </div>
+                  <span className="text-muted text-xs">sinais que viraram oportunidade</span>
+                </div>
+                <div className="flex-1 rounded-3xl bg-surface border border-border p-6 flex flex-col gap-2 min-h-[16rem] shadow-card">
+                  <span className="kicker text-muted-2">Pulso do radar</span>
+                  <div className="flex-1 flex items-center justify-center">
+                    {radarPulse !== null ? (
+                      <HypeGauge value={radarPulse} />
+                    ) : (
+                      <span className="font-serif text-muted-2 font-medium text-4xl tabular-nums">
+                        —
                       </span>
                     )}
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* RIGHT: stats */}
-            <div className="lg:col-span-4 flex flex-col gap-4">
-              <div className="flex-1 rounded-3xl bg-black border border-border p-6 flex flex-col gap-4 min-h-[16rem] shadow-card">
-                <span className="kicker text-muted-2">Total de reports</span>
-                <div className="flex-1 flex items-center justify-center">
-                  <span
-                    className="font-serif font-medium tabular-nums text-transparent bg-clip-text text-[6.5rem] md:text-[8rem] leading-none"
-                    style={{
-                      backgroundImage:
-                        "linear-gradient(160deg, #a063e8 0%, #4a2e63 60%, #181818 100%)",
-                    }}
-                  >
-                    {rows.length}
+                  <span className="text-muted text-xs text-center">
+                    hype médio dos drops ativos
                   </span>
-                </div>
-              </div>
-              <div className="flex-1 rounded-3xl bg-white p-6 flex flex-col gap-4 min-h-[16rem] shadow-card">
-                <span className="kicker text-black/50">Hype médio</span>
-                <div className="flex-1 flex items-center justify-center">
-                  {avgHype !== null ? (
-                    <HypeGauge value={avgHype} />
-                  ) : (
-                    <span className="font-serif text-black/25 font-medium text-4xl tabular-nums">
-                      —
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          <HomeFeed cards={cards} drops={drops} />
+          <HomeFeed
+            cards={cards}
+            drops={drops}
+            reportsTotal={rows.length}
+            reportsAvgHype={avgHype}
+          />
         </div>
       </main>
     </div>
