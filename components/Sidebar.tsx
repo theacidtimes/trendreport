@@ -46,7 +46,10 @@ export default function Sidebar({
           href="/dashboard"
           className="flex flex-col gap-1 h-[68px] justify-center px-[26px]"
         >
-          <Logo size="md" />
+          <Logo
+            size="md"
+            wordmarkClassName="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          />
           <span className="kicker text-muted-2 pl-[42px] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             trend report
           </span>

@@ -18,12 +18,20 @@ const WORDMARK = [
   { char: "o" },
 ];
 
-export default function Logo({ size = "md" }: { size?: keyof typeof SIZES }) {
+export default function Logo({
+  size = "md",
+  wordmarkClassName = "",
+}: {
+  size?: keyof typeof SIZES;
+  wordmarkClassName?: string;
+}) {
   const s = SIZES[size];
   return (
     <span className={`flex items-center ${s.gap}`}>
       <img src="/logo-dog.svg" alt="" className={`${s.icon} shrink-0`} />
-      <span className={`font-sans font-bold ${s.text} tracking-[-0.01em]`}>
+      <span
+        className={`font-sans font-bold ${s.text} tracking-[-0.01em] ${wordmarkClassName}`}
+      >
         {WORDMARK.map(({ char, color }, i) => (
           <span key={i} style={{ color: color ?? "#fff" }}>
             {char}
