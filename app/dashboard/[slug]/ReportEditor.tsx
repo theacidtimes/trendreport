@@ -62,7 +62,7 @@ function Field({
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-sans text-white font-bold text-xl tracking-[-0.01em]">
+    <h2 className="font-serif text-white font-medium text-2xl leading-tight">
       {children}
     </h2>
   );

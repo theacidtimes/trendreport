@@ -157,7 +157,7 @@ export default function HomeFeed({
               </span>
             </div>
 
-            <div className="font-sans text-white font-bold text-xl leading-snug">
+            <div className="font-serif text-white font-medium text-2xl leading-snug">
               {destaque.insightTitulo}
             </div>
 

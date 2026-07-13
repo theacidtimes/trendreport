@@ -37,7 +37,7 @@ function HypeGauge({ value }: { value: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-sans text-black font-semibold text-5xl tabular-nums leading-none">
+        <span className="font-serif text-black font-medium text-5xl tabular-nums leading-none">
           {value}
         </span>
         <span className="text-black/40 text-xs font-medium mt-1">/100</span>
@@ -183,7 +183,7 @@ export default async function DashboardPage() {
                   <span className="kicker">Sinais monitorados</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-sans text-white font-medium text-4xl tabular-nums leading-none">
+                  <span className="font-serif text-white font-medium text-4xl tabular-nums leading-none">
                     {totalSignals}
                   </span>
                   <span className="text-muted text-xs mt-1.5">
@@ -204,7 +204,7 @@ export default async function DashboardPage() {
                       <TopPlatformIcon className="w-5 h-5 text-white" strokeWidth={2} />
                     </span>
                     <div className="flex flex-col">
-                      <span className="font-sans text-white font-semibold text-xl leading-tight">
+                      <span className="font-serif text-white font-medium text-xl leading-tight">
                         {PLATFORM_LABEL[topPlatform]}
                       </span>
                       <span className="text-muted text-xs tabular-nums">
@@ -285,7 +285,7 @@ export default async function DashboardPage() {
                 <span className="kicker text-muted-2">Total de reports</span>
                 <div className="flex-1 flex items-center justify-center">
                   <span
-                    className="font-sans font-semibold tabular-nums text-transparent bg-clip-text text-[9rem] md:text-[11rem] leading-none"
+                    className="font-serif font-medium tabular-nums text-transparent bg-clip-text text-[9rem] md:text-[11rem] leading-none"
                     style={{
                       backgroundImage:
                         "linear-gradient(160deg, #a063e8 0%, #4a2e63 60%, #181818 100%)",
@@ -301,7 +301,7 @@ export default async function DashboardPage() {
                   {avgHype !== null ? (
                     <HypeGauge value={avgHype} />
                   ) : (
-                    <span className="font-sans text-black/25 font-semibold text-4xl tabular-nums">
+                    <span className="font-serif text-black/25 font-medium text-4xl tabular-nums">
                       —
                     </span>
                   )}

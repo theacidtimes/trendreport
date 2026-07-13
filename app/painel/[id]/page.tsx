@@ -73,7 +73,7 @@ export default async function PainelPublico({
             <Radar className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
             Trend Radar
           </span>
-          <h1 className="font-sans text-white font-bold text-3xl tracking-[-0.01em]">
+          <h1 className="font-serif text-white font-medium text-4xl leading-tight">
             {marca.nome}
           </h1>
           <p className="text-muted text-sm">

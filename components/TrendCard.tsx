@@ -116,8 +116,10 @@ export default function TrendCard({
         <StatusBadge status={tendencia.status} />
 
         <h3
-          className={`font-bold text-white tracking-[-0.01em] leading-tight ${
-            large ? "font-sans text-xl md:text-2xl" : "font-body text-lg"
+          className={`text-white leading-tight ${
+            large
+              ? "font-serif font-medium text-2xl md:text-3xl"
+              : "font-body font-bold text-lg tracking-[-0.01em]"
           }`}
         >
           {tendencia.titulo}

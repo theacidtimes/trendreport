@@ -50,7 +50,7 @@ export default function OpportunityCard({
       </span>
 
       <h3
-        className={`font-sans font-bold text-[26px] md:text-[28px] tracking-[-0.01em] leading-tight ${
+        className={`font-serif font-medium text-[28px] md:text-[32px] leading-tight ${
           isLight ? "text-black" : "text-white"
         }`}
       >

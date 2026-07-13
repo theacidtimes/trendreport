@@ -36,7 +36,7 @@ export default function HypeMeter({ indiceHype }: { indiceHype: number }) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center tabular-nums">
-          <span className="font-sans text-white font-bold text-5xl leading-none">{pct}</span>
+          <span className="font-serif text-white font-medium text-6xl leading-none">{pct}</span>
           <span className="text-lime font-bold text-sm mt-1">/100</span>
         </div>
       </div>

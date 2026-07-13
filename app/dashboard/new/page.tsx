@@ -26,7 +26,7 @@ export default function NewReportPage() {
               <span className="text-muted uppercase text-xs tracking-[0.14em] font-medium">
                 Novo report
               </span>
-              <h1 className="font-sans text-white font-bold text-3xl md:text-4xl tracking-[-0.01em]">
+              <h1 className="font-serif text-white font-medium text-3xl md:text-4xl leading-tight">
                 Monte o briefing.
               </h1>
               <p className="text-muted text-[15px] max-w-md">

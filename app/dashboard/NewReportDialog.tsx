@@ -42,7 +42,7 @@ export default function NewReportDialog() {
       >
         <div className="flex flex-col gap-1.5">
           <span className="kicker text-white/60">Novo report</span>
-          <h1 className="font-sans text-white font-semibold text-2xl md:text-3xl leading-tight tracking-[-0.01em]">
+          <h1 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
             O que está bombando agora?
           </h1>
         </div>

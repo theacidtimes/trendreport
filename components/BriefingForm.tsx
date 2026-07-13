@@ -217,7 +217,7 @@ export default function BriefingForm({
         <button
           type="submit"
           disabled={loading}
-          className="bg-lime text-black font-bold text-base uppercase h-14 rounded-lg w-full flex items-center justify-center gap-2 shadow-lime hover:brightness-110 transition-[filter] disabled:opacity-70 disabled:pointer-events-none"
+          className="bg-lime text-black font-semibold text-[15px] tracking-[-0.01em] h-14 rounded-full w-full flex items-center justify-center gap-2 shadow-lime hover:brightness-105 transition-[filter] disabled:opacity-70 disabled:pointer-events-none"
         >
           {loading ? (
             <>
