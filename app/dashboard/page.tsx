@@ -89,26 +89,38 @@ export default async function DashboardPage() {
   const seteDiasAtras = new Date(
     Date.now() - 7 * 24 * 60 * 60 * 1000
   ).toISOString();
-  const [signalsTotalRes, redditRes, newsRes, twitterRes, dropsWeekRes] =
-    await Promise.all([
-      supabase.from("radar_raw_data").select("*", { count: "exact", head: true }),
-      supabase
-        .from("radar_raw_data")
-        .select("*", { count: "exact", head: true })
-        .eq("fonte", "reddit"),
-      supabase
-        .from("radar_raw_data")
-        .select("*", { count: "exact", head: true })
-        .eq("fonte", "news"),
-      supabase
-        .from("radar_raw_data")
-        .select("*", { count: "exact", head: true })
-        .eq("fonte", "twitter"),
-      supabase
-        .from("trends_radar")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", seteDiasAtras),
-    ]);
+  const [
+    signalsTotalRes,
+    redditRes,
+    newsRes,
+    twitterRes,
+    dropsWeekRes,
+    activeHypeRes,
+  ] = await Promise.all([
+    supabase.from("radar_raw_data").select("*", { count: "exact", head: true }),
+    supabase
+      .from("radar_raw_data")
+      .select("*", { count: "exact", head: true })
+      .eq("fonte", "reddit"),
+    supabase
+      .from("radar_raw_data")
+      .select("*", { count: "exact", head: true })
+      .eq("fonte", "news"),
+    supabase
+      .from("radar_raw_data")
+      .select("*", { count: "exact", head: true })
+      .eq("fonte", "twitter"),
+    supabase
+      .from("trends_radar")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", seteDiasAtras),
+    // Pulso vem de TODOS os drops ativos, não do slice de 12 exibido — senão a
+    // média cai pra perto de zero quando as capturas mais frescas ainda estão frias.
+    supabase
+      .from("trends_radar")
+      .select("indice_hype, status_hype")
+      .in("status_hype", ["em_alta", "subindo"]),
+  ]);
 
   const radarSignalsTotal = signalsTotalRes.count ?? 0;
   const radarDropsWeek = dropsWeekRes.count ?? 0;
@@ -164,16 +176,22 @@ export default async function DashboardPage() {
     createdAt: d.created_at,
   }));
 
-  // Pulso do radar = hype médio dos drops ativos (em alta / subindo); cai pra
-  // média geral dos drops recentes se nenhum estiver ativo.
-  const activeDrops = drops.filter(
-    (d) => d.statusHype === "em_alta" || d.statusHype === "subindo"
-  );
-  const pulseBase = activeDrops.length ? activeDrops : drops;
-  const radarPulse = pulseBase.length
-    ? Math.round(
-        pulseBase.reduce((a, d) => a + d.indiceHype, 0) / pulseBase.length
-      )
+  // Pulso do radar = hype médio dos drops "em alta" (o que está de fato bombando).
+  // Se nenhum estiver em alta, cai pra média dos "subindo". Calculado sobre TODOS
+  // os drops ativos do radar, não só os 12 exibidos.
+  const activeHypeRows = (activeHypeRes.data ?? []) as {
+    indice_hype: number | null;
+    status_hype: DropCardData["statusHype"];
+  }[];
+  const emAltaHype = activeHypeRows
+    .filter((r) => r.status_hype === "em_alta")
+    .map((r) => r.indice_hype ?? 0);
+  const subindoHype = activeHypeRows
+    .filter((r) => r.status_hype === "subindo")
+    .map((r) => r.indice_hype ?? 0);
+  const pulseValues = emAltaHype.length ? emAltaHype : subindoHype;
+  const radarPulse = pulseValues.length
+    ? Math.round(pulseValues.reduce((a, v) => a + v, 0) / pulseValues.length)
     : null;
   const liveDrops = drops.slice(0, 4);
 
@@ -316,7 +334,7 @@ export default async function DashboardPage() {
                     )}
                   </div>
                   <span className="text-muted text-xs text-center">
-                    hype médio dos drops ativos
+                    hype médio dos drops em alta
                   </span>
                 </div>
               </div>
