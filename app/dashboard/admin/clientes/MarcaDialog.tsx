@@ -89,7 +89,7 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full border border-border text-muted hover:text-white hover:border-lime/40 text-sm font-medium px-3.5 h-9 transition-colors print:hidden"
+          className="inline-flex items-center gap-2 rounded-full border border-border text-muted hover:text-white hover:border-white/20 text-sm font-medium px-3.5 h-9 transition-colors print:hidden"
         >
           <Pencil className="w-4 h-4" strokeWidth={2} />
           Editar DNA
@@ -120,7 +120,7 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
             <div className="flex items-start justify-between gap-4">
               <div className="flex flex-col gap-1.5">
                 <span className={LABEL}>Trend Radar</span>
-                <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
+                <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
                   {isEdit ? `Editar ${marca?.nome}` : "Novo cliente"}
                 </h2>
                 <p className="text-muted text-[15px] max-w-md">
@@ -133,7 +133,7 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
                 onClick={close}
                 disabled={loading}
                 aria-label="Fechar"
-                className="shrink-0 w-10 h-10 rounded-full border border-border text-muted hover:text-white hover:border-lime/40 transition-colors flex items-center justify-center disabled:opacity-40"
+                className="shrink-0 w-10 h-10 rounded-full border border-border text-muted hover:text-white hover:border-white/20 transition-colors flex items-center justify-center disabled:opacity-40"
               >
                 <X className="w-4 h-4" strokeWidth={2} />
               </button>

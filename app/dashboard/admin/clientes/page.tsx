@@ -36,8 +36,9 @@ export default async function ClientesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <div className="flex items-end justify-between gap-4 flex-wrap">
-          <div className="flex flex-col gap-1">
-            <h1 className="font-sans text-white font-bold text-3xl tracking-[-0.01em]">
+          <div className="flex flex-col gap-2">
+            <span className="kicker text-muted-2">Gestão de marcas</span>
+            <h1 className="font-serif text-white font-medium text-3xl md:text-4xl leading-tight">
               Clientes
             </h1>
             <p className="text-muted text-sm">
@@ -68,7 +69,7 @@ export default async function ClientesPage() {
               </div>
               <Link
                 href={`/dashboard/admin/clientes/${marca.id}`}
-                className="group flex flex-col gap-4 rounded-2xl bg-surface border border-border hover:border-lime/40 p-5 transition-colors h-full"
+                className="group flex flex-col gap-4 rounded-3xl bg-surface border border-border hover:border-white/20 p-5 transition-colors h-full shadow-card"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex flex-col gap-1 min-w-0">
@@ -87,7 +88,7 @@ export default async function ClientesPage() {
                     </span>
                   </div>
                   <ArrowUpRight
-                    className="w-4 h-4 shrink-0 text-muted group-hover:text-lime transition-colors"
+                    className="w-4 h-4 shrink-0 text-muted group-hover:text-white transition-colors"
                     strokeWidth={2.2}
                   />
                 </div>

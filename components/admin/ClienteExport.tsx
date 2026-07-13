@@ -58,7 +58,7 @@ export default function ClienteExport({
       <button
         type="button"
         onClick={exportCsv}
-        className="inline-flex items-center gap-2 rounded-full border border-border text-muted hover:text-white hover:border-lime/40 text-sm font-medium px-3.5 h-9 transition-colors"
+        className="inline-flex items-center gap-2 rounded-full border border-border text-muted hover:text-white hover:border-white/20 text-sm font-medium px-3.5 h-9 transition-colors"
       >
         <Download className="w-4 h-4" strokeWidth={2} />
         CSV

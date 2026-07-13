@@ -31,7 +31,7 @@ function Switch({
       className={`relative shrink-0 w-9 h-5 rounded-full transition-all duration-200 disabled:cursor-default ${
         on
           ? "bg-lime shadow-[0_0_0_1px_rgba(129,211,0,0.45)]"
-          : "bg-surface-2 border border-border hover:border-lime/50 cursor-pointer"
+          : "bg-surface-2 border border-border hover:border-white/20 cursor-pointer"
       }`}
     >
       <span

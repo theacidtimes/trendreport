@@ -74,8 +74,9 @@ export default async function UsuariosPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-sans text-white font-bold text-3xl tracking-[-0.01em]">
+      <div className="flex flex-col gap-2">
+        <span className="kicker text-muted-2">Trilha de auditoria</span>
+        <h1 className="font-serif text-white font-medium text-3xl md:text-4xl leading-tight">
           Usuários
         </h1>
         <p className="text-muted text-sm">
@@ -139,7 +140,7 @@ export default async function UsuariosPage() {
                   <Link
                     href={`/dashboard/${row.slug}`}
                     aria-label="Abrir report"
-                    className="shrink-0 text-muted hover:text-lime transition-colors"
+                    className="shrink-0 text-muted hover:text-white transition-colors"
                   >
                     <ArrowUpRight className="w-4 h-4" strokeWidth={2.2} />
                   </Link>

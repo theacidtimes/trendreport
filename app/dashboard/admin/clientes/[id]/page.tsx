@@ -87,7 +87,7 @@ export default async function ClienteDetailPage({
 
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div className="flex flex-col gap-1">
-            <span className="flex items-center gap-2 text-white text-3xl font-bold tracking-[-0.01em]">
+            <span className="flex items-center gap-2.5 font-serif text-white font-medium text-3xl md:text-4xl leading-tight">
               <Circle
                 className={`w-2.5 h-2.5 shrink-0 ${
                   marca.status_varredura
