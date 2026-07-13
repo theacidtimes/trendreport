@@ -39,9 +39,9 @@ function topByEngagement<T>(items: T[], score: (item: T) => number, limit: numbe
 }
 
 // O modelo é instruído a devolver só JSON, mas de vez em quando ainda embrulha
-// em cercas de markdown (```json) ou solta uma frase antes/depois. Combinado
-// com o prefill "{" no assistant, isto recorta o objeto JSON de forma robusta:
-// tira cercas e descarta qualquer prosa fora do primeiro { … último }.
+// em cercas de markdown (```json) ou solta uma frase antes/depois. Isto recorta
+// o objeto de forma robusta: tira cercas e descarta qualquer prosa fora do
+// primeiro { … último }.
 function extractJson(text: string): string {
   let t = text.trim();
 
@@ -122,13 +122,10 @@ export async function generateReport(
         },
         { type: "text", text: systemPromptDynamic() },
       ],
-      // Prefill "{" força a resposta a começar já dentro do JSON — corta pela
-      // raiz qualquer preâmbulo em prosa ou cerca de markdown que o modelo
-      // insistiria em colocar antes do objeto.
-      messages: [
-        { role: "user", content: userMessage },
-        { role: "assistant", content: "{" },
-      ],
+      // Este modelo não aceita prefill de assistant (a conversa precisa terminar
+      // num user message), então só mandamos o user. O preâmbulo/cerca que o
+      // modelo eventualmente coloca é limpo depois por extractJson.
+      messages: [{ role: "user", content: userMessage }],
     })
     .finalMessage();
 
@@ -147,9 +144,8 @@ export async function generateReport(
     };
   }
 
-  // O prefill "{" não volta no conteúdo retornado — reconstruímos o objeto e
-  // limpamos qualquer resíduo antes de parsear.
-  const rawJson = extractJson("{" + textBlock.text);
+  // Limpamos cercas de markdown e qualquer prosa fora do objeto antes de parsear.
+  const rawJson = extractJson(textBlock.text);
 
   let report: TrendReport;
   try {
