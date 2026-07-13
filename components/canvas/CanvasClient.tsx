@@ -26,20 +26,29 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toPng } from "html-to-image";
-import { Check, ChevronDown, Download, FileJson, Sparkles } from "lucide-react";
-import type { CanvasGraph } from "@/lib/canvas/buildGraph";
+import {
+  Check,
+  ChevronDown,
+  Download,
+  FileJson,
+  Sparkles,
+  X,
+  ExternalLink,
+} from "lucide-react";
+import type { CanvasGraph, CanvasDrop } from "@/lib/canvas/buildGraph";
 
-const PALETTE = [
-  "#a063e8",
-  "#81d300",
-  "#c6a15b",
-  "#6e93c7",
-  "#b27bb0",
-  "#d9843f",
-  "#7fa650",
-];
+const FUNNEL_COLOR: Record<string, string> = {
+  growth: "#81d300",
+  base: "#a063e8",
+  mixed: "#c6a15b",
+};
+const funnelColor = (f: string | null) => FUNNEL_COLOR[f ?? ""] ?? "#8a8580";
 
-const clusterColor = (c: number) => PALETTE[((c % PALETTE.length) + PALETTE.length) % PALETTE.length];
+const FUNNEL_LABEL: Record<string, string> = {
+  growth: "growth",
+  base: "base",
+  mixed: "misto",
+};
 
 const STATUS_DOT: Record<string, string> = {
   em_alta: "#81d300",
@@ -48,49 +57,52 @@ const STATUS_DOT: Record<string, string> = {
   esfriando: "#6e6a66",
 };
 
-// Handles reais (bounds mensuráveis pro React Flow não descartar a aresta),
-// só invisíveis. A posição do traço vem do centro do nó (aresta flutuante).
 const hiddenHandle = { opacity: 0 } as const;
 
-type DropData = {
+type ThemeData = {
   label: string;
-  hype: number;
-  status: string | null;
-  cluster: number;
-  categoria: string | null;
+  size: number;
+  funnel: "growth" | "base" | "mixed" | null;
+  hypeAvg: number;
+  hypeMax: number;
+  keywords: string[];
+  drops: CanvasDrop[];
 };
 
-function DropNode({ data }: NodeProps<Node<DropData>>) {
-  const color = clusterColor(data.cluster);
-  // largura cresce discretamente com o hype (60 → 100 = 168 → 210px)
-  const width = 168 + Math.round((Math.min(Math.max(data.hype, 0), 100) / 100) * 46);
+function ThemeNode({ data, selected }: NodeProps<Node<ThemeData>>) {
+  const color = funnelColor(data.funnel);
+  // largura cresce com o volume de sinais (1 → 10+ = 156 → 250px)
+  const width = 156 + Math.round((Math.min(data.size, 10) / 10) * 94);
   return (
     <div
-      className="rounded-2xl px-3.5 py-3 flex flex-col gap-1.5 shadow-card"
+      className="rounded-2xl px-4 py-3 flex flex-col gap-2 transition-shadow"
       style={{
         width,
         background: "var(--surface)",
-        border: `1px solid ${color}66`,
-        boxShadow: `0 0 0 1px ${color}22, 0 18px 40px -28px rgba(0,0,0,0.8)`,
+        border: `1px solid ${color}${selected ? "" : "66"}`,
+        boxShadow: selected
+          ? `0 0 0 1px ${color}, 0 0 34px -8px ${color}aa`
+          : `0 0 0 1px ${color}22, 0 18px 40px -28px rgba(0,0,0,0.8)`,
       }}
     >
       <Handle type="target" position={Position.Top} style={hiddenHandle} isConnectable={false} />
       <Handle type="source" position={Position.Bottom} style={hiddenHandle} isConnectable={false} />
       <div className="flex items-center gap-1.5">
-        <span
-          className="w-1.5 h-1.5 rounded-full shrink-0"
-          style={{ background: STATUS_DOT[data.status ?? ""] ?? "#6e6a66" }}
-        />
+        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
         <span className="text-[10px] uppercase tracking-[0.14em] text-muted-2">
-          {data.categoria ?? "drop"}
+          {FUNNEL_LABEL[data.funnel ?? ""] ?? "tema"}
         </span>
-        <span className="ml-auto text-[11px] tabular-nums font-medium" style={{ color }}>
-          {data.hype}
+        <span className="ml-auto text-[11px] tabular-nums text-muted-2">
+          {data.size} {data.size === 1 ? "sinal" : "sinais"}
         </span>
       </div>
-      <p className="text-[12px] leading-snug text-white/90 line-clamp-3">
+      <p className="text-[13px] leading-snug font-medium text-white/95">
         {data.label}
       </p>
+      <div className="flex items-center gap-1 text-[10px] tabular-nums" style={{ color }}>
+        <span className="uppercase tracking-[0.1em] text-muted-2">hype</span>
+        <span className="font-medium">{data.hypeMax}</span>
+      </div>
     </div>
   );
 }
@@ -102,8 +114,7 @@ function CoreNode({ data }: NodeProps<Node<{ label: string }>>) {
       style={{
         width: 132,
         height: 132,
-        background:
-          "radial-gradient(circle at 30% 30%, #4a2e63, #181818 70%)",
+        background: "radial-gradient(circle at 30% 30%, #4a2e63, #181818 70%)",
         border: "1.5px solid #a063e8aa",
         boxShadow: "0 0 40px -10px #a063e880",
       }}
@@ -117,11 +128,8 @@ function CoreNode({ data }: NodeProps<Node<{ label: string }>>) {
   );
 }
 
-const nodeTypes = { drop: DropNode, core: CoreNode };
+const nodeTypes = { theme: ThemeNode, core: CoreNode };
 
-// Aresta flutuante: liga o centro dos dois nós, independente de handles. Ideal
-// pro layout radial — a straight edge padrão depende da posição do handle, que
-// com handles ocultos não resolve.
 function nodeCenter(node: InternalNode) {
   return {
     x: node.internals.positionAbsolute.x + (node.measured.width ?? 0) / 2,
@@ -142,13 +150,7 @@ function FloatingEdge({ id, source, target, style, markerEnd }: EdgeProps) {
     targetY: t.y,
   });
   return (
-    <path
-      id={id}
-      d={path}
-      className="react-flow__edge-path"
-      style={style}
-      markerEnd={markerEnd}
-    />
+    <path id={id} d={path} className="react-flow__edge-path" style={style} markerEnd={markerEnd} />
   );
 }
 
@@ -232,9 +234,7 @@ function Toolbar({
     const w = 1920;
     const h = 1200;
     const vp = getViewportForBounds(bounds, w, h, 0.3, 2, 0.12);
-    const viewport = document.querySelector(
-      ".react-flow__viewport"
-    ) as HTMLElement | null;
+    const viewport = document.querySelector(".react-flow__viewport") as HTMLElement | null;
     if (!viewport) return;
     toPng(viewport, {
       backgroundColor: "#0b0b0b",
@@ -245,7 +245,7 @@ function Toolbar({
         height: `${h}px`,
         transform: `translate(${vp.x}px, ${vp.y}px) scale(${vp.zoom})`,
       },
-    }).then((url) => download(url, `${graph.marca.nome}-canvas.png`));
+    }).then((url) => download(url, `${graph.marca.nome}-mapa.png`));
   }, [getNodes, graph.marca.nome]);
 
   const onExportJson = useCallback(() => {
@@ -253,7 +253,7 @@ function Toolbar({
       [JSON.stringify({ marca: graph.marca, nodes: graph.nodes, edges: graph.edges }, null, 2)],
       { type: "application/json" }
     );
-    download(URL.createObjectURL(blob), `${graph.marca.nome}-canvas.json`);
+    download(URL.createObjectURL(blob), `${graph.marca.nome}-mapa.json`);
   }, [graph]);
 
   return (
@@ -261,7 +261,7 @@ function Toolbar({
       <MarcaSwitcher marcas={marcas} activeId={graph.marca.id} />
       <div className="rounded-full border border-border bg-surface/80 backdrop-blur px-4 py-1.5 flex items-center gap-2.5">
         <span className="text-muted-2 text-[11px]">
-          {graph.meta.drops} drops · {graph.meta.clusters} grupos
+          {graph.meta.themes} temas · {graph.meta.drops} sinais
         </span>
         <span
           className="flex items-center gap-1 text-[11px]"
@@ -289,6 +289,79 @@ function Toolbar({
   );
 }
 
+function ThemePanel({
+  node,
+  onClose,
+}: {
+  node: Node<ThemeData>;
+  onClose: () => void;
+}) {
+  const { label, drops, funnel, size } = node.data;
+  const color = funnelColor(funnel);
+  return (
+    <div className="absolute top-0 right-0 z-20 h-full w-full sm:w-[400px] bg-surface/95 backdrop-blur border-l border-border flex flex-col shadow-elevated">
+      <div className="flex items-start gap-3 px-5 py-4 border-b border-border">
+        <span className="mt-1.5 w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+        <div className="flex-1 min-w-0">
+          <span className="text-[10px] uppercase tracking-[0.14em] text-muted-2">
+            {FUNNEL_LABEL[funnel ?? ""] ?? "tema"} · {size} {size === 1 ? "sinal" : "sinais"}
+          </span>
+          <h3 className="font-serif text-white text-lg leading-tight mt-0.5">{label}</h3>
+        </div>
+        <button
+          onClick={onClose}
+          className="w-8 h-8 grid place-items-center rounded-full text-muted hover:text-white hover:bg-surface-2 transition-colors shrink-0"
+          aria-label="Fechar"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+        {drops.map((d) => (
+          <article key={d.id} className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ background: STATUS_DOT[d.status ?? ""] ?? "#6e6a66" }}
+              />
+              <span className="text-[10px] uppercase tracking-[0.12em] text-muted-2">
+                {d.categoria ?? "drop"}
+              </span>
+              <span className="ml-auto text-[11px] tabular-nums font-medium" style={{ color }}>
+                {d.hype}
+              </span>
+            </div>
+            <h4 className="text-[13px] leading-snug font-medium text-white/95">{d.titulo}</h4>
+            {d.descricao && (
+              <p className="text-[12px] leading-relaxed text-muted">{d.descricao}</p>
+            )}
+            {d.gancho && (
+              <p className="text-[12px] leading-relaxed text-muted-2 italic">{d.gancho}</p>
+            )}
+            {d.fontes.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-0.5">
+                {d.fontes.slice(0, 4).map((url, i) => (
+                  <a
+                    key={i}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[10px] text-muted-2 hover:text-white border border-hairline rounded-full px-2 py-0.5 transition-colors"
+                  >
+                    <ExternalLink className="w-2.5 h-2.5" />
+                    fonte {i + 1}
+                  </a>
+                ))}
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CanvasClient({
   graph,
   marcas,
@@ -296,6 +369,8 @@ export default function CanvasClient({
   graph: CanvasGraph;
   marcas: { id: string; nome: string }[];
 }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
   const initialNodes = useMemo<Node[]>(
     () =>
       graph.nodes.map((n) => ({
@@ -307,10 +382,12 @@ export default function CanvasClient({
             ? { label: n.label }
             : {
                 label: n.label,
-                hype: n.hype,
-                status: n.status,
-                cluster: n.cluster,
-                categoria: n.categoria,
+                size: n.size,
+                funnel: n.funnel,
+                hypeAvg: n.hypeAvg,
+                hypeMax: n.hypeMax,
+                keywords: n.keywords,
+                drops: n.drops,
               },
         draggable: true,
       })),
@@ -320,16 +397,16 @@ export default function CanvasClient({
   const initialEdges = useMemo<Edge[]>(
     () =>
       graph.edges.map((e) => {
-        const semantic = e.kind === "semantic";
+        const web = e.kind === "web";
         return {
           id: e.id,
           source: e.source,
           target: e.target,
           type: "floating",
           style: {
-            stroke: semantic ? "#a8a29e" : "#4a2e63",
-            strokeWidth: semantic ? 0.6 + e.weight * 1.6 : 1,
-            opacity: semantic ? 0.18 + e.weight * 0.4 : 0.5,
+            stroke: web ? "#a8a29e" : "#4a2e63",
+            strokeWidth: web ? 0.8 + e.weight * 1.8 : 1,
+            opacity: web ? 0.22 + e.weight * 0.4 : 0.55,
           },
         };
       }),
@@ -338,6 +415,15 @@ export default function CanvasClient({
 
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+
+  const selectedNode = useMemo(
+    () => nodes.find((n) => n.id === selectedId) as Node<ThemeData> | undefined,
+    [nodes, selectedId]
+  );
+
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedId(node.type === "theme" ? node.id : null);
+  }, []);
 
   return (
     <ReactFlowProvider>
@@ -348,6 +434,8 @@ export default function CanvasClient({
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onNodeClick={onNodeClick}
+          onPaneClick={() => setSelectedId(null)}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
@@ -367,12 +455,15 @@ export default function CanvasClient({
             pannable
             zoomable
             nodeColor={(n) =>
-              n.type === "core" ? "#a063e8" : clusterColor((n.data as DropData).cluster ?? 0)
+              n.type === "core" ? "#a063e8" : funnelColor((n.data as ThemeData).funnel)
             }
             maskColor="rgba(11,11,11,0.75)"
             style={{ background: "#121212", border: "1px solid #232323" }}
           />
         </ReactFlow>
+        {selectedNode && (
+          <ThemePanel node={selectedNode} onClose={() => setSelectedId(null)} />
+        )}
       </div>
     </ReactFlowProvider>
   );
