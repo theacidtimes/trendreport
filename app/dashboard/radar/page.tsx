@@ -33,15 +33,15 @@ export default async function RadarPage() {
 
       <main className="md:pl-20">
         <div className="max-w-6xl mx-auto px-6 py-10 md:py-14 flex flex-col gap-8">
-          <div className="flex flex-col gap-1">
-            <span className="flex items-center gap-2 text-lime text-xs uppercase tracking-[0.14em] font-medium">
-              <Radar className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
+          <div className="flex flex-col gap-2">
+            <span className="flex items-center gap-2 kicker text-muted-2">
+              <Radar className="w-3.5 h-3.5 text-lime shrink-0" strokeWidth={2.5} />
               Monitoramento preditivo
             </span>
-            <h1 className="font-sans text-white font-bold text-3xl tracking-[-0.01em]">
+            <h1 className="font-serif text-white font-medium text-3xl md:text-4xl leading-tight">
               Trend Radar
             </h1>
-            <p className="text-muted text-sm">
+            <p className="text-muted text-sm max-w-2xl leading-relaxed">
               Sinais culturais coletados em tempo real e transformados em drops
               de oportunidade por marca. Ative uma marca para iniciar a
               varredura contínua.
@@ -49,16 +49,12 @@ export default async function RadarPage() {
           </div>
 
           <section className="flex flex-col gap-3">
-            <h2 className="text-muted text-xs uppercase tracking-[0.14em] font-medium">
-              Status da captura
-            </h2>
+            <h2 className="kicker text-muted-2">Status da captura</h2>
             <RadarStatus marcas={marcas} />
           </section>
 
           <section className="flex flex-col gap-3">
-            <h2 className="text-muted text-xs uppercase tracking-[0.14em] font-medium">
-              Drops recentes
-            </h2>
+            <h2 className="kicker text-muted-2">Drops recentes</h2>
             <DropsPanel marcas={marcas} />
           </section>
         </div>

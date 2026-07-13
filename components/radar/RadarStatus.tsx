@@ -9,7 +9,7 @@ export default function RadarStatus({ marcas }: { marcas: Marca[] }) {
   return (
     <div style={{
       display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center',
-      background: '#0F0015', border: '0.5px solid #1E0029', borderRadius: 16,
+      background: '#121212', border: '1px solid #232323', borderRadius: 24,
       padding: '1.25rem 1.5rem'
     }}>
       <div style={{ position: 'relative', width: 88, height: 88, flexShrink: 0 }}>
@@ -23,7 +23,7 @@ export default function RadarStatus({ marcas }: { marcas: Marca[] }) {
         ) : (
           <span style={{
             position: 'absolute', inset: '40%', borderRadius: '50%',
-            background: '#3A1A52'
+            background: '#232323'
           }} />
         )}
       </div>
@@ -31,7 +31,7 @@ export default function RadarStatus({ marcas }: { marcas: Marca[] }) {
       <div style={{ flex: 1, minWidth: 220 }}>
         <div style={{
           fontSize: 13, fontWeight: 600, letterSpacing: '0.03em', marginBottom: 12,
-          color: anyActive ? '#81D300' : '#7A6A8A'
+          color: anyActive ? '#81D300' : '#6e6a66'
         }}>
           {anyActive ? 'Capturando sinais em tempo real' : 'Captura pausada'}
         </div>
@@ -43,13 +43,13 @@ export default function RadarStatus({ marcas }: { marcas: Marca[] }) {
                 display: 'inline-flex', alignItems: 'center', gap: 7,
                 fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
                 padding: '5px 12px', borderRadius: 20,
-                background: on ? 'rgba(129,211,0,0.10)' : 'rgba(255,90,90,0.07)',
-                color: on ? '#81D300' : '#9E6A6A',
-                border: `0.5px solid ${on ? 'rgba(129,211,0,0.40)' : 'rgba(255,90,90,0.22)'}`
+                background: on ? 'rgba(129,211,0,0.10)' : '#181818',
+                color: on ? '#81D300' : '#6e6a66',
+                border: `1px solid ${on ? 'rgba(129,211,0,0.40)' : '#232323'}`
               }}>
                 <span style={{
                   width: 7, height: 7, borderRadius: '50%',
-                  background: on ? '#81D300' : '#7A3A3A',
+                  background: on ? '#81D300' : '#6e6a66',
                   boxShadow: on ? '0 0 6px #81D300' : 'none'
                 }} />
                 {m.nome} · {on ? 'ON' : 'OFF'}

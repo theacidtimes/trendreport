@@ -2,15 +2,15 @@
 import { TrendDrop } from '@/lib/types'
 
 const STATUS_CONFIG = {
-  em_alta:       { bg: '#81D300', color: '#1a1a1a', label: 'EM ALTA' },
-  subindo:       { bg: '#660099', color: '#fff',    label: 'SUBINDO' },
-  estabilizando: { bg: 'transparent', color: '#9B8FAA', label: 'ESTABILIZANDO', border: '0.5px solid #9B8FAA' },
-  esfriando:     { bg: 'transparent', color: '#555',    label: 'ESFRIANDO',     border: '0.5px solid #333' },
+  em_alta:       { bg: '#81D300', color: '#0b0b0b', label: 'EM ALTA' },
+  subindo:       { bg: '#a063e8', color: '#fff',    label: 'SUBINDO' },
+  estabilizando: { bg: 'transparent', color: '#a8a29e', label: 'ESTABILIZANDO', border: '1px solid #232323' },
+  esfriando:     { bg: 'transparent', color: '#6e6a66', label: 'ESFRIANDO',     border: '1px solid #232323' },
 }
 
 const FUNIL_CONFIG = {
   growth: { color: '#81D300', label: '↗ GROWTH' },
-  base:   { color: '#9B8FAA', label: '→ BASE' },
+  base:   { color: '#a8a29e', label: '→ BASE' },
 }
 
 export default function DropCard({ drop }: { drop: TrendDrop }) {
@@ -18,11 +18,11 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
   const f = FUNIL_CONFIG[drop.categoria_funil]
 
   return (
-    <div style={{ background: '#0F0015', border: '0.5px solid #1E0029', borderRadius: 16, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ background: '#121212', border: '1px solid #232323', borderRadius: 24, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {drop.marca && (
-          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', padding: '3px 10px', borderRadius: 20, background: '#241033', color: '#fff', border: '0.5px solid #3A1A52' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', padding: '3px 10px', borderRadius: 20, background: '#181818', color: '#f5f3ef', border: '1px solid #232323' }}>
             {drop.marca.nome}
           </span>
         )}
@@ -30,16 +30,16 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
           {s.label}
         </span>
         <span style={{ fontSize: 11, fontWeight: 500, color: f.color, letterSpacing: '0.06em' }}>{f.label}</span>
-        <span style={{ fontSize: 11, color: '#555', marginLeft: 'auto' }}>HYPE {drop.indice_hype}/100</span>
+        <span style={{ fontSize: 11, color: '#6e6a66', marginLeft: 'auto' }}>HYPE {drop.indice_hype}/100</span>
       </div>
 
-      <div style={{ fontSize: 18, fontWeight: 600, color: '#fff', lineHeight: 1.3 }}>{drop.insight_titulo}</div>
+      <div style={{ fontSize: 18, fontWeight: 600, color: '#f5f3ef', lineHeight: 1.3 }}>{drop.insight_titulo}</div>
 
-      <p style={{ fontSize: 14, color: '#9B8FAA', margin: 0, lineHeight: 1.5 }}>{drop.descricao_fato}</p>
+      <p style={{ fontSize: 14, color: '#a8a29e', margin: 0, lineHeight: 1.5 }}>{drop.descricao_fato}</p>
 
       <div style={{ borderLeft: '2px solid #81D300', paddingLeft: 12, lineHeight: 1.5 }}>
         <span style={{ fontSize: 10, letterSpacing: '0.08em', color: '#81D300', display: 'block', marginBottom: 4 }}>INSIGHT</span>
-        <span style={{ fontSize: 14, color: '#fff' }}>{drop.gancho_produto}</span>
+        <span style={{ fontSize: 14, color: '#f5f3ef' }}>{drop.gancho_produto}</span>
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
@@ -49,11 +49,11 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
           { label: 'VELOCIDADE', value: drop.score_velocidade },
         ].map(({ label, value }) => (
           <div key={label} style={{ flex: 1 }}>
-            <div style={{ fontSize: 9, color: '#7A6A8A', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
-            <div style={{ height: 6, borderRadius: 3, background: '#241033', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${value}%`, background: 'linear-gradient(90deg, #660099, #81D300)', borderRadius: 3 }} />
+            <div style={{ fontSize: 9, color: '#6e6a66', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
+            <div style={{ height: 6, borderRadius: 3, background: '#181818', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${value}%`, background: 'linear-gradient(90deg, #4a2e63, #81d300)', borderRadius: 3 }} />
             </div>
-            <div style={{ fontSize: 11, color: '#C9BCD8', marginTop: 3, fontWeight: 500 }}>{value}</div>
+            <div style={{ fontSize: 11, color: '#a8a29e', marginTop: 3, fontWeight: 500 }}>{value}</div>
           </div>
         ))}
       </div>
@@ -62,14 +62,14 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {drop.links_fontes.map((url, i) => (
             <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: 11, color: '#9B8FAA', textDecoration: 'none', border: '0.5px solid #1E0029', borderRadius: 20, padding: '2px 10px' }}>
+              style={{ fontSize: 11, color: '#a8a29e', textDecoration: 'none', border: '1px solid #232323', borderRadius: 20, padding: '2px 10px' }}>
               fonte {i + 1} ↗
             </a>
           ))}
         </div>
       )}
 
-      <div style={{ fontSize: 11, color: '#333' }}>
+      <div style={{ fontSize: 11, color: '#6e6a66' }}>
         {new Date(drop.created_at).toLocaleString('pt-BR')}
       </div>
     </div>

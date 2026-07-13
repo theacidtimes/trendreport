@@ -70,11 +70,11 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
       onClick={() => setter(current === value ? '' : value)}
       style={{
         fontSize: 11, fontWeight: 500, letterSpacing: '0.06em',
-        padding: '4px 12px', borderRadius: 20, border: '0.5px solid',
+        padding: '4px 12px', borderRadius: 20, border: '1px solid',
         cursor: 'pointer',
-        background: current === value ? '#660099' : 'transparent',
-        color: current === value ? '#fff' : '#9B8FAA',
-        borderColor: current === value ? '#660099' : '#1E0029'
+        background: current === value ? '#181818' : 'transparent',
+        color: current === value ? '#f5f3ef' : '#a8a29e',
+        borderColor: current === value ? '#3a3a3a' : '#232323'
       }}
     >
       {label}
@@ -87,8 +87,8 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
       onChange={e => setter(e.target.value)}
       style={{
         fontSize: 11, padding: '3px 8px', borderRadius: 8,
-        background: '#0F0015', color: '#C9BCD8',
-        border: '0.5px solid #1E0029', colorScheme: 'dark'
+        background: '#121212', color: '#f5f3ef',
+        border: '1px solid #232323', colorScheme: 'dark'
       }}
     />
   )
@@ -124,7 +124,7 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
         {periodo === 'custom' && (
           <>
             {dateInput(customDe, setCustomDe, 'Data inicial')}
-            <span style={{ color: '#555', fontSize: 11 }}>até</span>
+            <span style={{ color: '#6e6a66', fontSize: 11 }}>até</span>
             {dateInput(customAte, setCustomAte, 'Data final')}
           </>
         )}
@@ -135,13 +135,13 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
         {filterBtn('EM ALTA', 'em_alta', filtroStatus, setFiltroStatus)}
         {filterBtn('SUBINDO', 'subindo', filtroStatus, setFiltroStatus)}
         {filterBtn('ESTABILIZANDO', 'estabilizando', filtroStatus, setFiltroStatus)}
-        <div style={{ width: 1, background: '#1E0029', margin: '0 4px' }} />
+        <div style={{ width: 1, background: '#232323', margin: '0 4px' }} />
         {filterBtn('GROWTH', 'growth', filtroFunil, setFiltroFunil)}
         {filterBtn('BASE', 'base', filtroFunil, setFiltroFunil)}
       </div>
 
       {!loading && drops.length === 0 && (
-        <p style={{ color: '#555', fontSize: 14 }}>nenhum drop encontrado. ative uma marca e aguarde a próxima varredura.</p>
+        <p style={{ color: '#6e6a66', fontSize: 14 }}>nenhum drop encontrado. ative uma marca e aguarde a próxima varredura.</p>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
