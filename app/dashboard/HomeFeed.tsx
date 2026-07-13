@@ -55,9 +55,13 @@ function relativo(iso: string) {
 export default function HomeFeed({
   cards,
   drops,
+  reportsTotal,
+  reportsAvgHype,
 }: {
   cards: ReportCardData[];
   drops: DropCardData[];
+  reportsTotal: number;
+  reportsAvgHype: number | null;
 }) {
   const [cliente, setCliente] = useState("todos");
   const [pending, setPending] = useState(false);
@@ -98,7 +102,6 @@ export default function HomeFeed({
   }, [drops, cliente]);
 
   const destaque = visibleDrops[0] ?? null;
-  const feed = visibleDrops.slice(1, 6);
   const showMarca = cliente === "todos";
 
   return (
@@ -130,8 +133,7 @@ export default function HomeFeed({
         )}
         <div className={`transition-opacity ${pending ? "opacity-40" : "opacity-100"}`}>
       {destaque ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* BENTO A — drop em destaque (mais recente do cliente) */}
+          // BENTO destaque — drop mais recente do cliente
           <Link
             href="/dashboard/radar"
             className="group rounded-3xl bg-surface border border-border p-6 flex flex-col gap-4 hover:border-white/20 transition-colors shadow-card"
@@ -186,51 +188,6 @@ export default function HomeFeed({
               </span>
             </div>
           </Link>
-
-          {/* BENTO B — últimos sinais (feed compacto) */}
-          <div className="rounded-3xl bg-surface border border-border p-6 flex flex-col gap-4 shadow-card">
-            <div className="flex items-center gap-2 text-muted-2">
-              <Radio className="w-4 h-4 text-lime shrink-0" strokeWidth={2.2} />
-              <span className="kicker">Últimos sinais</span>
-            </div>
-            {feed.length > 0 ? (
-              <div className="flex flex-col gap-2">
-                {feed.map((d) => (
-                  <Link
-                    key={d.id}
-                    href="/dashboard/radar"
-                    className="group flex items-center gap-2 rounded-xl bg-surface-2 border border-border px-3 py-2.5 hover:border-white/20 transition-colors"
-                  >
-                    <span
-                      className={`shrink-0 w-1.5 h-1.5 rounded-full ${statusDotClass(
-                        d.statusHype
-                      )}`}
-                    />
-                    <span className="flex-1 min-w-0 truncate text-white text-sm">
-                      {d.insightTitulo}
-                    </span>
-                    {showMarca && d.marcaNome && (
-                      <span className="shrink-0 text-muted text-[11px] truncate max-w-[6rem]">
-                        {d.marcaNome}
-                      </span>
-                    )}
-                    <span className="shrink-0 text-muted text-[11px] tabular-nums">
-                      {d.indiceHype}
-                    </span>
-                    <ArrowUpRight
-                      className="w-3.5 h-3.5 text-muted-2 shrink-0 group-hover:text-white transition-colors"
-                      strokeWidth={2.5}
-                    />
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <span className="text-muted text-sm">
-                Só um sinal recente para esse cliente.
-              </span>
-            )}
-          </div>
-        </div>
       ) : (
         <div className="flex flex-col items-center gap-3 py-16 border border-dashed border-border rounded-3xl">
           <span className="w-11 h-11 rounded-full bg-surface flex items-center justify-center">
