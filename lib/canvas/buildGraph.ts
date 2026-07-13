@@ -44,10 +44,14 @@ export interface CanvasGraph {
   meta: { semantic: boolean; themes: number; drops: number };
 }
 
-const NEIGHBORS_K = 3;
-const EDGE_MIN = 0.4; // vizinhança semântica considerada pra agrupar
-const CLUSTER_MIN = 0.64; // une dois drops no mesmo tema acima disso
+// Granularidade dos temas: alvo de ~4 drops por tema, entre 3 e 12 temas.
+// Não force-agrupa: linkagem média (UPGMA) evita o "componente gigante" que
+// o single-linkage por percolação criava (um tema com 33, o resto solto).
+const TARGET_SIZE = 4;
+const K_MIN = 3;
+const K_MAX = 12;
 const WEB_MIN = 0.42; // liga dois temas na teia acima disso (cosine dos centróides)
+const WEB_PER_NODE = 2; // cada tema mostra até N correlações mais fortes
 
 function cosine(a: number[], b: number[]): number {
   let dot = 0,
@@ -77,6 +81,67 @@ class DSU {
   union(a: number, b: number) {
     this.parent[this.find(a)] = this.find(b);
   }
+}
+
+function normalize(v: number[]): number[] {
+  let n = 0;
+  for (const x of v) n += x * x;
+  n = Math.sqrt(n) || 1;
+  return v.map((x) => x / n);
+}
+
+// Agrupamento aglomerativo por linkagem média (UPGMA) sobre similaridade cosseno.
+// A cada passo funde o par de clusters mais semanticamente próximo — sem
+// encadeamento, então não colapsa tudo num único tema. Truque: com vetores
+// unitários, a similaridade média entre A e B = dot(somaA, somaB)/(|A|·|B|),
+// então basta manter o vetor-soma de cada cluster.
+function agglomerate(vectors: number[][], kTarget: number): number[][] {
+  const n = vectors.length;
+  if (n === 0) return [];
+  const unit = vectors.map(normalize);
+  const dim = unit[0].length;
+
+  const members: (number[] | null)[] = unit.map((_, i) => [i]);
+  const sum: (number[] | null)[] = unit.map((v) => v.slice());
+  const size = new Array(n).fill(1);
+  let active = n;
+
+  const avgSim = (a: number, b: number) => {
+    const sa = sum[a]!;
+    const sb = sum[b]!;
+    let s = 0;
+    for (let k = 0; k < dim; k++) s += sa[k] * sb[k];
+    return s / (size[a] * size[b]);
+  };
+
+  while (active > kTarget) {
+    let bi = -1;
+    let bj = -1;
+    let best = -Infinity;
+    for (let i = 0; i < n; i++) {
+      if (!members[i]) continue;
+      for (let j = i + 1; j < n; j++) {
+        if (!members[j]) continue;
+        const s = avgSim(i, j);
+        if (s > best) {
+          best = s;
+          bi = i;
+          bj = j;
+        }
+      }
+    }
+    if (bi === -1) break;
+    members[bi] = members[bi]!.concat(members[bj]!);
+    const sa = sum[bi]!;
+    const sb = sum[bj]!;
+    for (let k = 0; k < dim; k++) sa[k] += sb[k];
+    size[bi] += size[bj];
+    members[bj] = null;
+    sum[bj] = null;
+    active--;
+  }
+
+  return members.filter((m): m is number[] => m !== null);
 }
 
 // Cache por processo: re-embedar a cada navegação é desperdício. Chaveado por
@@ -120,6 +185,13 @@ const STOP = new Set([
   "ele","ela","eles","elas","você","voce","nós","nos","lhe","the","of","and",
   "to","in","on","for","is","are","o_que","quem","qual","cada","entre","até",
   "quer","pode","deve","faz","fazer","vem","vira","dá","dar","virou","numa","num",
+  // preenchimento de baixo sinal — não são tema, só ruído de frequência
+  "todo","toda","todos","todas","outro","outra","outros","outras","depois","antes",
+  "agora","aqui","ali","lá","então","assim","cada","qualquer","algum","alguma",
+  "nada","tudo","bem","mal","novo","nova","grande","primeiro","primeira","último",
+  "última","dois","duas","três","ano","anos","dia","dias","vez","vezes","gente",
+  "coisa","coisas","pessoa","pessoas","hoje","ontem","semana","mês","mes","aí",
+  "porém","porem","enquanto","apenas","talvez","logo","toda","sendo","havia",
 ]);
 
 const strip = (s: string) =>
@@ -176,17 +248,23 @@ function labelClusters(
   // termos por cluster (com forma de exibição mais frequente)
   const perCluster = clusters.map((members) => {
     const tf = new Map<string, number>();
+    const cdf = new Map<string, number>(); // em quantos drops do cluster o termo aparece
     const display = new Map<string, Map<string, number>>();
     for (const idx of members) {
       const text = `${drops[idx].insight_titulo} ${drops[idx].descricao_fato ?? ""}`;
+      const seenInDoc = new Set<string>();
       for (const { key, display: d } of termsOf(text, brandTokens)) {
         tf.set(key, (tf.get(key) ?? 0) + 1);
+        if (!seenInDoc.has(key)) {
+          cdf.set(key, (cdf.get(key) ?? 0) + 1);
+          seenInDoc.add(key);
+        }
         if (!display.has(key)) display.set(key, new Map());
         const dm = display.get(key)!;
         dm.set(d, (dm.get(d) ?? 0) + 1);
       }
     }
-    return { tf, display };
+    return { tf, cdf, display, size: members.length };
   });
 
   // document frequency entre clusters
@@ -196,8 +274,12 @@ function labelClusters(
       df.set(key, (df.get(key) ?? 0) + 1);
   }
 
-  return perCluster.map(({ tf, display }) => {
+  return perCluster.map(({ tf, cdf, display, size }) => {
+    // um termo só nomeia o tema se aparecer em ≥2 drops dele (temas pequenos
+    // aceitam 1). Corta fragmentos de um único drop que viravam rótulo por acaso.
+    const minSupport = size >= 3 ? 2 : 1;
     const ranked = Array.from(tf.entries())
+      .filter(([key]) => (cdf.get(key) ?? 0) >= minSupport)
       .map(([key, freq]) => {
         const isBigram = key.includes(" ");
         const idf = Math.log(1 + N / (df.get(key) ?? 1));
