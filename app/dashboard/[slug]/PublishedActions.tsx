@@ -35,14 +35,14 @@ export default function PublishedActions({ slug }: { slug: string }) {
       <button
         onClick={handleEditAgain}
         disabled={reverting}
-        className="flex-1 md:flex-none bg-surface border border-border text-white font-bold text-sm uppercase tracking-wide rounded-lg px-5 py-4 hover:border-lime/40 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+        className="flex-1 md:flex-none bg-surface border border-border text-white font-semibold text-sm tracking-[-0.01em] rounded-full px-5 py-4 hover:border-white/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
       >
         <Pencil className="w-4 h-4" strokeWidth={2.5} />
         {reverting ? "Abrindo..." : "Editar novamente"}
       </button>
       <button
         onClick={handleCopy}
-        className="flex-1 md:flex-none bg-lime text-black font-bold text-sm uppercase tracking-wide rounded-lg px-6 py-4 shadow-lime hover:brightness-110 transition-[filter] flex items-center justify-center gap-2"
+        className="flex-1 md:flex-none bg-lime text-black font-semibold text-sm tracking-[-0.01em] rounded-full px-6 py-4 shadow-lime hover:brightness-105 transition-[filter] flex items-center justify-center gap-2"
       >
         {copied ? (
           <>

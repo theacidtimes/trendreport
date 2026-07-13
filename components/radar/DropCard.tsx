@@ -1,15 +1,17 @@
 'use client'
 import { TrendDrop } from '@/lib/types'
 
+const SERIF = 'var(--font-fraunces), Georgia, serif'
+
 const STATUS_CONFIG = {
-  em_alta:       { bg: '#81D300', color: '#0b0b0b', label: 'EM ALTA' },
+  em_alta:       { bg: '#81d300', color: '#0b0b0b', label: 'EM ALTA' },
   subindo:       { bg: '#a063e8', color: '#fff',    label: 'SUBINDO' },
   estabilizando: { bg: 'transparent', color: '#a8a29e', label: 'ESTABILIZANDO', border: '1px solid #232323' },
   esfriando:     { bg: 'transparent', color: '#6e6a66', label: 'ESFRIANDO',     border: '1px solid #232323' },
 }
 
 const FUNIL_CONFIG = {
-  growth: { color: '#81D300', label: '↗ GROWTH' },
+  growth: { color: '#81d300', label: '↗ GROWTH' },
   base:   { color: '#a8a29e', label: '→ BASE' },
 }
 
@@ -18,8 +20,9 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
   const f = FUNIL_CONFIG[drop.categoria_funil]
 
   return (
-    <div style={{ background: '#121212', border: '1px solid #232323', borderRadius: 24, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ background: '#121212', border: '1px solid #232323', borderRadius: 28, padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
+      {/* header — brand + status + funnel */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {drop.marca && (
           <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', padding: '3px 10px', borderRadius: 20, background: '#181818', color: '#f5f3ef', border: '1px solid #232323' }}>
@@ -29,31 +32,40 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
         <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.08em', padding: '3px 10px', borderRadius: 20, background: s.bg, color: s.color, border: 'border' in s ? s.border : undefined }}>
           {s.label}
         </span>
-        <span style={{ fontSize: 11, fontWeight: 500, color: f.color, letterSpacing: '0.06em' }}>{f.label}</span>
-        <span style={{ fontSize: 11, color: '#6e6a66', marginLeft: 'auto' }}>HYPE {drop.indice_hype}/100</span>
+        <span style={{ fontSize: 11, fontWeight: 500, color: f.color, letterSpacing: '0.06em', marginLeft: 'auto' }}>{f.label}</span>
       </div>
 
-      <div style={{ fontSize: 18, fontWeight: 600, color: '#f5f3ef', lineHeight: 1.3 }}>{drop.insight_titulo}</div>
+      {/* hype hero — treated like a price block */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+        <span style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 52, lineHeight: 1, color: '#f5f3ef', fontVariantNumeric: 'tabular-nums' }}>{drop.indice_hype}</span>
+        <span style={{ fontSize: 15, color: '#6e6a66' }}>/100</span>
+        <span style={{ fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6e6a66', marginLeft: 'auto', fontFamily: 'var(--font-space-grotesk), sans-serif' }}>índice hype</span>
+      </div>
 
-      <p style={{ fontSize: 14, color: '#a8a29e', margin: 0, lineHeight: 1.5 }}>{drop.descricao_fato}</p>
+      <div style={{ height: 1, background: '#232323' }} />
 
-      <div style={{ borderLeft: '2px solid #81D300', paddingLeft: 12, lineHeight: 1.5 }}>
-        <span style={{ fontSize: 10, letterSpacing: '0.08em', color: '#81D300', display: 'block', marginBottom: 4 }}>INSIGHT</span>
+      <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 500, color: '#f5f3ef', lineHeight: 1.25 }}>{drop.insight_titulo}</div>
+
+      <p style={{ fontSize: 14, color: '#a8a29e', margin: 0, lineHeight: 1.55 }}>{drop.descricao_fato}</p>
+
+      <div style={{ borderLeft: '2px solid #81d300', paddingLeft: 14, lineHeight: 1.55 }}>
+        <span style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#81d300', display: 'block', marginBottom: 4, fontFamily: 'var(--font-space-grotesk), sans-serif' }}>Insight</span>
         <span style={{ fontSize: 14, color: '#f5f3ef' }}>{drop.gancho_produto}</span>
       </div>
 
-      <div style={{ display: 'flex', gap: 8 }}>
+      {/* scores — clean feature rows */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {[
-          { label: 'DENSIDADE', value: drop.score_densidade },
-          { label: 'TRANSBORDO', value: drop.score_transbordo },
-          { label: 'VELOCIDADE', value: drop.score_velocidade },
+          { label: 'Densidade', value: drop.score_densidade },
+          { label: 'Transbordo', value: drop.score_transbordo },
+          { label: 'Velocidade', value: drop.score_velocidade },
         ].map(({ label, value }) => (
-          <div key={label} style={{ flex: 1 }}>
-            <div style={{ fontSize: 9, color: '#6e6a66', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
-            <div style={{ height: 6, borderRadius: 3, background: '#181818', overflow: 'hidden' }}>
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 12, color: '#a8a29e', width: 84, flexShrink: 0 }}>{label}</span>
+            <div style={{ flex: 1, height: 6, borderRadius: 3, background: '#181818', overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${value}%`, background: 'linear-gradient(90deg, #4a2e63, #81d300)', borderRadius: 3 }} />
             </div>
-            <div style={{ fontSize: 11, color: '#a8a29e', marginTop: 3, fontWeight: 500 }}>{value}</div>
+            <span style={{ fontSize: 12, color: '#f5f3ef', fontWeight: 500, width: 24, textAlign: 'right', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
           </div>
         ))}
       </div>

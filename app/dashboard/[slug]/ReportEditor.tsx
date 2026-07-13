@@ -634,7 +634,7 @@ export default function ReportEditor({
             <button
               onClick={handleDelete}
               disabled={busy}
-              className="border border-red-500/30 text-red-400 font-medium text-sm rounded-lg px-4 h-12 flex items-center justify-center gap-2 hover:border-red-500/60 hover:bg-red-500/5 transition-colors disabled:opacity-60"
+              className="border border-red-500/30 text-red-400 font-medium text-sm rounded-full px-4 h-12 flex items-center justify-center gap-2 hover:border-red-500/60 hover:bg-red-500/5 transition-colors disabled:opacity-60"
             >
               <Trash2 className="w-4 h-4" strokeWidth={2} />
               {deleting ? "Excluindo..." : "Excluir"}
@@ -642,7 +642,7 @@ export default function ReportEditor({
             <button
               onClick={handleSaveDraft}
               disabled={busy}
-              className="border border-border text-white font-medium text-sm rounded-lg px-5 h-12 flex items-center justify-center gap-2 hover:border-lime/40 transition-colors disabled:opacity-60"
+              className="border border-border text-white font-medium text-sm rounded-full px-5 h-12 flex items-center justify-center gap-2 hover:border-white/20 transition-colors disabled:opacity-60"
             >
               {savedAt ? (
                 <>
@@ -656,7 +656,7 @@ export default function ReportEditor({
             <button
               onClick={handlePublish}
               disabled={busy}
-              className="bg-lime text-black font-bold text-sm uppercase tracking-wide rounded-lg px-6 h-12 flex items-center justify-center gap-2 shadow-lime hover:brightness-110 transition-[filter] disabled:opacity-70"
+              className="bg-lime text-black font-semibold text-sm tracking-[-0.01em] rounded-full px-6 h-12 flex items-center justify-center gap-2 shadow-lime hover:brightness-105 transition-[filter] disabled:opacity-70"
             >
               {publishing ? "Publicando..." : "Homologar e publicar"}
               <Send className="w-4 h-4" strokeWidth={2.5} />
