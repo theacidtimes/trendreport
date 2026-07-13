@@ -40,19 +40,14 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Desktop dock — 80px icon rail that expands to 256px on hover (overlay) */}
-      <aside className="group hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-20 md:hover:w-64 md:z-40 overflow-hidden border-r border-border bg-bg transition-[width] duration-300 ease-spring group-hover:shadow-elevated">
+      {/* Desktop dock — fixed 80px icon rail with hover tooltips */}
+      <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-20 md:z-40 border-r border-border bg-bg">
         <Link
           href="/dashboard"
-          className="flex flex-col gap-1 h-[68px] justify-center px-[26px]"
+          aria-label="caramelo trend report"
+          className="grid place-items-center h-[68px] shrink-0"
         >
-          <Logo
-            size="md"
-            wordmarkClassName="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-          />
-          <span className="kicker text-muted-2 pl-[42px] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            trend report
-          </span>
+          <Logo size="md" wordmarkClassName="hidden" />
         </Link>
 
         <nav className="flex flex-col gap-1 px-3 mt-6">
@@ -62,7 +57,8 @@ export default function Sidebar({
               <Link
                 key={href}
                 href={href}
-                className={`group/item relative flex items-center gap-3 h-12 rounded-xl transition-colors ${
+                aria-label={label}
+                className={`group/item relative grid place-items-center h-12 rounded-xl transition-colors ${
                   active
                     ? "bg-surface-2 text-white"
                     : "text-muted hover:text-white hover:bg-surface/70"
@@ -71,13 +67,11 @@ export default function Sidebar({
                 {active && (
                   <span className="absolute left-0 h-6 w-0.5 rounded-full bg-purple" />
                 )}
-                <span className="grid place-items-center w-11 h-11 shrink-0">
-                  <Icon
-                    className="w-[18px] h-[18px]"
-                    strokeWidth={active ? 2.4 : 2}
-                  />
-                </span>
-                <span className="text-sm font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <Icon
+                  className="w-[18px] h-[18px]"
+                  strokeWidth={active ? 2.4 : 2}
+                />
+                <span className="pointer-events-none absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 translate-x-[-4px] shadow-elevated transition-all duration-150 group-hover/item:opacity-100 group-hover/item:translate-x-0">
                   {label}
                 </span>
               </Link>
@@ -90,15 +84,13 @@ export default function Sidebar({
             <button
               onClick={handleSignOut}
               aria-label="Sair"
-              className="group/item flex items-center gap-3 w-full h-12 rounded-xl text-muted hover:text-white hover:bg-surface/70 transition-colors"
+              className="group/item relative grid place-items-center w-full h-12 rounded-xl text-muted hover:text-white hover:bg-surface/70 transition-colors"
             >
-              <span className="grid place-items-center w-11 h-11 shrink-0">
-                <LogOut className="w-[18px] h-[18px]" strokeWidth={2} />
-              </span>
-              <span className="flex flex-col min-w-0 items-start opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <span className="text-sm font-medium leading-tight">Sair</span>
+              <LogOut className="w-[18px] h-[18px]" strokeWidth={2} />
+              <span className="pointer-events-none absolute left-full ml-3 z-50 flex flex-col whitespace-nowrap rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-white opacity-0 translate-x-[-4px] shadow-elevated transition-all duration-150 group-hover/item:opacity-100 group-hover/item:translate-x-0">
+                <span className="font-medium leading-tight">Sair</span>
                 {userEmail && (
-                  <span className="text-[11px] text-muted-2 truncate max-w-[150px] leading-tight">
+                  <span className="text-[11px] text-muted-2 leading-tight">
                     {userEmail}
                   </span>
                 )}
