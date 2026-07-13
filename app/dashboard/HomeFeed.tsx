@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Loader2, Radar, Radio } from "lucide-react";
+import { ArrowUpRight, Loader2, Radar } from "lucide-react";
 import ReportsBrowser, { Dropdown, type ReportCardData } from "./ReportsBrowser";
 
 export type DropCardData = {
@@ -29,12 +29,6 @@ function statusBadgeClass(status: DropCardData["statusHype"]) {
   if (status === "em_alta") return "bg-lime text-black";
   if (status === "subindo") return "bg-purple text-white";
   return "border border-border text-muted";
-}
-
-function statusDotClass(status: DropCardData["statusHype"]) {
-  if (status === "em_alta") return "bg-lime";
-  if (status === "subindo") return "bg-purple";
-  return "bg-muted";
 }
 
 const FUNIL_LABEL: Record<DropCardData["categoriaFunil"], string> = {
@@ -203,7 +197,13 @@ export default function HomeFeed({
         </div>
       </div>
 
-      <ReportsBrowser cards={cards} cliente={cliente} externalPending={pending} />
+      <ReportsBrowser
+        cards={cards}
+        cliente={cliente}
+        externalPending={pending}
+        reportsTotal={reportsTotal}
+        reportsAvgHype={reportsAvgHype}
+      />
     </>
   );
 }

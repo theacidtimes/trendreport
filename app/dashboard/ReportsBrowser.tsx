@@ -92,10 +92,14 @@ export default function ReportsBrowser({
   cards,
   cliente = "todos",
   externalPending = false,
+  reportsTotal,
+  reportsAvgHype,
 }: {
   cards: ReportCardData[];
   cliente?: string;
   externalPending?: boolean;
+  reportsTotal: number;
+  reportsAvgHype: number | null;
 }) {
   const [sort, setSort] = useState<SortValue>("recentes");
   const [pending, setPending] = useState(false);
