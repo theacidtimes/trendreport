@@ -23,6 +23,7 @@ export default function BriefingAssistant({
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const [ready, setReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -31,11 +32,41 @@ export default function BriefingAssistant({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages, busy]);
+  }, [messages, busy, streaming]);
+
+  const locked = busy || streaming || disabled;
+
+  // Revela a resposta do copiloto palavra por palavra, dando ritmo de conversa
+  // (o texto já vem inteiro da API; a animação é só de apresentação).
+  function streamAssistant(text: string): Promise<void> {
+    return new Promise((resolve) => {
+      const words = text.split(/(\s+)/).filter(Boolean);
+      setMessages((m) => [...m, { role: "assistant", content: "" }]);
+      setStreaming(true);
+
+      let i = 0;
+      const tick = () => {
+        i += 1;
+        const partial = words.slice(0, i).join("");
+        setMessages((m) => {
+          const copy = m.slice();
+          copy[copy.length - 1] = { role: "assistant", content: partial };
+          return copy;
+        });
+        if (i >= words.length) {
+          setStreaming(false);
+          resolve();
+          return;
+        }
+        window.setTimeout(tick, 38 + Math.random() * 60);
+      };
+      window.setTimeout(tick, 60);
+    });
+  }
 
   async function send() {
     const text = input.trim();
-    if (!text || busy || disabled) return;
+    if (!text || locked) return;
 
     const next: Msg[] = [...messages, { role: "user", content: text }];
     setMessages(next);
@@ -53,20 +84,13 @@ export default function BriefingAssistant({
 
       if (data.patch) applyPatch(data.patch as BriefingPatch);
       if (data.pronto) setReady(true);
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", content: data.message || "Pode me contar mais?" },
-      ]);
-    } catch {
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          content: "Ops, tive um problema pra responder. Pode tentar de novo?",
-        },
-      ]);
-    } finally {
       setBusy(false);
+      await streamAssistant(data.message || "Pode me contar mais?");
+    } catch {
+      setBusy(false);
+      await streamAssistant(
+        "Ops, tive um problema pra responder. Pode tentar de novo?"
+      );
     }
   }
 
@@ -121,7 +145,7 @@ export default function BriefingAssistant({
           </div>
         )}
 
-        {ready && !busy && (
+        {ready && !busy && !streaming && (
           <div className="self-start flex items-center gap-1.5 text-lime text-[12px] font-medium">
             <CheckCircle2 className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
             Briefing pronto. É só revisar e gerar o relatório.
@@ -135,7 +159,7 @@ export default function BriefingAssistant({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            disabled={busy || disabled}
+            disabled={locked}
             rows={1}
             placeholder="Responda aqui..."
             className="flex-1 bg-transparent text-white text-[13px] outline-none resize-none max-h-24 placeholder:text-muted/60 disabled:opacity-60 font-body leading-relaxed py-0.5"
@@ -143,7 +167,7 @@ export default function BriefingAssistant({
           <button
             type="button"
             onClick={send}
-            disabled={!input.trim() || busy || disabled}
+            disabled={!input.trim() || locked}
             aria-label="Enviar"
             className="shrink-0 w-8 h-8 rounded-lg bg-purple text-white grid place-items-center hover:brightness-110 transition disabled:opacity-40 disabled:pointer-events-none"
           >
