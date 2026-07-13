@@ -285,7 +285,7 @@ export default async function DashboardPage() {
                 <span className="kicker text-muted-2">Total de reports</span>
                 <div className="flex-1 flex items-center justify-center">
                   <span
-                    className="font-serif font-medium tabular-nums text-transparent bg-clip-text text-[9rem] md:text-[11rem] leading-none"
+                    className="font-serif font-medium tabular-nums text-transparent bg-clip-text text-[6.5rem] md:text-[8rem] leading-none"
                     style={{
                       backgroundImage:
                         "linear-gradient(160deg, #a063e8 0%, #4a2e63 60%, #181818 100%)",
