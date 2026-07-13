@@ -14,7 +14,7 @@ import Logo from "./Logo";
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <span className="flex items-center gap-2 text-muted text-xs uppercase tracking-[0.14em] font-medium font-body">
+    <span className="flex items-center gap-2 kicker text-muted-2">
       <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
       {children}
     </span>
@@ -91,7 +91,7 @@ export default function ReportView({
               {meta.edicao}
             </span>
             <div className="flex flex-col gap-4">
-              <h1 className="font-sans font-bold text-white text-[32px] md:text-[48px] leading-[1.05] tracking-[-0.02em]">
+              <h1 className="font-serif font-medium text-white text-[34px] md:text-[52px] leading-[1.03] tracking-[-0.01em] text-balance">
                 {meta.titulo_social || `Trends · ${meta.cliente}`}
               </h1>
               <p className="text-white/70 text-base md:text-lg max-w-2xl">{meta.hype_motivo}</p>
@@ -128,7 +128,7 @@ export default function ReportView({
         <div className="max-w-6xl mx-auto px-5 md:px-10 pb-14 flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <Eyebrow>O que cada rede está falando</Eyebrow>
-            <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
+            <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
               Radar das redes
             </h2>
           </div>
@@ -141,7 +141,7 @@ export default function ReportView({
         <div className="max-w-6xl mx-auto px-5 md:px-10 pb-14 flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <Eyebrow>Direto da fonte, sem filtro</Eyebrow>
-            <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
+            <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
               Vozes reais
             </h2>
           </div>
@@ -162,7 +162,7 @@ export default function ReportView({
         <div className="max-w-6xl mx-auto px-5 md:px-10 pb-14 flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <Eyebrow>Cultura pop agora</Eyebrow>
-            <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
+            <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
               Memes em alta
             </h2>
           </div>
@@ -186,11 +186,11 @@ export default function ReportView({
       {/* OPORTUNIDADES */}
       <div className="max-w-6xl mx-auto px-5 md:px-10 pb-14 flex flex-col gap-8">
         <div className="flex flex-col gap-2">
-          <span className="flex items-center gap-2 text-muted text-xs uppercase tracking-[0.14em] font-medium">
+          <span className="flex items-center gap-2 kicker text-muted-2">
             <Sparkle className="w-3 h-3 text-lime shrink-0" strokeWidth={2.2} />
             Onde a marca entra
           </span>
-          <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
+          <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
             Oportunidades × {meta.produto}
           </h2>
         </div>
@@ -205,7 +205,7 @@ export default function ReportView({
       <div className="max-w-6xl mx-auto px-5 md:px-10 pb-14 flex flex-col gap-8">
         <div className="flex flex-col gap-2">
           <Eyebrow>Ponto de partida pra criação</Eyebrow>
-          <h2 className="font-sans text-white font-bold text-2xl md:text-3xl tracking-[-0.01em]">
+          <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
             Insights criativos
           </h2>
         </div>
