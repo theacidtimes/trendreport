@@ -62,14 +62,14 @@ export default function ReportCard({
     >
       {/* IMAGE */}
       <div
-        className={`relative h-48 shrink-0 overflow-hidden bg-purple-mid ${
+        className={`relative aspect-[4/3] shrink-0 overflow-hidden bg-purple-mid ${
           imagemUrl ? "" : "flex items-center justify-center"
         }`}
       >
         {imagemUrl && (
           <SmartImage
             src={imagemUrl}
-            className="absolute inset-0 w-full h-full object-cover object-top"
+            className="absolute inset-0 w-full h-full object-cover object-center"
           />
         )}
 

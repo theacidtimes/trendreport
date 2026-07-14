@@ -103,9 +103,11 @@ export interface TikTokItem {
 }
 
 export interface TwitterItem {
-  name?: string;
-  tweetVolume?: number;
-  category?: string;
+  text?: string;
+  url?: string;
+  author?: string;
+  likeCount?: number;
+  replyCount?: number;
 }
 
 export interface NewsItem {

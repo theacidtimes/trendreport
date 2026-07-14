@@ -170,17 +170,49 @@ export async function fetchTikTok(keywords: string[]): Promise<TikTokItem[]> {
   }
 }
 
+interface RawTweet {
+  text?: string;
+  fullText?: string;
+  url?: string;
+  twitterUrl?: string;
+  author?: { userName?: string };
+  likeCount?: number;
+  replyCount?: number;
+}
+
 export async function fetchTwitter(
   keywords: string[]
 ): Promise<TwitterItem[]> {
+  const query = keywords
+    .slice(0, 3)
+    .map((k) => k.trim())
+    .filter(Boolean)
+    .join(" OR ");
+  if (!query) return [];
   try {
-    return await runActor<TwitterItem>(
-      "data-slayer~twitter-trends-by-location",
-      {
-        keywords,
-        country: "Brazil",
-      }
-    );
+    const raw = await runActor<RawTweet>("apidojo~tweet-scraper", {
+      searchTerms: [query],
+      maxItems: 20,
+      sort: "Top",
+      tweetLanguage: "pt",
+    });
+    return raw
+      .map((item) => {
+        const text = String(item.text ?? item.fullText ?? "")
+          .replace(/\s+/g, " ")
+          .trim();
+        const author = item.author?.userName
+          ? `@${item.author.userName}`
+          : undefined;
+        return {
+          text,
+          url: item.url ?? item.twitterUrl ?? "",
+          author,
+          likeCount: item.likeCount,
+          replyCount: item.replyCount,
+        };
+      })
+      .filter((t) => t.text && t.url);
   } catch {
     return [];
   }

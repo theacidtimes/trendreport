@@ -197,7 +197,7 @@ function trimForModel(rawData: RawData): RawData {
   return {
     instagram: topByEngagement(rawData.instagram, (i) => i.likesCount ?? 0, 15),
     tiktok: topByEngagement(rawData.tiktok, (i) => (i.diggCount ?? 0) + (i.playCount ?? 0), 15),
-    twitter: topByEngagement(rawData.twitter, (i) => i.tweetVolume ?? 0, 20),
+    twitter: topByEngagement(rawData.twitter, (i) => (i.likeCount ?? 0) + (i.replyCount ?? 0), 20),
     news: rawData.news.slice(0, 10),
     reddit: topByEngagement(rawData.reddit, (i) => i.upVotes ?? 0, 10),
   };
