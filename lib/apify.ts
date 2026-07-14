@@ -104,12 +104,30 @@ export async function fetchInstagram(): Promise<InstagramItem[]> {
 
 interface RawTikTokItem {
   text?: string;
+  textLanguage?: string;
   webVideoUrl?: string;
   diggCount?: number;
   playCount?: number;
   authorMeta?: { nickName?: string };
   videoMeta?: { coverUrl?: string };
   hashtags?: { name?: string }[];
+}
+
+// Âncora de idioma portada do radar (ver collectData.ts). A busca do TikTok é
+// aberta e, mesmo com proxyCountryCode BR, ainda cola viral gringo (EN/ES) no
+// resultado. Marcadores de português (palavras-função + diacríticos) separam PT
+// de outros idiomas em legenda curta: 2+ ocorrências já bastam. Barato e sem
+// dependência. É marca-agnóstico — vale pra qualquer cliente.
+const PT_MARKERS =
+  /\b(que|n[ãa]o|com|para|uma?|isso|voc[êe]s?|est[áa]|s[ãa]o|mais|muito|por|ent[ãa]o|porque|tamb[ée]m|mas|meu|minha|pra|vc)\b/gi;
+const PT_DIACRITICS = /[ãõçáéíóúâêôà]/gi;
+
+function isPortuguese(text: string): boolean {
+  const t = String(text || "");
+  if (t.length < 8) return false;
+  const hits =
+    (t.match(PT_MARKERS) || []).length + (t.match(PT_DIACRITICS) || []).length;
+  return hits >= 2;
 }
 
 export async function fetchTikTok(keywords: string[]): Promise<TikTokItem[]> {
@@ -128,7 +146,14 @@ export async function fetchTikTok(keywords: string[]): Promise<TikTokItem[]> {
     });
 
     return raw
-      .filter((item) => item.webVideoUrl && item.videoMeta?.coverUrl)
+      .filter(
+        (item) =>
+          item.webVideoUrl &&
+          item.videoMeta?.coverUrl &&
+          // Mantém só conteúdo PT: textLanguage do próprio TikTok como atalho, ou
+          // a heurística na legenda. Sem isso entrava viral gringo na busca aberta.
+          (item.textLanguage === "pt" || isPortuguese(item.text ?? ""))
+      )
       .map((item) => ({
         text: item.text,
         webVideoUrl: item.webVideoUrl,
