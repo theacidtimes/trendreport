@@ -209,7 +209,6 @@ export async function generateReport(
   onProgress?: OnProgress
 ): Promise<{ report: TrendReport } | { error: string }> {
   const terms = await deriveSearchTerms(briefingYaml, briefing);
-  console.log("TERMOS_DERIVADOS:", JSON.stringify(terms, null, 2));
   const sourcesDone: SourceName[] = [];
 
   await onProgress?.({ phase: "collecting", sources_done: [] });
