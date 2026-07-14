@@ -118,6 +118,13 @@ export async function fetchTikTok(keywords: string[]): Promise<TikTokItem[]> {
       searchQueries: keywords,
       searchSection: "/video",
       resultsPerPage: 5,
+      // Sem estes filtros o scraper devolve viral ANTIGO e global (EN/ES): já
+      // trouxe conteúdo velho de campanha em report novo. PAST_MONTH prende a
+      // recência, MOST_RELEVANT prioriza sinal, proxyCountryCode BR garante que
+      // a busca veja o feed brasileiro (sem ele volta conteúdo global).
+      videoSearchSorting: "MOST_RELEVANT",
+      videoSearchDateFilter: "PAST_MONTH",
+      proxyCountryCode: "BR",
     });
 
     return raw
@@ -169,6 +176,19 @@ interface RawNewsPage {
   news_results?: RawNewsResult[];
 }
 
+// O actor devolve data relativa em PT ("6 dias atrás", "2 meses atrás") e NÃO
+// aceita filtro de recência no input — o operador `when:Nd` na query zera o run
+// inteiro (testado). Então a recência é aplicada aqui: descartamos o que for
+// claramente velho (meses/anos), mantendo horas/dias/semanas. Item sem data é
+// mantido (não dá pra afirmar que é velho).
+function isRecentNews(date?: string): boolean {
+  if (!date) return true;
+  // Corte só do claramente velho: "N meses atrás" (2+) e "ano(s) atrás".
+  // "1 mês atrás" pra baixo (semanas/dias/horas) fica — News já é fonte magra
+  // e cortar o mês inteiro arriscava zerar em cliente de nicho.
+  return !/\b(meses|anos?)\b/i.test(date);
+}
+
 // Uma query só com todos os keywords juntos costuma ficar longa demais e não
 // bate com nada no Google News. Buscamos por keyword separadamente e juntamos
 // os resultados (dedupe por link) pra cobrir mais terreno.
@@ -179,7 +199,8 @@ export async function fetchNews(keywords: string[]): Promise<NewsItem[]> {
     queries.map((q) =>
       runActor<RawNewsPage>("johnvc~GoogleNewsAPI", {
         q,
-        gl: "BR",
+        gl: "br",
+        hl: "pt-br",
         max_pages: 1,
       }).catch(() => [] as RawNewsPage[])
     )
@@ -191,6 +212,7 @@ export async function fetchNews(keywords: string[]): Promise<NewsItem[]> {
     if (page.error) continue;
     for (const item of page.news_results ?? []) {
       if (!item.title || !item.link || seen.has(item.link)) continue;
+      if (!isRecentNews(item.date)) continue;
       seen.add(item.link);
       merged.push({
         title: item.title,
@@ -294,15 +316,32 @@ async function track<T>(
   return result;
 }
 
+// Termos por lane. social (tiktok/twitter) recebe meme/hashtag/IP direto do
+// briefing; adjacent traz o ENTORNO cultural (nostalgia, hype de lançamento
+// vizinho, hábitos do público) e TAMBÉM alimenta tiktok/twitter, ampliando a
+// rede além das menções diretas — é o que diferencia isto de um monitoramento
+// de marca comum. news recebe query jornalística. Instagram e Reddit usam
+// perfis/subs fixos e ignoram termos de busca.
+export type SearchTerms = { social: string[]; news: string[]; adjacent: string[] };
+
 export async function collectAll(
-  keywords: string[],
+  terms: SearchTerms,
   onProgress?: (source: SourceName) => void
 ): Promise<RawData> {
+  // As buscas sociais recebem os termos diretos MAIS os adjacentes: as diretas
+  // trazem o IP/marca, as adjacentes trazem a conversa em volta. Dedupe + teto
+  // pra não estourar tempo/custo do scraper (cada query roda uma página).
+  const socialTerms = Array.from(
+    new Set(
+      [...terms.social, ...terms.adjacent].map((t) => t.trim()).filter(Boolean)
+    )
+  ).slice(0, 10);
+
   const [instagram, tiktok, twitter, news, reddit] = await Promise.all([
     track("instagram", fetchInstagram(), onProgress),
-    track("tiktok", fetchTikTok(keywords), onProgress),
-    track("twitter", fetchTwitter(keywords), onProgress),
-    track("news", fetchNews(keywords), onProgress),
+    track("tiktok", fetchTikTok(socialTerms), onProgress),
+    track("twitter", fetchTwitter(socialTerms), onProgress),
+    track("news", fetchNews(terms.news), onProgress),
     track("reddit", fetchReddit(), onProgress),
   ]);
 

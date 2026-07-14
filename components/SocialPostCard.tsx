@@ -49,7 +49,7 @@ export default function SocialPostCard({ tendencia }: { tendencia: Tendencia }) 
 
       {/* CAPTION */}
       <div className="flex flex-col gap-3 p-5 font-body">
-        <p className="text-white/80 text-sm leading-relaxed line-clamp-4">
+        <p className="text-white/80 text-sm leading-relaxed">
           {tendencia.descricao}
         </p>
 
