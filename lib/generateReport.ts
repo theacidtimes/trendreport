@@ -171,6 +171,42 @@ async function deriveSearchTerms(
   }
 }
 
+// Quando o report tem marca cadastrada, a busca soma os termos EVERGREEN do YAML
+// (os mesmos que o radar usa) com os termos PONTUAIS derivados do briefing. Assim
+// a coleta cobre tanto o entorno permanente da marca quanto o tema da edição.
+// Sem marca, devolve os termos do briefing intactos (comportamento avulso).
+function mergeMarcaTerms(
+  terms: SearchTerms,
+  m?: MarcaKnowledge
+): SearchTerms {
+  if (!m) return terms;
+
+  // Dedup case-insensitive preservando a ordem (pontuais do briefing primeiro,
+  // depois os evergreen da marca), com teto por lane pra não estourar scraper.
+  const dedupe = (base: string[], extra: string[], cap: number): string[] => {
+    const seen = new Set(base.map((t) => t.toLowerCase()));
+    const out = [...base];
+    for (const t of extra) {
+      const key = t.trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(t.trim());
+      if (out.length >= cap) break;
+    }
+    return out.slice(0, cap);
+  };
+
+  const evergreen = m.termos_busca ?? [];
+  const culturais = m.termos_culturais ?? [];
+
+  return {
+    social: dedupe(terms.social, evergreen, 7),
+    news: dedupe(terms.news, evergreen, 5),
+    // adjacent é a lane do entorno cultural: casa com os termos_culturais da marca.
+    adjacent: dedupe(terms.adjacent, culturais, 7),
+  };
+}
+
 function topByEngagement<T>(items: T[], score: (item: T) => number, limit: number): T[] {
   return [...items].sort((a, b) => score(b) - score(a)).slice(0, limit);
 }
@@ -214,7 +250,10 @@ export async function generateReport(
   onProgress?: OnProgress,
   marcaKnowledge?: MarcaKnowledge
 ): Promise<{ report: TrendReport } | { error: string }> {
-  const terms = await deriveSearchTerms(briefingYaml, briefing);
+  const terms = mergeMarcaTerms(
+    await deriveSearchTerms(briefingYaml, briefing),
+    marcaKnowledge
+  );
   const sourcesDone: SourceName[] = [];
 
   await onProgress?.({ phase: "collecting", sources_done: [] });

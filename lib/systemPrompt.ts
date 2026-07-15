@@ -77,49 +77,33 @@ Estrutura de legenda (copy[]): abre com comportamento/contexto reconhecível →
 
 Critérios mentais de avaliação antes de finalizar cada gancho/oportunidade: existe insight real? existe imagem/cena mental forte? existe cultura de verdade (não genérica)? o produto entrou naturalmente? é original (não é algo que qualquer marca diria)? faz sentido compartilhar?`;
 
-// Bloco de marca padrão (fallback). Usado quando o report não tem marca_id ligada,
-// preservando exatamente o comportamento anterior (Vivo hardcoded). Reports com
-// marca_id passam a beber do yaml_conhecimento da marca via buildBrandBlock().
-export const VIVO_BRAND = `BASE DE CONHECIMENTO DE MARCA — VIVO
+// Bloco de marca NEUTRO (fallback para report avulso, sem marca_id). Não carrega
+// DNA de nenhuma marca específica: manda o modelo tirar a identidade só do briefing.
+// É o que impede um report avulso (ex.: Warner) de herdar o DNA de outra marca.
+export const NEUTRAL_BRAND = `BASE DE CONHECIMENTO DE MARCA — NÃO CADASTRADA (report avulso)
 
-Use este conhecimento para elevar a qualidade de gancho_produto, oportunidades e copy.
-Ele não é para ser citado literalmente, é o modelo mental por trás de cada decisão criativa.
+Este report é avulso: a marca não tem DNA cadastrado. A identidade da marca vem EXCLUSIVAMENTE do briefing (cliente, tom, contexto e o que a pessoa quer).
+
+Regras:
+- Não presuma pilares de produto, personalidade, valores ou universo cultural que não estejam no briefing.
+- Não importe conhecimento de nenhuma outra marca. Se o briefing não disser algo, fique neutro e ancore no que os dados coletados sustentam, sem inventar traços de marca.
+- Respeite rigorosamente o tom e o contexto informados no briefing.
 
 ---
 
 1. IDENTIDADE DE MARCA
-
-A Vivo não é uma empresa de telecom. É uma marca de experiências. A infraestrutura existe, mas nunca é protagonista, quem protagoniza é a vida das pessoas.
-
-O produto é invisível. Ninguém acorda pensando "quero comprar Mbps". As pessoas pensam "quero assistir minha série", "quero jogar", "quero falar com minha família". Todo gancho deve esconder o produto técnico e mostrar a consequência vivida.
-
-Papel da marca: a Vivo não interrompe conversas, ela participa delas. Nunca cria um assunto, sempre entra em um assunto que já existe, com uma leitura própria.
-
-Personalidade: inteligente, bem-humorada, curiosa, otimista, criativa, sofisticada, acolhedora, moderna.
-Nunca: arrogante, agressiva, apelativa, vendedora, dramática, forçada, tom de varejo, clickbait, excesso de emojis, linguagem técnica.
-
-Humor é consequência, não objetivo, a marca busca uma observação inteligente ("nunca tinha visto por esse lado"), não uma piada.
+Vem do briefing. O cliente, o tom e o contexto informados ali são a única fonte de quem a marca é.
 
 ---
 
-PILARES FIXOS DE PRODUTO (âncora permanente):
-Independente do tema cultural do briefing, os ganchos criativos devem sempre retornar a um ou mais destes pilares:
-- Conectividade: estar conectado onde quer que esteja, na hora que importa
-- Velocidade: Fibra rápida e estável para o que importa em casa
-- Wi-Fi 7: tecnologia de ponta para quem vive conectado
-- Comportamento em casa: assistir, jogar, criar, trabalhar, tudo junto e ao mesmo tempo
-- Segunda tela: a experiência de consumir conteúdo enquanto participa da conversa online
-- Vivo Fibra: o produto que viabiliza o momento cultural em casa
-
-O tema cultural muda todo mês (Copa, GTA, show, NFL, Lollapalooza, campeonato de game, reality). O pilar de produto é constante. Sua habilidade está em conectar os dois sem soar forçado.
-
-Cuidado com "não trava": evite prometer literalmente que nada trava, engasga ou bufferiza ("sem travar", "zero buffer", "nunca cai"). A qualidade de streaming/jogo depende de vários fatores além do sinal Vivo (servidor do serviço, dispositivo, app de terceiros), e a marca vem evitando esse tipo de promessa específica. Fale de velocidade e estabilidade da conexão em casa, não de garantia de experiência perfeita em apps de terceiros.`;
+ÂNCORA DE PRODUTO (permanente):
+Sem DNA cadastrado, a âncora é o que o briefing define como cliente/produto e o que a pessoa quer no campo "quero". Conecte os ganchos criativos a isso, sem forçar pilares que o briefing não mencionou.`;
 
 // Renderiza o bloco de conhecimento a partir do yaml_conhecimento da marca.
-// Sem marca (undefined) cai no VIVO_BRAND, mantendo o comportamento atual.
+// Sem marca (undefined = report avulso) cai no NEUTRAL_BRAND, sem herdar DNA alheio.
 // Lê exatamente o mesmo objeto MarcaKnowledge que o radar já usa (fonte única).
 export function buildBrandBlock(m?: MarcaKnowledge): string {
-  if (!m) return VIVO_BRAND;
+  if (!m) return NEUTRAL_BRAND;
 
   return `BASE DE CONHECIMENTO DE MARCA — ${m.marca.toUpperCase()}
 

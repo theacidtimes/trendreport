@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Plus, TriangleAlert, Upload, X } from "lucide-react";
 import * as yaml from "js-yaml";
+import { createClient } from "@/lib/supabase/client";
 import {
   useBriefingState,
   type BriefingState,
 } from "@/components/briefing/useBriefingState";
+
+type MarcaOption = { id: string; nome: string };
 
 export default function BriefingForm({
   onLoadingChange,
@@ -38,6 +41,29 @@ export default function BriefingForm({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Marca cadastrada (DNA oficial) vs. report avulso (só briefing). Vazio = avulso.
+  const [marcas, setMarcas] = useState<MarcaOption[]>([]);
+  const [marcaId, setMarcaId] = useState("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("marcas")
+      .select("id, nome")
+      .order("nome", { ascending: true })
+      .then(({ data }) => {
+        if (data) setMarcas(data as MarcaOption[]);
+      });
+  }, []);
+
+  // Ao escolher uma marca cadastrada, o cliente passa a ser o nome dela (o DNA é
+  // a fonte). Ao voltar pra avulso, libera o campo pra digitar à mão.
+  function handleMarcaChange(id: string) {
+    setMarcaId(id);
+    const marca = marcas.find((m) => m.id === id);
+    if (marca) setCliente(marca.nome);
+  }
 
   function setLoadingState(next: boolean) {
     setLoading(next);
@@ -124,7 +150,7 @@ export default function BriefingForm({
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ briefing }),
+        body: JSON.stringify({ briefing, marcaId: marcaId || null }),
       });
 
       const resData = await res.json();
@@ -170,6 +196,30 @@ export default function BriefingForm({
           />
         </label>
 
+        {marcas.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-muted text-[11px] uppercase tracking-[0.1em] font-medium font-body">
+              Marca <span className="text-muted/60 normal-case tracking-normal">(usa o DNA cadastrado)</span>
+            </label>
+            <select
+              value={marcaId}
+              onChange={(e) => handleMarcaChange(e.target.value)}
+              disabled={loading}
+              className={`${fieldClass} [color-scheme:dark] cursor-pointer`}
+            >
+              <option value="">Report avulso (só o briefing)</option>
+              {marcas.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nome}
+                </option>
+              ))}
+            </select>
+            <span className="text-muted/70 text-[12px]">
+              Com marca, radar e report bebem do mesmo DNA. O briefing segue valendo pro contexto da edição.
+            </span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-muted text-[11px] uppercase tracking-[0.1em] font-medium font-body">
@@ -180,7 +230,7 @@ export default function BriefingForm({
               value={cliente}
               onChange={(e) => setCliente(e.target.value)}
               placeholder="Vivo Fibra"
-              disabled={loading}
+              disabled={loading || marcaId !== ""}
               className={fieldClass}
             />
           </div>

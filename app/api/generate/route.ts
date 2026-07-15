@@ -6,8 +6,9 @@ const GITHUB_REPO = "theacidtimes/trendreport";
 
 export async function POST(req: Request) {
   try {
-    const { briefing: briefingYaml } = (await req.json()) as {
+    const { briefing: briefingYaml, marcaId } = (await req.json()) as {
       briefing: string;
+      marcaId?: string | null;
     };
 
     if (!briefingYaml || typeof briefingYaml !== "string") {
@@ -49,6 +50,9 @@ export async function POST(req: Request) {
         user_id: user.id,
         cliente,
         briefing,
+        // Report avulso = marca_id null (o gerador cai no fallback neutro, o
+        // briefing manda). Com marca escolhida, o gerador bebe do DNA do YAML.
+        marca_id: typeof marcaId === "string" && marcaId ? marcaId : null,
         report: null,
         status: "pending",
       })

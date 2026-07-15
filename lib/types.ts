@@ -89,6 +89,7 @@ export interface ReportRow {
   slug: string;
   user_id: string;
   cliente: string;
+  marca_id: string | null;
   briefing: Record<string, unknown> | null;
   report: TrendReport;
   created_at: string;
