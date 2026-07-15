@@ -246,6 +246,38 @@ function isRecentNews(date?: string): boolean {
   return !/\b(meses|anos?)\b/i.test(date);
 }
 
+// Matérias que a News pode considerar recente por causa da recência do sistema.
+const NEWS_MAX_AGE_DAYS = 45;
+
+// O GoogleNewsAPI mente sobre recência: já vimos matéria de 9 meses atrás vir
+// rotulada como "há 10 horas" (o Google reindexa/reserve artigo antigo como
+// fresco). A data de publicação REAL só existe na página do artigo, no JSON-LD
+// `datePublished` ou na meta `article:published_time`. Buscamos a página e lemos
+// essa data pra descartar o que a fonte disfarçou de novo. Timeout curto; se a
+// página não expõe data confiável, mantemos (não dá pra afirmar que é velha).
+async function realPublishedAt(url: string): Promise<Date | null> {
+  try {
+    const res = await fetch(url, {
+      redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const m =
+      html.match(/"datePublished"\s*:\s*"([^"]{10,40})"/i) ??
+      html.match(/property="article:published_time"\s+content="([^"]{10,40})"/i) ??
+      html.match(/content="([^"]{10,40})"\s+property="article:published_time"/i);
+    if (!m) return null;
+    const d = new Date(m[1]);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
 // Uma query só com todos os keywords juntos costuma ficar longa demais e não
 // bate com nada no Google News. Buscamos por keyword separadamente e juntamos
 // os resultados (dedupe por link) pra cobrir mais terreno.
@@ -280,7 +312,18 @@ export async function fetchNews(keywords: string[]): Promise<NewsItem[]> {
       });
     }
   }
-  return merged;
+
+  // Segunda passada: confere a data de publicação REAL na página do artigo pra
+  // barrar o que o Google devolveu como fresco mas na verdade é antigo.
+  const cutoff = Date.now() - NEWS_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+  const checked = await Promise.all(
+    merged.map(async (item) => {
+      const pub = await realPublishedAt(item.link!);
+      if (pub && pub.getTime() < cutoff) return null;
+      return item;
+    })
+  );
+  return checked.filter((x): x is NewsItem => x !== null);
 }
 
 // Reddit é nossa fonte "under the radar" pra sinal fraco: em vez de busca

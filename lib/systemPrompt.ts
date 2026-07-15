@@ -149,6 +149,7 @@ REGRAS GERAIS:
 - Use a data de hoje (informada separadamente) para avaliar urgência e o que é acionável nas próximas 48h.
 - REGRA INEGOCIÁVEL — sem dado real, sem tendência: cada item de tendencias[] e cada sinal de radar[].sinais precisa corresponder a um item específico dentro de DADOS COLETADOS. O briefing é contexto/direção de leitura, não é fonte de fato — não transforme um item de memes_que_vi ou do campo contexto do briefing em uma tendência caso ele não apareça (ou tenha um correspondente real) nos dados coletados agora.
 - Se os dados coletados forem escassos, gere menos tendências/sinais em vez de completar a lista com conhecimento geral ou suposições — está tudo bem entregar abaixo do mínimo, ou até zero tendências, se os dados reais não sustentarem mais que isso.
+- Nunca use travessão/meia-risca ("—" ou "–") em nenhum texto gerado. Isso denuncia texto de IA. Reescreva com ponto, vírgula, dois-pontos ou parênteses.
 - Preserve o tom do briefing rigorosamente. Se o briefing diz "irreverente", o copy não pode ser formal.
 - O gancho criativo nunca deve soar como "a marca aproveitando o meme". Deve soar como "a marca que entende o momento".
 
@@ -216,6 +217,18 @@ NÃO é legenda pronta pra publicar. É um insight/direcionamento criativo curto
 - hashtags: 2 a 3 palavras-chave/temas em português, sem # no JSON (o front adiciona) — servem pra situar o universo, não pra publicação final.
 - Nunca repita a mesma ideia em feed e stories.
 
+insights[] (leitura semântica do que foi captado):
+São cards de análise criativa — NÃO são legendas nem ganchos de post. Cada insight faz uma leitura semântica do que os dados coletados revelam, conectando o material captado ao briefing e à cultura. Pode abrir um pouco além do briefing literal, desde que sempre ancorado no que apareceu nos dados reais e na direção do briefing.
+- titulo: uma frase-chave curta (máx. 8 palavras) que nomeia o insight. Pode e deve usar UM emoji no começo pra dar cara editorial. Ex: "🎮 Nostalgia virou moeda de hype".
+- texto: 2 a 4 frases que expandem a leitura — o que os dados mostram, o que isso significa culturalmente, e por que importa pra marca. Denso, específico, sem encher linguiça. Cite comportamentos/temas reais que apareceram nos dados.
+- Gere pelo menos 6 insights distintos. Cada um explora um ângulo diferente do material captado — não repita a mesma leitura.
+
+glossario[] (pastilhas de vocabulário do momento):
+Um painel de pastilhas — como um glossário — dos termos, sentimentos, adjetivos e temas que MAIS apareceram nos dados coletados. É um retrato do vocabulário cultural do momento, extraído do que foi captado.
+- termo: 1 a 3 palavras, em português (ou o termo real como apareceu, ex. gíria/hashtag). Extraído do que efetivamente surgiu nos dados.
+- categoria: uma de "sentimento" (emoção dominante: nostalgia, ansiedade, euforia), "adjetivo" (qualificador recorrente: brutal, saudoso, épico), "vocabulario" (gíria/jargão/termo de nicho: "finish him", speedrun, lan house), "tema" (assunto recorrente: lançamento, rivalidade, anos 2000).
+- Gere de 10 a 16 pastilhas, distribuídas entre as categorias. Só inclua um termo se ele realmente aparece ou é diretamente sustentado pelos dados coletados — não invente vocabulário.
+
 radar[].sinais:
 De 2 a 4 sinais por plataforma, cada um baseado em um item real dos dados coletados (não um resumo genérico da plataforma).
 - tema: 2-5 palavras, específico, baseado no dado real.
@@ -229,16 +242,17 @@ RUIM: inventar url ou autor quando os dados coletados não trazem essa informaç
 ---
 
 LIMITES:
-Máximo: 5 tendências · 4 oportunidades · 3 copies
-Mínimo (somente se sustentado por dados reais): 2 tendências · 2 oportunidades · 1 copy
-Se os dados reais coletados não derem pra sustentar nem o mínimo, entregue menos — inclusive zero tendências — em vez de inventar. Nunca preencha a lista só pra bater a contagem mínima.
+Máximo: 5 tendências · 4 oportunidades · 3 copies · 8 insights · 16 pastilhas de glossário
+Mínimo (somente se sustentado por dados reais): 2 tendências · 2 oportunidades · 1 copy · 6 insights · 10 pastilhas
+Tendências, oportunidades e copies seguem a trava dura anti-fabricação: se os dados reais não sustentarem nem o mínimo, entregue menos — inclusive zero — em vez de inventar. Nunca preencha a lista só pra bater a contagem mínima.
+insights e glossario são leituras/sínteses do que foi captado: desde que haja dados coletados, entregue os 6+ insights e as 10+ pastilhas, sempre ancorados no material real (nunca inventando fatos, temas ou vocabulário que não apareceram).
 
 ---
 
 FORMATO DE SAÍDA
 Siga EXATAMENTE este schema JSON.
 Sem chave envolvente extra. Sem campos adicionais. Sem renomear nenhuma chave.
-O JSON raiz deve ter exatamente cinco chaves: meta, tendencias, oportunidades, copy, radar.
+O JSON raiz deve ter exatamente sete chaves: meta, tendencias, oportunidades, copy, radar, insights, glossario.
 
 {
   "meta": {
@@ -291,6 +305,18 @@ O JSON raiz deve ter exatamente cinco chaves: meta, tendencias, oportunidades, c
           "autor": string | null
         }
       ]
+    }
+  ],
+  "insights": [
+    {
+      "titulo": string,
+      "texto": string
+    }
+  ],
+  "glossario": [
+    {
+      "termo": string,
+      "categoria": "sentimento" | "adjetivo" | "vocabulario" | "tema"
     }
   ]
 }`;

@@ -5,6 +5,8 @@ import TrendCard from "./TrendCard";
 import SocialPostCard from "./SocialPostCard";
 import OpportunityCard from "./OpportunityCard";
 import CopyBlock from "./CopyBlock";
+import InsightCard from "./InsightCard";
+import GlossaryPanel from "./GlossaryPanel";
 import NetworkRadar from "./NetworkRadar";
 import DataSourceTracker from "./DataSourceTracker";
 import QuoteCard from "./QuoteCard";
@@ -32,7 +34,7 @@ export default function ReportView({
   standalone?: boolean;
   briefing?: Record<string, unknown> | string | null;
 }) {
-  const { meta, tendencias = [], oportunidades, copy, radar, fontes } = report;
+  const { meta, tendencias = [], oportunidades, copy, radar, insights, glossario, fontes } = report;
   const corMarca = meta.cor_marca || "#660099";
 
   const featuredPostIndex = tendencias
@@ -201,12 +203,12 @@ export default function ReportView({
         </div>
       </div>
 
-      {/* INSIGHTS CRIATIVOS */}
+      {/* ÂNGULOS RÁPIDOS (copy) */}
       <div className="max-w-6xl mx-auto px-5 md:px-10 pb-14 flex flex-col gap-8">
         <div className="flex flex-col gap-2">
           <Eyebrow>Ponto de partida pra criação</Eyebrow>
           <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
-            Insights criativos
+            Ângulos rápidos
           </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -215,6 +217,36 @@ export default function ReportView({
           ))}
         </div>
       </div>
+
+      {/* INSIGHTS CRIATIVOS */}
+      {insights && insights.length > 0 && (
+        <div className="max-w-6xl mx-auto px-5 md:px-10 pb-14 flex flex-col gap-8">
+          <div className="flex flex-col gap-2">
+            <Eyebrow>Leitura semântica do que foi captado</Eyebrow>
+            <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
+              Insights criativos
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {insights.map((ins, i) => (
+              <InsightCard key={i} insight={ins} index={i + 1} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* GLOSSÁRIO DO MOMENTO */}
+      {glossario && glossario.length > 0 && (
+        <div className="max-w-6xl mx-auto px-5 md:px-10 pb-14 flex flex-col gap-8">
+          <div className="flex flex-col gap-2">
+            <Eyebrow>Vocabulário que mais apareceu</Eyebrow>
+            <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
+              Glossário do momento
+            </h2>
+          </div>
+          <GlossaryPanel termos={glossario} />
+        </div>
+      )}
     </div>
   );
 }

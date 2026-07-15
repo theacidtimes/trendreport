@@ -55,6 +55,16 @@ export interface CopyItem {
   hashtags: string[];
 }
 
+export interface InsightCriativo {
+  titulo: string;
+  texto: string;
+}
+
+export interface GlossarioTermo {
+  termo: string;
+  categoria: "sentimento" | "adjetivo" | "vocabulario" | "tema";
+}
+
 export interface FontesDados {
   instagram: number;
   twitter: number;
@@ -69,6 +79,8 @@ export interface TrendReport {
   oportunidades: Oportunidade[];
   copy: CopyItem[];
   radar: RadarItem[];
+  insights?: InsightCriativo[];
+  glossario?: GlossarioTermo[];
   fontes?: FontesDados;
 }
 
