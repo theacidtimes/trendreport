@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import * as yaml from "js-yaml";
 import WebSocket from "ws";
 import { generateReport } from "../lib/generateReport";
+import type { MarcaKnowledge } from "../lib/types";
 
 async function main() {
   const slug = process.env.REPORT_SLUG;
@@ -52,6 +53,31 @@ async function main() {
     const briefing = yaml.load(briefingYaml) as Record<string, unknown>;
     console.log("FASE 2: briefing parseado, iniciando generateReport()...");
 
+    // Fonte única de marca: se o report está ligado a uma marca (marca_id), o
+    // gerador bebe do yaml_conhecimento dela. Sem marca_id, marcaKnowledge fica
+    // undefined e o gerador cai no bloco de marca padrão (comportamento atual).
+    let marcaKnowledge: MarcaKnowledge | undefined;
+    const { data: reportRow, error: reportError } = await supabase
+      .from("reports")
+      .select("marca_id")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (reportError) {
+      console.error("Falha ao ler marca_id do report (segue no fallback):", reportError.message);
+    } else if (reportRow?.marca_id) {
+      const { data: marcaRow, error: marcaError } = await supabase
+        .from("marcas")
+        .select("yaml_conhecimento")
+        .eq("id", reportRow.marca_id)
+        .maybeSingle();
+      if (marcaError) {
+        console.error("Falha ao carregar marca (segue no fallback):", marcaError.message);
+      } else if (marcaRow?.yaml_conhecimento) {
+        marcaKnowledge = marcaRow.yaml_conhecimento as MarcaKnowledge;
+        console.log("FASE 2b: marca carregada, gerador vai usar o yaml_conhecimento.");
+      }
+    }
+
     const result = await generateReport(briefingYaml, briefing, async (progress) => {
       console.log("PROGRESSO:", JSON.stringify(progress));
       // Best-effort: se essa update falhar, a coleta/geração continua normal —
@@ -63,7 +89,7 @@ async function main() {
       if (error) {
         console.error("Falha ao atualizar progress (não bloqueia a geração):", error.message);
       }
-    });
+    }, marcaKnowledge);
     console.log("FASE 3: generateReport() concluído.", "error" in result ? "(com erro)" : "(sucesso)");
 
     if ("error" in result) {

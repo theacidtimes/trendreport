@@ -1,7 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { collectAll, type SearchTerms, type SourceName } from "./apify";
-import { SYSTEM_PROMPT, VIVO_KNOWLEDGE, systemPromptDynamic } from "./systemPrompt";
-import type { RawData, TrendReport } from "./types";
+import {
+  SYSTEM_PROMPT,
+  CREATIVE_METHOD,
+  buildBrandBlock,
+  systemPromptDynamic,
+} from "./systemPrompt";
+import type { MarcaKnowledge, RawData, TrendReport } from "./types";
 
 export type ReportProgress =
   | { phase: "briefing"; sources_done: SourceName[] }
@@ -206,7 +211,8 @@ function trimForModel(rawData: RawData): RawData {
 export async function generateReport(
   briefingYaml: string,
   briefing: Record<string, unknown>,
-  onProgress?: OnProgress
+  onProgress?: OnProgress,
+  marcaKnowledge?: MarcaKnowledge
 ): Promise<{ report: TrendReport } | { error: string }> {
   const terms = await deriveSearchTerms(briefingYaml, briefing);
   const sourcesDone: SourceName[] = [];
@@ -249,7 +255,7 @@ export async function generateReport(
       system: [
         {
           type: "text",
-          text: `${VIVO_KNOWLEDGE}\n\n---\n\n${SYSTEM_PROMPT}`,
+          text: `${CREATIVE_METHOD}\n\n---\n\n${buildBrandBlock(marcaKnowledge)}\n\n---\n\n${SYSTEM_PROMPT}`,
           cache_control: { type: "ephemeral" },
         },
         { type: "text", text: systemPromptDynamic() },
