@@ -90,6 +90,7 @@ export interface ReportRow {
   user_id: string;
   cliente: string;
   marca_id: string | null;
+  tenant_id: string | null;
   briefing: Record<string, unknown> | null;
   report: TrendReport;
   created_at: string;
@@ -182,6 +183,33 @@ export interface Marca {
   status_varredura: boolean
   intervalo_horas: number
   ultima_varredura: string | null
+  tenant_id: string | null
+  created_at: string
+}
+
+// ─── TENANCY (Acid Fabric) ─────────────────────────────────
+
+export interface Tenant {
+  id: string
+  nome: string
+  tipo: 'studio' | 'agency' | 'holding' | 'company'
+  status: 'ativo' | 'suspenso' | 'cancelado'
+  cnpj: string | null
+  endereco: Record<string, unknown>
+  cobranca: Record<string, unknown>
+  branding: Record<string, unknown>
+  // Camada 2 do prompt: a lente criativa do tenant (bounded, não sobrescreve o
+  // motor ACID nem a trava anti-fabricação). Preenchida na Fase 4.
+  perfil_criativo: Record<string, unknown>
+  seats: number
+  parent_tenant_id: string | null
+  created_at: string
+}
+
+export interface TenantUser {
+  tenant_id: string
+  user_id: string
+  role: 'admin' | 'editor' | 'viewer'
   created_at: string
 }
 
