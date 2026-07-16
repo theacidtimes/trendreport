@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Building2, DoorOpen, Zap, LogOut } from "lucide-react";
+import { Activity, Building2, DoorOpen, Zap, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 // Dock flutuante — EXCLUSIVO do console ACID. É o sinal visual de que se saiu do
@@ -14,6 +14,12 @@ const ITEMS = [
     label: "Tenants",
     icon: Building2,
     match: (p: string) => p === "/console" || p.startsWith("/console/tenants"),
+  },
+  {
+    href: "/console/saude",
+    label: "Saúde",
+    icon: Activity,
+    match: (p: string) => p.startsWith("/console/saude"),
   },
 ];
 
