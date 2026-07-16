@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LayoutGrid, LogOut, Plus, Radar, Shield, Waypoints } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
+import CreditTicker from "./CreditTicker";
 
 const NAV = [
   { href: "/dashboard/new", label: "Novo report", icon: Plus },
@@ -41,6 +42,9 @@ export default function Sidebar({
 
   return (
     <>
+      {/* Ticker de créditos — fixo, visível em qualquer página do dashboard */}
+      <CreditTicker isAdmin={isAdmin} />
+
       {/* Desktop dock — fixed 80px icon rail with hover tooltips */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-20 md:z-40 border-r border-border bg-bg">
         <Link
