@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, LogOut, Plus, Radar, Shield, Waypoints } from "lucide-react";
+import { Bolt, LayoutGrid, LogOut, Plus, Radar, Waypoints } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
 import CreditTicker from "./CreditTicker";
@@ -14,7 +14,7 @@ const NAV = [
   { href: "/dashboard/mapa", label: "Mapa semântico", icon: Waypoints },
 ];
 
-const ADMIN_NAV = [{ href: "/dashboard/admin", label: "Admin", icon: Shield }];
+const ADMIN_NAV = [{ href: "/dashboard/admin", label: "Admin", icon: Bolt }];
 
 function isActive(pathname: string, href: string) {
   return href === "/dashboard"
