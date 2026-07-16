@@ -2,20 +2,31 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coins, Palette, ScrollText, Users } from "lucide-react";
+import { Coins, Palette, ScrollText, UserCog, Users } from "lucide-react";
 
-const TABS = [
-  { href: "/dashboard/admin/clientes", label: "Clientes", icon: Users },
-  { href: "/dashboard/admin/usuarios", label: "Usuários", icon: ScrollText },
-  { href: "/dashboard/admin/creditos", label: "Créditos", icon: Coins },
-  { href: "/dashboard/admin/marca", label: "Marca", icon: Palette },
-];
-
-export default function AdminTabs() {
+// A aba "Auditoria" (app_admins/ACID: gestao dos admins globais + trilha) so
+// aparece pra quem e app_admin. As demais servem tambem ao admin do tenant, que
+// agora entra no /dashboard/admin pela gestao self-serve de membros ("Usuários").
+export default function AdminTabs({ isAppAdmin }: { isAppAdmin: boolean }) {
   const pathname = usePathname();
+  const tabs = [
+    { href: "/dashboard/admin/clientes", label: "Clientes", icon: Users },
+    { href: "/dashboard/admin/usuarios", label: "Usuários", icon: UserCog },
+    { href: "/dashboard/admin/creditos", label: "Créditos", icon: Coins },
+    { href: "/dashboard/admin/marca", label: "Marca", icon: Palette },
+    ...(isAppAdmin
+      ? [
+          {
+            href: "/dashboard/admin/auditoria",
+            label: "Auditoria",
+            icon: ScrollText,
+          },
+        ]
+      : []),
+  ];
   return (
     <nav className="inline-flex items-center gap-1 p-1 rounded-full bg-surface border border-border w-fit print:hidden">
-      {TABS.map(({ href, label, icon: Icon }) => {
+      {tabs.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link
