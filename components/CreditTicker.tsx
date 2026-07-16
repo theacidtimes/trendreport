@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { LayoutGrid } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Resumo = { saldo: number; creditado: number; consumido: number };
@@ -52,7 +53,9 @@ export default function CreditTicker({ isAdmin = false }: { isAdmin?: boolean })
         isAdmin ? "transition-colors hover:border-white/25" : ""
       }`}
     >
-      <img src="/logo-dog.svg" alt="" className="w-4 h-4 shrink-0" />
+      {/* Pictograma NEUTRO da plataforma (Acid Fabric) — nunca o logo do tenant,
+          que é white-label. Herda a cor do tom (fica no alerta junto do número). */}
+      <LayoutGrid className="w-3.5 h-3.5 shrink-0 opacity-70" strokeWidth={2.2} />
       <span className="tabular-nums">{label}</span>
     </span>
   );
