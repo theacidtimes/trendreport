@@ -54,7 +54,23 @@ export default function Sidebar({
     const supabase = createClient();
     supabase.rpc("is_acid_admin").then(({ data }) => setIsAcid(data === true));
     supabase.rpc("meu_branding").then(({ data }) => {
-      if (data && typeof data === "object") setBranding(data as TenantBranding);
+      if (!data || typeof data !== "object") return;
+      const b = data as TenantBranding;
+      setBranding(b);
+      // Paleta dinâmica: troca SÓ onde hoje aparece roxo/verde (tokens --purple
+      // e --lime). Tenant sem cor custom (ex. Caramelo) fica nos defaults do
+      // globals.css — nada muda. --purple-mid (hover) deriva da cor primária.
+      const root = document.documentElement;
+      if (b.cor_primaria) {
+        root.style.setProperty("--purple", b.cor_primaria);
+        root.style.setProperty(
+          "--purple-mid",
+          `color-mix(in srgb, ${b.cor_primaria} 45%, #140f1c)`
+        );
+      }
+      if (b.cor_destaque) {
+        root.style.setProperty("--lime", b.cor_destaque);
+      }
     });
   }, []);
   const logoUrl = branding.logo_url || undefined;

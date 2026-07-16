@@ -12,9 +12,9 @@ const LABEL = "text-muted text-xs uppercase tracking-[0.12em] font-medium";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-// Fallback ACID (o que o chrome mostra quando o tenant não customiza).
-const FALLBACK_PRIMARIA = "#8B5CF6"; // roxo
-const FALLBACK_DESTAQUE = "#C3F53C"; // lime
+// Defaults do chrome (globals.css: --purple / --lime). Marca vazia herda estes.
+const FALLBACK_PRIMARIA = "#A063E8"; // roxo (--purple)
+const FALLBACK_DESTAQUE = "#81D300"; // verde (--lime)
 
 export default function BrandingForm({
   initial,
@@ -104,6 +104,11 @@ export default function BrandingForm({
             onChange={setCorDestaque}
           />
         </div>
+        <p className="text-muted-2 text-[11px] leading-relaxed -mt-1">
+          As duas cores substituem os acentos do produto: a primária entra onde
+          hoje é roxo, a de destaque onde hoje é verde. O resto do layout
+          permanece igual.
+        </p>
 
         {error && (
           <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-3.5 py-2.5">
