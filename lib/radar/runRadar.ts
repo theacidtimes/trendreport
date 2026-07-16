@@ -50,17 +50,28 @@ async function closeRun(
     status: string
   }
 ): Promise<void> {
-  await supabase.from('radar_runs').insert({
+  const { data: run } = await supabase.from('radar_runs').insert({
     marca_id: marcaId,
     sinais_captados: log.sinais_captados ?? 0,
     sinais_novos: log.sinais_novos ?? 0,
     drops_gerados: log.drops_gerados ?? 0,
     modelo: log.modelo ?? null,
     status: log.status
-  })
+  }).select('id').single()
   await supabase.from('marcas')
     .update({ ultima_varredura: new Date().toISOString() })
     .eq('id', marcaId)
+
+  // Metering (Fase 3A): 1 varredura = 1 crédito, resolvido pelo tenant da marca.
+  // Idempotente por run e NÃO bloqueia — se o débito falhar, o ledger fica
+  // incompleto mas a coleta/geração segue normal. Débito só se o run foi gravado.
+  if (run?.id) {
+    try {
+      await supabase.rpc('cobrar_radar_run', { p_marca: marcaId, p_ref: run.id })
+    } catch (e) {
+      console.error('[RADAR] Falha ao debitar credito (nao bloqueia):', e)
+    }
+  }
 }
 
 // Uma lane é um scrape (fonte + query). O composto nasce daqui: várias lanes por

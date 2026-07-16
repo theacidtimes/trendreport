@@ -119,6 +119,15 @@ async function main() {
       );
     }
 
+    // Metering (Fase 3A): 1 report = 1 crédito. Debitado no ponto onde o
+    // trabalho de fato termina (report salvo como "ready"). Idempotente por
+    // report.id no lado do banco. NÃO bloqueia: metering, não trava (trava é 3B).
+    try {
+      await supabase.rpc("cobrar_report", { p_slug: slug });
+    } catch (e) {
+      console.error("[REPORT] Falha ao debitar credito (nao bloqueia):", e);
+    }
+
     console.log(`Report ${slug} gerado com sucesso.`);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);

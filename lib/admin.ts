@@ -9,3 +9,12 @@ export async function checkIsAdmin(
   const { data } = await supabase.rpc("is_app_admin");
   return data === true;
 }
+
+// Super-admin da ACID (tabela public.acid_admins, por e-mail). Distinto do
+// app_admin do tenant: só o ACID pode recarregar créditos de um tenant.
+export async function checkIsAcidAdmin(
+  supabase: SupabaseClient
+): Promise<boolean> {
+  const { data } = await supabase.rpc("is_acid_admin");
+  return data === true;
+}

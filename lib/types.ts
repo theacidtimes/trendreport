@@ -203,6 +203,22 @@ export interface Tenant {
   perfil_criativo: Record<string, unknown>
   seats: number
   parent_tenant_id: string | null
+  // Cache do saldo de créditos (fonte de verdade é o creditos_ledger; esta
+  // coluna é o snapshot mantido atômico pela função credito_lancar). Fase 3A.
+  saldo_creditos: number
+  created_at: string
+}
+
+// Extrato de créditos (Fase 3A). Um lançamento por evento de custo:
+// +recarga / -consumo (report, radar_run). saldo_after = snapshot do saldo
+// do tenant logo depois deste lançamento.
+export interface CreditoLedger {
+  id: string
+  tenant_id: string
+  delta: number
+  motivo: 'report' | 'radar_run' | 'recarga' | 'ajuste'
+  ref_id: string | null
+  saldo_after: number
   created_at: string
 }
 
