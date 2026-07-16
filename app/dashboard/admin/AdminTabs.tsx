@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ScrollText, Users } from "lucide-react";
+import { Coins, ScrollText, Users } from "lucide-react";
 
 const TABS = [
   { href: "/dashboard/admin/clientes", label: "Clientes", icon: Users },
   { href: "/dashboard/admin/usuarios", label: "Usuários", icon: ScrollText },
+  { href: "/dashboard/admin/creditos", label: "Créditos", icon: Coins },
 ];
 
 export default function AdminTabs() {
