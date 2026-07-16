@@ -6,6 +6,8 @@ import TenantEditDialog from "@/components/console/TenantEditDialog";
 import ModuloToggles from "@/components/console/ModuloToggles";
 import AssinaturaControls from "@/components/console/AssinaturaControls";
 import RecargaForm from "@/components/creditos/RecargaForm";
+import TenantUsuarios from "@/components/console/TenantUsuarios";
+import type { UsuarioTenant } from "@/app/console/usuarios-actions";
 import type {
   Tenant,
   TenantModulo,
@@ -26,12 +28,6 @@ const STATUS_TONE: Record<string, string> = {
   ativo: "fill-lime text-lime",
   suspenso: "fill-amber-400 text-amber-400",
   cancelado: "fill-muted/40 text-muted/40",
-};
-
-const ROLE_LABEL: Record<string, string> = {
-  admin: "Admins",
-  editor: "Editores",
-  viewer: "Viewers",
 };
 
 const MOTIVO_LABEL: Record<CreditoLedger["motivo"], string> = {
@@ -88,7 +84,7 @@ export default async function TenantDetailPage({
       .from("marcas")
       .select("id, nome, yaml_conhecimento, status_varredura")
       .eq("tenant_id", id),
-    supabase.from("tenant_users").select("role").eq("tenant_id", id),
+    supabase.rpc("acid_tenant_usuarios", { p_tenant: id }),
     supabase
       .from("creditos_ledger")
       .select("*")
@@ -106,14 +102,10 @@ export default async function TenantDetailPage({
     Marca,
     "id" | "nome" | "yaml_conhecimento" | "status_varredura"
   >[];
-  const usuarios = (usuariosRow ?? []) as { role: string }[];
+  const usuarios = (usuariosRow ?? []) as UsuarioTenant[];
   const ledger = (ledgerRow ?? []) as CreditoLedger[];
 
   const assinaturaAtual = assinaturas[0] ?? null;
-  const roleCounts = usuarios.reduce<Record<string, number>>((acc, u) => {
-    acc[u.role] = (acc[u.role] ?? 0) + 1;
-    return acc;
-  }, {});
   const MODULOS_TODOS: ModuloNome[] = ["radar", "reports", "dados_semanticos"];
   const ativosMap = MODULOS_TODOS.reduce(
     (acc, m) => {
@@ -181,19 +173,12 @@ export default async function TenantDetailPage({
       {/* Recarga de créditos (contexto ACID) */}
       <RecargaForm tenantId={tenant.id} />
 
-      {/* Usuários por papel */}
-      <section className="flex flex-col gap-3">
-        <h2 className="kicker text-muted-2">Usuários · {usuarios.length}</h2>
-        <div className="grid grid-cols-3 gap-3">
-          {(["admin", "editor", "viewer"] as const).map((role) => (
-            <SummaryStat
-              key={role}
-              value={roleCounts[role] ?? 0}
-              label={ROLE_LABEL[role]}
-            />
-          ))}
-        </div>
-      </section>
+      {/* Usuários — gestão de seats/papéis */}
+      <TenantUsuarios
+        tenantId={tenant.id}
+        usuarios={usuarios}
+        seats={tenant.seats}
+      />
 
       {/* Marcas */}
       <section className="flex flex-col gap-3">
