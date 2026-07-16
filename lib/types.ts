@@ -189,6 +189,16 @@ export interface Marca {
 
 // ─── TENANCY (Acid Fabric) ─────────────────────────────────
 
+// Marca white-label do tenant (subset tipado de tenants.branding jsonb).
+// Editável pelo admin do tenant via RPC atualizar_branding (Fase 4D); aplicado
+// ao chrome na Fase 4E. Todos os campos opcionais; ausência = fallback ACID.
+export interface TenantBranding {
+  display_name?: string
+  logo_url?: string
+  cor_primaria?: string
+  cor_destaque?: string
+}
+
 export interface Tenant {
   id: string
   nome: string
