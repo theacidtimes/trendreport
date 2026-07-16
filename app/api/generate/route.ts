@@ -37,11 +37,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
 
-    // Enforcement de créditos (Fase 3B): sem saldo, não gera. Checagem pré-voo
-    // ANTES de criar o job e disparar o Action — falha rápido, não gasta compute.
-    // credito_resumo() resolve o tenant do usuário pelo claim (jwt_tenant_id).
-    // O débito de verdade segue no fim da geração (idempotente, service_role).
-    const { data: resumo } = await supabase.rpc("credito_resumo");
+    // Enforcement pré-voo (ANTES de criar o job e disparar o Action — falha
+    // rápido, não gasta compute). Resolvidos pelo claim do usuário (jwt_tenant_id):
+    //  - status do tenant: suspenso/cancelado não gera nada (Fase de enforcement);
+    //  - créditos (Fase 3B): sem saldo, não gera. O débito de verdade segue no
+    //    fim da geração (idempotente, service_role).
+    const [{ data: status }, { data: resumo }] = await Promise.all([
+      supabase.rpc("meu_tenant_status"),
+      supabase.rpc("credito_resumo"),
+    ]);
+
+    if (status === "suspenso" || status === "cancelado") {
+      return NextResponse.json(
+        {
+          error:
+            "Conta inativa. Fale com o administrador para reativar antes de gerar reports.",
+        },
+        { status: 403 }
+      );
+    }
+
     const saldo = (Array.isArray(resumo) ? resumo[0]?.saldo : undefined) ?? 0;
     if (saldo <= 0) {
       return NextResponse.json(

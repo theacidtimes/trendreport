@@ -374,24 +374,35 @@ export async function runAllActiveRadars(): Promise<void> {
     return
   }
 
-  // Enforcement de créditos (Fase 3B): tenant sem saldo tem a varredura PULADA
-  // (não gasta scrape). Radar não quebra: a marca volta a rodar sozinha quando
-  // recarregar. Saldo resolvido em uma query batch pelos tenants das due.
+  // Enforcement (Fase 3B + status): a varredura é PULADA quando o tenant está
+  // sem saldo OU não está ativo (suspenso/cancelado) — em ambos os casos não
+  // gasta scrape. Radar não quebra: a marca volta a rodar sozinha quando o
+  // tenant recarrega/reativa. Resolvido em uma query batch pelos tenants das due.
   const tenantIds = Array.from(
     new Set(due.map(m => m.tenant_id).filter((id): id is string => Boolean(id)))
   )
-  const { data: saldos } = tenantIds.length
-    ? await supabase.from('tenants').select('id, saldo_creditos').in('id', tenantIds)
+  const { data: tenantsRow } = tenantIds.length
+    ? await supabase.from('tenants').select('id, saldo_creditos, status').in('id', tenantIds)
     : { data: [] }
-  const comSaldo = new Set(
-    (saldos ?? []).filter(t => (t.saldo_creditos ?? 0) > 0).map(t => t.id)
-  )
+  // Map tenant -> apto (ativo E com saldo) + o motivo do bloqueio pro log.
+  const apto = new Map<string, boolean>()
+  const motivo = new Map<string, string>()
+  for (const t of tenantsRow ?? []) {
+    const ativo = t.status === 'ativo'
+    const temSaldo = (t.saldo_creditos ?? 0) > 0
+    apto.set(t.id, ativo && temSaldo)
+    if (!ativo) motivo.set(t.id, `conta ${t.status}`)
+    else if (!temSaldo) motivo.set(t.id, 'sem saldo de creditos')
+  }
 
   const batchId = randomUUID()
   let disparadas = 0
   for (const marca of due) {
-    if (!marca.tenant_id || !comSaldo.has(marca.tenant_id)) {
-      console.log(`[RADAR] Pulada (sem saldo de creditos): ${marca.nome}`)
+    if (!marca.tenant_id || !apto.get(marca.tenant_id)) {
+      const razao = marca.tenant_id
+        ? motivo.get(marca.tenant_id) ?? 'tenant nao elegivel'
+        : 'sem tenant'
+      console.log(`[RADAR] Pulada (${razao}): ${marca.nome}`)
       continue
     }
     try {
