@@ -28,11 +28,17 @@ export default function ReportView({
   geradoEm,
   standalone = true,
   briefing,
+  logoUrl,
+  displayName,
 }: {
   report: TrendReport;
   geradoEm?: string;
   standalone?: boolean;
   briefing?: Record<string, unknown> | string | null;
+  // Marca white-label do tenant dono do report (Fase 4E). No /r/[slug] publico
+  // resolvidos server-side via rpc branding_do_report. Ausentes = fallback ACID.
+  logoUrl?: string;
+  displayName?: string;
 }) {
   const { meta, tendencias = [], oportunidades, copy, radar, insights, glossario, fontes } = report;
   const corMarca = meta.cor_marca || "#660099";
@@ -57,7 +63,7 @@ export default function ReportView({
           {standalone && (
             <>
               <span className="flex items-center gap-2">
-                <Logo size="xs" />
+                <Logo size="xs" logoUrl={logoUrl} displayName={displayName} />
                 <span className="text-white font-bold">trend report</span>
               </span>
               <span className="text-border">·</span>
