@@ -15,6 +15,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
 import CreditTicker from "./CreditTicker";
+import type { TenantBranding } from "@/lib/types";
 
 const NAV = [
   { href: "/dashboard/new", label: "Novo report", icon: Plus },
@@ -46,10 +47,18 @@ export default function Sidebar({
   // (rpc is_acid_admin) pra não ter que threadar prop por todos os layouts do
   // workspace — o rail em si fica intacto, só ganha um item extra pra 1 usuário.
   const [isAcid, setIsAcid] = useState(false);
+  // Marca white-label do tenant (Fase 4E) — busca única via rpc, fallback ACID
+  // fica no próprio Logo. Só o admin do tenant edita; todos do tenant enxergam.
+  const [branding, setBranding] = useState<TenantBranding>({});
   useEffect(() => {
     const supabase = createClient();
     supabase.rpc("is_acid_admin").then(({ data }) => setIsAcid(data === true));
+    supabase.rpc("meu_branding").then(({ data }) => {
+      if (data && typeof data === "object") setBranding(data as TenantBranding);
+    });
   }, []);
+  const logoUrl = branding.logo_url || undefined;
+  const displayName = branding.display_name || undefined;
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -70,7 +79,7 @@ export default function Sidebar({
           aria-label="caramelo trend report"
           className="grid place-items-center h-[68px] shrink-0"
         >
-          <Logo size="md" wordmarkClassName="hidden" />
+          <Logo size="md" wordmarkClassName="hidden" logoUrl={logoUrl} />
         </Link>
 
         <nav className="flex flex-col gap-1 px-3 mt-6">
@@ -138,7 +147,7 @@ export default function Sidebar({
       {/* Mobile top bar */}
       <header className="flex md:hidden h-14 items-center justify-between px-5 border-b border-border bg-bg/95 backdrop-blur sticky top-0 z-40">
         <Link href="/dashboard" className="flex items-center">
-          <Logo size="sm" />
+          <Logo size="sm" logoUrl={logoUrl} displayName={displayName} />
         </Link>
         <div className="flex items-center gap-4">
           {nav.map(({ href, icon: Icon, label }) => {

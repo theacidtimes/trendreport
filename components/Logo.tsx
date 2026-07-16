@@ -21,22 +21,37 @@ const WORDMARK = [
 export default function Logo({
   size = "md",
   wordmarkClassName = "",
+  logoUrl,
+  displayName,
 }: {
   size?: keyof typeof SIZES;
   wordmarkClassName?: string;
+  // Marca white-label do tenant (Fase 4E). Ausentes = fallback ACID/Caramelo.
+  logoUrl?: string;
+  displayName?: string;
 }) {
   const s = SIZES[size];
   return (
     <span className={`flex items-center ${s.gap}`}>
-      <img src="/logo-dog.svg" alt="" className={`${s.icon} shrink-0`} />
+      <img
+        src={logoUrl || "/logo-dog.svg"}
+        alt=""
+        className={`${s.icon} shrink-0 ${
+          logoUrl ? "object-contain rounded-md" : ""
+        }`}
+      />
       <span
         className={`font-sans font-bold ${s.text} tracking-[-0.01em] ${wordmarkClassName}`}
       >
-        {WORDMARK.map(({ char, color }, i) => (
-          <span key={i} style={{ color: color ?? "#fff" }}>
-            {char}
-          </span>
-        ))}
+        {displayName ? (
+          <span className="text-white">{displayName}</span>
+        ) : (
+          WORDMARK.map(({ char, color }, i) => (
+            <span key={i} style={{ color: color ?? "#fff" }}>
+              {char}
+            </span>
+          ))
+        )}
       </span>
     </span>
   );
