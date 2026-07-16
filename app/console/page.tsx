@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight, Circle, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { ModuloNome } from "@/lib/types";
+import TenantCreateDialog from "@/components/console/TenantCreateDialog";
 
 // ─── Rótulos ──────────────────────────────────────────────
 const TIPO_LABEL: Record<string, string> = {
@@ -82,15 +83,18 @@ export default async function ConsolePage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <span className="kicker text-purple">Console Acid Fabric</span>
-        <h1 className="font-serif text-white font-medium text-3xl md:text-4xl leading-tight">
-          Tenants
-        </h1>
-        <p className="text-muted text-sm max-w-2xl leading-relaxed">
-          Visão da ACID sobre todos os tenants licenciados: módulos, assinatura,
-          seats e créditos. Somente leitura — provisionar e editar vem em breve.
-        </p>
+      <header className="flex items-end justify-between gap-4 flex-wrap">
+        <div className="flex flex-col gap-2">
+          <span className="kicker text-purple">Console Acid Fabric</span>
+          <h1 className="font-serif text-white font-medium text-3xl md:text-4xl leading-tight">
+            Tenants
+          </h1>
+          <p className="text-muted text-sm max-w-2xl leading-relaxed">
+            Visão da ACID sobre todos os tenants licenciados: módulos,
+            assinatura, seats e créditos.
+          </p>
+        </div>
+        <TenantCreateDialog />
       </header>
 
       {/* Resumo topo */}

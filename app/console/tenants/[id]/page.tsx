@@ -1,14 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  Circle,
-  Check,
-  Minus,
-  ArrowUpRight,
-  ArrowDownRight,
-} from "lucide-react";
+import { ArrowLeft, Circle, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import TenantEditDialog from "@/components/console/TenantEditDialog";
+import ModuloToggles from "@/components/console/ModuloToggles";
+import AssinaturaControls from "@/components/console/AssinaturaControls";
+import RecargaForm from "@/components/creditos/RecargaForm";
 import type {
   Tenant,
   TenantModulo,
@@ -29,21 +26,6 @@ const STATUS_TONE: Record<string, string> = {
   ativo: "fill-lime text-lime",
   suspenso: "fill-amber-400 text-amber-400",
   cancelado: "fill-muted/40 text-muted/40",
-};
-
-const MODULO_LABEL: Record<ModuloNome, string> = {
-  radar: "Radar",
-  reports: "Reports",
-  dados_semanticos: "Dados semânticos",
-};
-
-const MODULOS_TODOS: ModuloNome[] = ["radar", "reports", "dados_semanticos"];
-
-const PLANO_LABEL: Record<string, string> = {
-  mensal: "Mensal",
-  trimestral: "Trimestral",
-  semestral: "Semestral",
-  anual: "Anual",
 };
 
 const ROLE_LABEL: Record<string, string> = {
@@ -132,8 +114,14 @@ export default async function TenantDetailPage({
     acc[u.role] = (acc[u.role] ?? 0) + 1;
     return acc;
   }, {});
-  const moduloAtivo = (m: ModuloNome) =>
-    modulos.find((x) => x.modulo === m)?.ativo ?? false;
+  const MODULOS_TODOS: ModuloNome[] = ["radar", "reports", "dados_semanticos"];
+  const ativosMap = MODULOS_TODOS.reduce(
+    (acc, m) => {
+      acc[m] = modulos.find((x) => x.modulo === m)?.ativo ?? false;
+      return acc;
+    },
+    {} as Record<ModuloNome, boolean>
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -145,21 +133,24 @@ export default async function TenantDetailPage({
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
           Tenants
         </Link>
-        <header className="flex flex-col gap-2">
-          <span className="kicker text-purple">Console Acid Fabric</span>
-          <h1 className="flex items-center gap-3 font-serif text-white font-medium text-3xl md:text-4xl leading-tight">
-            <Circle
-              className={`w-3 h-3 shrink-0 ${
-                STATUS_TONE[tenant.status] ?? "fill-muted/40 text-muted/40"
-              }`}
-            />
-            {tenant.nome}
-          </h1>
-          <p className="text-muted text-sm">
-            {TIPO_LABEL[tenant.tipo] ?? tenant.tipo} · {tenant.status} · desde{" "}
-            {formatDate(tenant.created_at)}
-            {tenant.cnpj ? ` · CNPJ ${tenant.cnpj}` : ""}
-          </p>
+        <header className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex flex-col gap-2">
+            <span className="kicker text-purple">Console Acid Fabric</span>
+            <h1 className="flex items-center gap-3 font-serif text-white font-medium text-3xl md:text-4xl leading-tight">
+              <Circle
+                className={`w-3 h-3 shrink-0 ${
+                  STATUS_TONE[tenant.status] ?? "fill-muted/40 text-muted/40"
+                }`}
+              />
+              {tenant.nome}
+            </h1>
+            <p className="text-muted text-sm">
+              {TIPO_LABEL[tenant.tipo] ?? tenant.tipo} · {tenant.status} · desde{" "}
+              {formatDate(tenant.created_at)}
+              {tenant.cnpj ? ` · CNPJ ${tenant.cnpj}` : ""}
+            </p>
+          </div>
+          <TenantEditDialog tenant={tenant} />
         </header>
       </div>
 
@@ -177,69 +168,18 @@ export default async function TenantDetailPage({
         />
       </section>
 
-      {/* Assinatura + Módulos */}
+      {/* Assinatura + Módulos (editáveis) */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-4 shadow-card">
-          <h2 className="kicker text-muted-2">Assinatura</h2>
-          {assinaturaAtual ? (
-            <dl className="flex flex-col gap-2.5 text-sm">
-              <Row label="Plano">
-                {PLANO_LABEL[assinaturaAtual.plano_tipo] ??
-                  assinaturaAtual.plano_tipo}
-              </Row>
-              <Row label="Status">{assinaturaAtual.status}</Row>
-              <Row label="Início">
-                {formatDate(assinaturaAtual.data_inicio)}
-              </Row>
-              <Row label="Vigente até">
-                {formatDate(assinaturaAtual.data_fim)}
-              </Row>
-              <Row label="Renovação automática">
-                {assinaturaAtual.auto_renovacao ? "Sim" : "Não"}
-              </Row>
-            </dl>
-          ) : (
-            <p className="text-muted text-sm">Nenhuma assinatura registrada.</p>
-          )}
-          {assinaturas.length > 1 && (
-            <p className="text-muted-2 text-[11px] pt-2 border-t border-border">
-              {assinaturas.length} ciclos no histórico.
-            </p>
-          )}
-        </div>
-
-        <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-4 shadow-card">
-          <h2 className="kicker text-muted-2">Módulos</h2>
-          <ul className="flex flex-col gap-2">
-            {MODULOS_TODOS.map((m) => {
-              const ativo = moduloAtivo(m);
-              return (
-                <li
-                  key={m}
-                  className="flex items-center justify-between gap-3 text-sm"
-                >
-                  <span className={ativo ? "text-white" : "text-muted-2"}>
-                    {MODULO_LABEL[m]}
-                  </span>
-                  <span
-                    className={`grid place-items-center w-6 h-6 rounded-full shrink-0 ${
-                      ativo
-                        ? "bg-lime/10 text-lime"
-                        : "bg-surface-2 text-muted-2"
-                    }`}
-                  >
-                    {ativo ? (
-                      <Check className="w-3.5 h-3.5" strokeWidth={2.6} />
-                    ) : (
-                      <Minus className="w-3.5 h-3.5" strokeWidth={2.6} />
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <AssinaturaControls
+          tenantId={tenant.id}
+          atual={assinaturaAtual}
+          ciclos={assinaturas.length}
+        />
+        <ModuloToggles tenantId={tenant.id} ativos={ativosMap} />
       </section>
+
+      {/* Recarga de créditos (contexto ACID) */}
+      <RecargaForm tenantId={tenant.id} />
 
       {/* Usuários por papel */}
       <section className="flex flex-col gap-3">
@@ -361,21 +301,6 @@ function SummaryStat({
       <span className="text-muted text-[11px] uppercase tracking-wide">
         {label}
       </span>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-white font-medium">{children}</dd>
     </div>
   );
 }
