@@ -40,18 +40,33 @@ export async function POST(req: Request) {
     // Enforcement pré-voo (ANTES de criar o job e disparar o Action — falha
     // rápido, não gasta compute). Resolvidos pelo claim do usuário (jwt_tenant_id):
     //  - status do tenant: suspenso/cancelado não gera nada (Fase de enforcement);
+    //  - módulo "reports": tenant que não assinou o app de reports não gera;
     //  - créditos (Fase 3B): sem saldo, não gera. O débito de verdade segue no
     //    fim da geração (idempotente, service_role).
-    const [{ data: status }, { data: resumo }] = await Promise.all([
-      supabase.rpc("meu_tenant_status"),
-      supabase.rpc("credito_resumo"),
-    ]);
+    const [{ data: status }, { data: modulos, error: modErr }, { data: resumo }] =
+      await Promise.all([
+        supabase.rpc("meu_tenant_status"),
+        supabase.rpc("meus_modulos"),
+        supabase.rpc("credito_resumo"),
+      ]);
 
     if (status === "suspenso" || status === "cancelado") {
       return NextResponse.json(
         {
           error:
             "Conta inativa. Fale com o administrador para reativar antes de gerar reports.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Fail-open no erro da rpc (não trava geração por blip); estrito quando a
+    // lista chega e não inclui "reports".
+    if (!modErr && Array.isArray(modulos) && !modulos.includes("reports")) {
+      return NextResponse.json(
+        {
+          error:
+            "O módulo de Reports não está no seu plano. Fale com o administrador para habilitar.",
         },
         { status: 403 }
       );

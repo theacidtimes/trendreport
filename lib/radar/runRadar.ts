@@ -374,25 +374,36 @@ export async function runAllActiveRadars(): Promise<void> {
     return
   }
 
-  // Enforcement (Fase 3B + status): a varredura é PULADA quando o tenant está
-  // sem saldo OU não está ativo (suspenso/cancelado) — em ambos os casos não
-  // gasta scrape. Radar não quebra: a marca volta a rodar sozinha quando o
-  // tenant recarrega/reativa. Resolvido em uma query batch pelos tenants das due.
+  // Enforcement (Fase 3B + status + modulo): a varredura é PULADA quando o tenant
+  // está sem saldo, não está ativo (suspenso/cancelado), OU não assinou o módulo
+  // "radar" — em todos os casos não gasta scrape. Radar não quebra: a marca volta
+  // a rodar sozinha quando o tenant recarrega/reativa/reassina. Resolvido em
+  // queries batch pelos tenants das due (service_role bypassa RLS).
   const tenantIds = Array.from(
     new Set(due.map(m => m.tenant_id).filter((id): id is string => Boolean(id)))
   )
   const { data: tenantsRow } = tenantIds.length
     ? await supabase.from('tenants').select('id, saldo_creditos, status').in('id', tenantIds)
     : { data: [] }
-  // Map tenant -> apto (ativo E com saldo) + o motivo do bloqueio pro log.
+  // Modulo radar ativo por tenant. FAIL-OPEN: se a query falhar, NÃO enforça
+  // (modInfo=false) pra não derrubar o radar por um blip; estrito quando há dados.
+  const modResult = tenantIds.length
+    ? await supabase.from('tenant_modulos').select('tenant_id')
+        .eq('modulo', 'radar').eq('ativo', true).in('tenant_id', tenantIds)
+    : { data: [], error: null }
+  const modInfo = !modResult.error
+  const comRadar = new Set((modResult.data ?? []).map(r => r.tenant_id))
+  // Map tenant -> apto (ativo E com saldo E com módulo radar) + motivo do log.
   const apto = new Map<string, boolean>()
   const motivo = new Map<string, string>()
   for (const t of tenantsRow ?? []) {
     const ativo = t.status === 'ativo'
     const temSaldo = (t.saldo_creditos ?? 0) > 0
-    apto.set(t.id, ativo && temSaldo)
+    const temRadar = !modInfo || comRadar.has(t.id)
+    apto.set(t.id, ativo && temSaldo && temRadar)
     if (!ativo) motivo.set(t.id, `conta ${t.status}`)
     else if (!temSaldo) motivo.set(t.id, 'sem saldo de creditos')
+    else if (!temRadar) motivo.set(t.id, 'modulo radar inativo')
   }
 
   const batchId = randomUUID()

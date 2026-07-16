@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Briefing de DNA da Marca — Guia para o Trend Radar</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color: #1c1a22; line-height: 1.55; font-size: 10.5pt; margin: 0;
+  }
+  h1, h2, h3, .serif { font-family: Georgia, "Times New Roman", serif; }
+  .kicker { text-transform: uppercase; letter-spacing: .16em; font-size: 8pt;
+    font-weight: 700; color: #7c3aed; }
+  h1 { font-size: 25pt; line-height: 1.1; margin: 6px 0 8px; font-weight: 600; }
+  .lead { color: #4b4754; font-size: 11pt; max-width: 62ch; margin: 0 0 14px; }
+  .chip { display: inline-block; background: #f3eefe; color: #6d28d9;
+    border: 1px solid #e2d5fb; border-radius: 999px; padding: 4px 12px;
+    font-size: 8.5pt; font-weight: 600; }
+  h2 { font-size: 15pt; margin: 26px 0 4px; font-weight: 600;
+    padding-top: 14px; border-top: 2px solid #1c1a22; }
+  h2 .n { color: #7c3aed; margin-right: 8px; }
+  .sub { color: #6b6774; font-size: 9.5pt; margin: 0 0 14px; }
+  .cols { display: flex; gap: 12px; margin: 12px 0; }
+  .col { flex: 1; border: 1px solid #e6e3ec; border-radius: 12px; padding: 13px 15px; }
+  .col.coleta { background: #fbfaff; border-color: #e4dbfa; }
+  .col.leitura { background: #fafcfa; border-color: #dbe8e0; }
+  .col h4 { margin: 0 0 4px; font-size: 10.5pt; }
+  .col.coleta h4 { color: #6d28d9; }
+  .col.leitura h4 { color: #2f7d52; }
+  .col .tag { font-size: 8pt; text-transform: uppercase; letter-spacing: .08em;
+    color: #8a8592; font-weight: 700; }
+  .col ul { margin: 8px 0 0; padding-left: 16px; }
+  .col li { margin-bottom: 3px; }
+  code, .mono { font-family: "SF Mono", "Consolas", monospace; font-size: 8.8pt;
+    background: #f1eef7; color: #5b21b6; padding: 1px 5px; border-radius: 4px; }
+  .insight { background: #1c1a22; color: #f4f2f8; border-radius: 12px;
+    padding: 15px 18px; margin: 16px 0; }
+  .insight .kicker { color: #b794f6; }
+  .insight p { margin: 5px 0 0; font-size: 10pt; }
+  .insight strong { color: #d6bcfa; }
+  .field { border: 1px solid #e6e3ec; border-radius: 12px; padding: 13px 16px;
+    margin: 10px 0; break-inside: avoid; }
+  .field .head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .field .fname { font-family: "SF Mono", monospace; font-size: 10pt; font-weight: 700;
+    color: #1c1a22; }
+  .field .pill { font-size: 7.5pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; padding: 2px 8px; border-radius: 999px; }
+  .pill.c { background: #ede4fd; color: #6d28d9; }
+  .pill.l { background: #dcefe4; color: #2f7d52; }
+  .field p { margin: 4px 0; font-size: 9.7pt; }
+  .field .ex { background: #faf9fc; border-left: 3px solid #c4b5fd;
+    padding: 7px 11px; border-radius: 0 6px 6px 0; margin-top: 7px; font-size: 9.3pt; }
+  .field .ex b { color: #6d28d9; }
+  .field .err { color: #a13a3a; font-size: 9.3pt; margin-top: 5px; }
+  .field .err b { color: #a13a3a; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 9.2pt; }
+  th { text-align: left; background: #f3eefe; color: #4c1d95; padding: 8px 10px;
+    border: 1px solid #e2d5fb; font-size: 8.5pt; text-transform: uppercase;
+    letter-spacing: .05em; }
+  td { padding: 8px 10px; border: 1px solid #e6e3ec; vertical-align: top; }
+  td .mono { font-size: 8.3pt; }
+  pre { background: #1c1a22; color: #e8e4f0; border-radius: 12px; padding: 16px 18px;
+    font-family: "SF Mono", "Consolas", monospace; font-size: 8.6pt; line-height: 1.5;
+    overflow: hidden; white-space: pre-wrap; }
+  pre .k { color: #b794f6; }
+  pre .c { color: #7d8590; font-style: italic; }
+  pre .s { color: #a5d6a7; }
+  .check { list-style: none; padding: 0; margin: 10px 0; }
+  .check li { padding: 6px 0 6px 26px; position: relative; border-bottom: 1px solid #efedf3;
+    font-size: 9.8pt; }
+  .check li::before { content: "\2713"; position: absolute; left: 4px; top: 6px;
+    color: #7c3aed; font-weight: 700; }
+  .care { display: flex; gap: 10px; margin: 8px 0; break-inside: avoid; }
+  .care .ic { flex-shrink: 0; width: 26px; height: 26px; border-radius: 8px;
+    background: #f3eefe; color: #6d28d9; display: grid; place-items: center;
+    font-weight: 700; font-family: Georgia, serif; }
+  .care div p { margin: 0; font-size: 9.6pt; }
+  .care div .t { font-weight: 700; color: #1c1a22; }
+  footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid #d9d6e0;
+    color: #8a8592; font-size: 8pt; display: flex; justify-content: space-between; }
+  .avoid { break-inside: avoid; }
+</style>
+</head>
+<body>
+
+  <span class="kicker">Trend Radar · Acid Fabric</span>
+  <h1>Briefing de DNA da Marca</h1>
+  <p class="lead">Guia de preenchimento para a Diretoria de Estratégia. Quanto mais afiado o DNA,
+  mais o Radar entrega sinais com fit real e ângulo próprio. Este documento mostra o que preencher,
+  o que cada campo aciona no motor e como extrair 100% da ferramenta.</p>
+  <span class="chip">Cliente-alvo: gestão financeira B2B com foco em viagens corporativas (T&amp;E)</span>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2><span class="n">01</span>Como o Radar enxerga a marca</h2>
+  <p class="sub">O DNA alimenta dois motores diferentes. Entender a divisão é o que separa um briefing
+  bom de um briefing que rende o dobro.</p>
+
+  <div class="cols">
+    <div class="col coleta">
+      <span class="tag">Motor 1</span>
+      <h4>Coleta · o que o Radar vai buscar</h4>
+      <p style="font-size:9.3pt;margin:4px 0 0">São <b>palavras-chave</b> que entram cruas na varredura
+      de Reddit, TikTok, X, News e LinkedIn. Definem <b>o que entra</b> no funil.</p>
+      <ul>
+        <li><code>termos_busca</code></li>
+        <li><code>termos_culturais</code></li>
+        <li><code>termos_culturais_en</code></li>
+        <li><code>linkedin_ativo</code></li>
+      </ul>
+    </div>
+    <div class="col leitura">
+      <span class="tag">Motor 2</span>
+      <h4>Leitura · como a IA interpreta</h4>
+      <p style="font-size:9.3pt;margin:4px 0 0">É o <b>DNA editorial</b>. Não busca nada: ensina a IA
+      a ler o sinal e conectar à marca por <b>permissão cultural</b>. Definem <b>o ângulo</b>.</p>
+      <ul>
+        <li><code>tom</code></li>
+        <li><code>perfil_comportamental</code></li>
+        <li><code>universos_culturais</code></li>
+        <li><code>ambicao_de_marca</code></li>
+        <li><code>o_que_evitar</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="insight">
+    <span class="kicker">O diferencial do Radar</span>
+    <p>Ele não fica só caçando quem cita a marca. Ele vasculha o <strong>entorno cultural</strong> do
+    seu público: o que essas pessoas vivem, debatem, temem e comemoram, mesmo sem falar do produto.
+    Para um cliente de finanças de viagens, o ouro não está em "quem citou a plataforma", está em
+    "como gestores financeiros e viajantes corporativos falam de reembolso, controle de gasto e
+    burocracia". Por isso os <strong>termos culturais</strong> são o campo mais valioso e o mais
+    negligenciado.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2><span class="n">02</span>Campo a campo: o que preencher</h2>
+  <p class="sub">Cada campo abaixo traz o que aciona no motor, como preencher bem, um exemplo já
+  pensado para este cliente e o erro mais comum.</p>
+
+  <div class="field">
+    <div class="head"><span class="fname">marca</span><span class="pill c">coleta + leitura</span></div>
+    <p>O nome da marca como o público realmente escreve. Vira âncora de busca direta e cabeçalho do DNA.</p>
+    <div class="ex"><b>Exemplo:</b> o nome comercial do cliente, mais variações reais de escrita se houver.</div>
+    <p class="err"><b>Erro comum:</b> usar a razão social ("Fulano Tecnologia S.A.") em vez do nome de mercado.</p>
+  </div>
+
+  <div class="field">
+    <div class="head"><span class="fname">produto</span><span class="pill l">leitura</span></div>
+    <p>O que a empresa entrega, em uma frase concreta. Ajuda a IA a medir se um sinal tem gancho de produto.</p>
+    <div class="ex"><b>Exemplo:</b> Plataforma de gestão de viagens corporativas e despesas (T&amp;E):
+    reserva, política de viagem, aprovação, cartão corporativo, conciliação e relatório financeiro.</div>
+    <p class="err"><b>Erro comum:</b> descrever a missão ("facilitamos a vida das empresas") em vez do produto real.</p>
+  </div>
+
+  <div class="field">
+    <div class="head"><span class="fname">tom</span><span class="pill l">leitura</span></div>
+    <p>A personalidade de voz. Não muda o que é coletado, mas calibra o recorte que a IA devolve.</p>
+    <div class="ex"><b>Exemplo:</b> Consultivo e direto. Autoridade em finanças com a leveza de quem
+    entende a rotina de quem viaja a trabalho. Fala de controle e eficiência sem soar burocrático.</div>
+    <p class="err"><b>Erro comum:</b> deixar genérico ("moderno e confiável"). Descreva atitude, não adjetivo de embalagem.</p>
+  </div>
+
+  <div class="field">
+    <div class="head"><span class="fname">perfil_comportamental</span><span class="pill l">leitura</span></div>
+    <p>Quem é o público e como ele se comporta. É o que dá à IA o "para quem isso importa".</p>
+    <div class="ex"><b>Exemplo:</b> Decisores financeiros (CFO, controller, gestor financeiro) que buscam
+    previsibilidade, compliance e corte de custo, e viajantes corporativos que querem menos fricção.
+    Racionais na compra, alérgicos a processo manual e a tempo perdido.</div>
+    <p class="err"><b>Erro comum:</b> misturar públicos sem hierarquia. Diga quem decide e quem usa.</p>
+  </div>
+
+  <div class="field">
+    <div class="head"><span class="fname">universos_culturais</span><span class="pill l">leitura</span></div>
+    <p>Os territórios de conversa onde a marca tem permissão para existir. É a <b>lente editorial</b>,
+    entra como leitura, não como busca. Pode ser tema ou expressão, não precisa ser palavra-chave limpa.</p>
+    <div class="ex"><b>Exemplo:</b> gestão financeira corporativa · viagens a trabalho · fintech B2B e
+    meios de pagamento · futuro do trabalho e mobilidade · controladoria e compliance · automação de processos.</div>
+    <p class="err"><b>Erro comum:</b> confundir com <code>termos_culturais</code>. Aqui vale frase e conceito;
+    lá tem que ser palavra buscável.</p>
+  </div>
+
+  <div class="field">
+    <div class="head"><span class="fname">ambicao_de_marca</span><span class="pill l">leitura</span></div>
+    <p>Onde a marca quer chegar. Orienta a IA a puxar sinais que constroem esse lugar, não só o do agora.</p>
+    <div class="ex"><b>Exemplo:</b> Ser o sistema nervoso financeiro das viagens corporativas: transformar
+    um centro de custo caótico em dado, controle e economia.</div>
+    <p class="err"><b>Erro comum:</b> escrever meta de vendas ("crescer 30%") em vez de ambição de território.</p>
+  </div>
+
+  <div class="field">
+    <div class="head"><span class="fname">o_que_evitar</span><span class="pill l">leitura</span></div>
+    <p>As fronteiras. Sinais e ângulos que a marca não deve tocar. Evita drops fora de lugar.</p>
+    <div class="ex"><b>Exemplo:</b> turismo de lazer e dicas de férias · milhas para pessoa física ·
+    tom de agência de viagem · promessa de economia sem lastro · jargão financeiro impenetrável.</div>
+    <p class="err"><b>Erro comum:</b> deixar vazio. Sem fronteira, a IA tenta agradar e força conexões fracas.</p>
+  </div>
+
+  <div class="field">
+    <div class="head"><span class="fname">termos_busca</span><span class="pill c">coleta</span></div>
+    <p>Palavras-chave limpas que buscam a marca e a categoria direta. Vira query crua no Reddit e no News.
+    Tem que ser <b>termo</b>, não descrição.</p>
+    <div class="ex"><b>Exemplo:</b> <span class="mono">"[nome do cliente]", "gestão de despesas corporativas",
+    "gestão de viagens corporativas", "cartão corporativo", "prestação de contas"</span></div>
+    <p class="err"><b>Erro comum:</b> escrever frase ("empresa que ajuda a controlar gastos"). Como query, retorna zero.</p>
+  </div>
+
+  <div class="field">
+    <div class="head"><span class="fname">termos_culturais</span><span class="pill c">coleta · o campo-chave</span></div>
+    <p>O coração do Radar. Termos comportamentais do público que <b>não citam a marca</b>. Captura a conversa
+    onde a audiência já vive, no estilo de interest targeting. É a lane dominante (Reddit + TikTok + X).</p>
+    <div class="ex"><b>Exemplo:</b> <span class="mono">"viagem a trabalho", "reembolso de despesas",
+    "prestação de contas", "burocracia de reembolso", "controladoria", "fechamento financeiro",
+    "corte de custos", "home office e viagem híbrida", "bleisure"</span></div>
+    <p class="err"><b>Erro comum:</b> repetir a marca ou a categoria aqui. Se cita o produto, é
+    <code>termos_busca</code>. Aqui é o entorno, o que o público sente e faz.</p>
+  </div>
+
+  <div class="field">
+    <div class="head"><span class="fname">termos_culturais_en</span><span class="pill c">coleta</span></div>
+    <p>Os mesmos temas em inglês. Alimenta a varredura global de early signals (imprensa de tecnologia,
+    negócios e futuro do trabalho). O sinal que ainda não chegou ao Brasil aparece primeiro lá fora.</p>
+    <div class="ex"><b>Exemplo:</b> <span class="mono">"corporate travel", "expense management",
+    "travel and expense", "spend management", "fintech B2B", "business travel trends", "future of work"</span></div>
+    <p class="err"><b>Erro comum:</b> deixar vazio num cliente B2B de tecnologia. É onde a tendência nasce.</p>
+  </div>
+
+  <div class="field">
+    <div class="head"><span class="fname">linkedin_ativo</span><span class="pill c">coleta</span></div>
+    <p>Liga a varredura do LinkedIn, a única fonte de discurso profissional. Para B2B é quase obrigatório:
+    é onde CFOs, controllers e travel managers debatem o mercado.</p>
+    <div class="ex"><b>Exemplo:</b> <span class="mono">true</span> (cliente B2B de gestão financeira, o LinkedIn é sinal forte).</div>
+    <p class="err"><b>Erro comum:</b> esquecer de ligar. Um cliente B2B sem LinkedIn perde a fonte mais rica de contexto de mercado.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2><span class="n">03</span>A regra de ouro: os três tipos de termo</h2>
+  <p class="sub">Este é o ponto que mais gera confusão e o que mais define o resultado. Os três campos de
+  termo alimentam buscas diferentes. Preencha os três.</p>
+
+  <table>
+    <tr>
+      <th style="width:20%">Campo</th>
+      <th style="width:34%">Regra</th>
+      <th style="width:46%">Exemplo (este cliente)</th>
+    </tr>
+    <tr>
+      <td><span class="mono">termos_busca</span></td>
+      <td>Cita a marca e a categoria direta. Ancora o sinal factual.</td>
+      <td class="mono">"gestão de despesas corporativas", "cartão corporativo", "prestação de contas"</td>
+    </tr>
+    <tr>
+      <td><span class="mono">termos_culturais</span></td>
+      <td>Não cita a marca. O que o público vive e sente. Lane dominante.</td>
+      <td class="mono">"reembolso de despesas", "burocracia de viagem a trabalho", "corte de custos", "bleisure"</td>
+    </tr>
+    <tr>
+      <td><span class="mono">termos_culturais_en</span></td>
+      <td>Os mesmos temas em inglês. Early signals globais.</td>
+      <td class="mono">"expense management", "corporate travel", "spend management", "future of work"</td>
+    </tr>
+  </table>
+
+  <div class="insight">
+    <span class="kicker">Teste rápido</span>
+    <p>Leia cada termo em voz alta e pergunte: <strong>"isso é palavra que alguém digitaria numa busca?"</strong>
+    Se for uma frase ou uma descrição, não serve para os campos de coleta. E: <strong>"isso cita a marca ou o
+    produto?"</strong> Se sim, é <code style="color:#d6bcfa">termos_busca</code>. Se é o que o público vive sem
+    falar da marca, é <code style="color:#d6bcfa">termos_culturais</code>.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2><span class="n">04</span>Exemplo de DNA preenchido</h2>
+  <p class="sub">Um modelo completo para este cliente. Serve de referência de profundidade e de formato:
+  substitua os valores pelos reais do briefing.</p>
+
+<pre><span class="c"># DNA da marca — cliente de gestão financeira de viagens (B2B)</span>
+<span class="k">marca:</span> <span class="s">"[nome comercial do cliente]"</span>
+<span class="k">produto:</span> <span class="s">"Plataforma de gestão de viagens corporativas e despesas (T&amp;E):
+  reserva, política de viagem, aprovação, cartão corporativo, conciliação e relatórios."</span>
+
+<span class="k">tom:</span> <span class="s">"Consultivo e direto. Autoridade em finanças com a leveza de quem entende
+  a rotina de quem viaja a trabalho. Controle e eficiência sem burocracia."</span>
+
+<span class="k">perfil_comportamental:</span> <span class="s">"Decisores financeiros (CFO, controller, gestor
+  financeiro) que buscam previsibilidade, compliance e corte de custo. E viajantes
+  corporativos que querem menos fricção. Racionais, alérgicos a processo manual."</span>
+
+<span class="k">universos_culturais:</span>
+  <span class="s">- "gestão financeira corporativa"</span>
+  <span class="s">- "viagens a trabalho / corporate travel"</span>
+  <span class="s">- "fintech B2B e meios de pagamento"</span>
+  <span class="s">- "futuro do trabalho e mobilidade"</span>
+  <span class="s">- "controladoria e compliance"</span>
+
+<span class="k">ambicao_de_marca:</span> <span class="s">"Ser o sistema nervoso financeiro das viagens corporativas:
+  transformar um centro de custo caótico em dado, controle e economia."</span>
+
+<span class="k">o_que_evitar:</span>
+  <span class="s">- "turismo de lazer e dicas de férias"</span>
+  <span class="s">- "milhas para pessoa física"</span>
+  <span class="s">- "tom de agência de viagem"</span>
+  <span class="s">- "promessa de economia sem lastro"</span>
+
+<span class="c"># --- Motor de coleta (palavras-chave) ---</span>
+<span class="k">termos_busca:</span>
+  <span class="s">- "[nome do cliente]"</span>
+  <span class="s">- "gestão de despesas corporativas"</span>
+  <span class="s">- "gestão de viagens corporativas"</span>
+  <span class="s">- "cartão corporativo"</span>
+  <span class="s">- "prestação de contas"</span>
+
+<span class="k">termos_culturais:</span>
+  <span class="s">- "viagem a trabalho"</span>
+  <span class="s">- "reembolso de despesas"</span>
+  <span class="s">- "burocracia de reembolso"</span>
+  <span class="s">- "controladoria"</span>
+  <span class="s">- "fechamento financeiro"</span>
+  <span class="s">- "corte de custos"</span>
+  <span class="s">- "bleisure"</span>
+
+<span class="k">termos_culturais_en:</span>
+  <span class="s">- "corporate travel"</span>
+  <span class="s">- "expense management"</span>
+  <span class="s">- "travel and expense"</span>
+  <span class="s">- "spend management"</span>
+  <span class="s">- "future of work"</span>
+
+<span class="k">linkedin_ativo:</span> <span class="s">true</span>   <span class="c"># B2B: LinkedIn é sinal forte</span></pre>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2><span class="n">05</span>Checklist de 100% de aproveitamento</h2>
+  <ul class="check">
+    <li>Os três campos de termo preenchidos: <b>busca</b>, <b>culturais</b> e <b>culturais_en</b>. Não deixar nenhum vazio.</li>
+    <li><b>termos_culturais</b> com 6 a 10 termos que NÃO citam a marca. Este é o campo que mais rende.</li>
+    <li>Todo termo de coleta é palavra-chave buscável, não frase nem descrição.</li>
+    <li><b>o_que_evitar</b> preenchido com fronteiras claras, para a IA não forçar conexões fracas.</li>
+    <li><b>perfil_comportamental</b> distingue quem decide (financeiro) de quem usa (viajante).</li>
+    <li><b>linkedin_ativo: true</b>, por ser cliente B2B de mercado financeiro.</li>
+    <li><b>tom</b> e <b>ambicao_de_marca</b> descrevem atitude e território, não adjetivos genéricos nem meta de venda.</li>
+    <li>Nada inventado: cada termo vem de como o público real fala, não de suposição interna.</li>
+  </ul>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2><span class="n">06</span>Cuidados que definem a qualidade</h2>
+
+  <div class="care">
+    <div class="ic">A</div>
+    <div><p class="t">Sinal real, nunca inventado</p>
+    <p>O Radar só entrega drops com lastro em dado coletado de verdade. Termos ruins geram coleta rasa,
+    e coleta rasa vira relatório fraco. A riqueza começa aqui, no DNA.</p></div>
+  </div>
+  <div class="care">
+    <div class="ic">B</div>
+    <div><p class="t">Busca adjacente é a vantagem</p>
+    <p>O valor não está em quem cita a marca, está no entorno cultural do público. Capriche nos
+    <span class="mono">termos_culturais</span>: é o que o concorrente com tracking de keyword não enxerga.</p></div>
+  </div>
+  <div class="care">
+    <div class="ic">C</div>
+    <div><p class="t">LinkedIn ligado para B2B</p>
+    <p>Em gestão financeira, o debate de mercado mora no LinkedIn. Deixar <span class="mono">linkedin_ativo: true</span>
+    abre a fonte de discurso profissional que outros clientes não usam.</p></div>
+  </div>
+  <div class="care">
+    <div class="ic">D</div>
+    <div><p class="t">DNA vive, briefing é pontual</p>
+    <p>Este DNA é o evergreen: os termos permanentes que o Radar varre sempre. O briefing de cada edição
+    soma o recorte da vez. Ter o DNA rico deixa o briefing mais enxuto, não o substitui.</p></div>
+  </div>
+
+  <footer>
+    <span>Acid Fabric · Trend Radar — Guia de DNA da marca</span>
+    <span>Diretoria de Estratégia · uso interno</span>
+  </footer>
+
+</body>
+</html>

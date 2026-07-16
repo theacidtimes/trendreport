@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { checkIsAdmin } from "@/lib/admin";
+import { moduloAtivo } from "@/lib/modulos";
 import Sidebar from "@/components/Sidebar";
+import ModuloBloqueado from "@/components/ModuloBloqueado";
 
 export default async function MapaLayout({
   children,
@@ -15,6 +17,12 @@ export default async function MapaLayout({
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
+
+  // Enforcement de modulo: o mapa semantico e o app "dados_semanticos". Tenant
+  // que nao assinou ve a tela de bloqueio no lugar do mapa (fail-open no erro).
+  if (!(await moduloAtivo(supabase, "dados_semanticos"))) {
+    return <ModuloBloqueado modulo="dados_semanticos" />;
+  }
 
   const isAdmin = await checkIsAdmin(supabase);
 

@@ -17,12 +17,14 @@ import Logo from "./Logo";
 import CreditTicker from "./CreditTicker";
 import type { TenantBranding } from "@/lib/types";
 
+// `modulo` mapeia o item ao "app" do Acid Fabric que o habilita (enforcement de
+// modulo). Item sem `modulo` (ex. a lista de Reports, home segura) aparece sempre.
 const NAV = [
-  { href: "/dashboard/new", label: "Novo report", icon: Plus },
+  { href: "/dashboard/new", label: "Novo report", icon: Plus, modulo: "reports" },
   { href: "/dashboard", label: "Reports", icon: LayoutGrid },
-  { href: "/dashboard/radar", label: "Radar", icon: Radar },
-  { href: "/dashboard/mapa", label: "Mapa semântico", icon: Waypoints },
-];
+  { href: "/dashboard/radar", label: "Radar", icon: Radar, modulo: "radar" },
+  { href: "/dashboard/mapa", label: "Mapa semântico", icon: Waypoints, modulo: "dados_semanticos" },
+] as const;
 
 const ADMIN_NAV = [{ href: "/dashboard/admin", label: "Admin", icon: Bolt }];
 
@@ -49,7 +51,16 @@ export default function Sidebar({
   // que threadar prop por todos os layouts do workspace.
   const [isTenantAdmin, setIsTenantAdmin] = useState(false);
   const canAdmin = isAdmin || isTenantAdmin;
+
+  // Modulos ativos do tenant (enforcement): esconde do rail o que nao foi
+  // assinado. null = carregando OU rpc falhou -> mostra TUDO (fail-open, sem
+  // flash-esconder pro Caramelo que tem os 3). So filtra quando a lista chega.
+  const [modulos, setModulos] = useState<string[] | null>(null);
   const nav = canAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
+  const visibleNav = nav.filter((item) => {
+    const m = (item as { modulo?: string }).modulo;
+    return !m || modulos === null || modulos.includes(m);
+  });
 
   // Entrada pro console ACID: só o super-admin da ACID vê. Detectado no client
   // (rpc is_acid_admin) pra não ter que threadar prop por todos os layouts do
@@ -64,6 +75,11 @@ export default function Sidebar({
     supabase
       .rpc("sou_admin_do_meu_tenant")
       .then(({ data }) => setIsTenantAdmin(data === true));
+    supabase
+      .rpc("meus_modulos")
+      .then(({ data }) =>
+        setModulos(Array.isArray(data) ? (data as string[]) : null)
+      );
     supabase.rpc("meu_branding").then(({ data }) => {
       if (!data || typeof data !== "object") return;
       const b = data as TenantBranding;
@@ -111,7 +127,7 @@ export default function Sidebar({
         </Link>
 
         <nav className="flex flex-col gap-1 px-3 mt-6">
-          {nav.map(({ href, label, icon: Icon }) => {
+          {visibleNav.map(({ href, label, icon: Icon }) => {
             const active = isActive(pathname, href);
             return (
               <Link
@@ -178,7 +194,7 @@ export default function Sidebar({
           <Logo size="sm" logoUrl={logoUrl} displayName={displayName} />
         </Link>
         <div className="flex items-center gap-4">
-          {nav.map(({ href, icon: Icon, label }) => {
+          {visibleNav.map(({ href, icon: Icon, label }) => {
             const active = isActive(pathname, href);
             return (
               <Link
