@@ -41,7 +41,15 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const nav = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
+
+  // "Admin" no rail = app_admin GLOBAL (prop, vem do SSR, sem flash pro zampoli)
+  // OU admin do PRÓPRIO tenant (detectado no client). Unifica a noção: o gate do
+  // /dashboard/admin (layout) já é `is_app_admin OR sou_admin_do_meu_tenant`;
+  // aqui o rail passa a mostrar a porta pra quem esse gate deixa entrar, sem ter
+  // que threadar prop por todos os layouts do workspace.
+  const [isTenantAdmin, setIsTenantAdmin] = useState(false);
+  const canAdmin = isAdmin || isTenantAdmin;
+  const nav = canAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
 
   // Entrada pro console ACID: só o super-admin da ACID vê. Detectado no client
   // (rpc is_acid_admin) pra não ter que threadar prop por todos os layouts do
@@ -53,6 +61,9 @@ export default function Sidebar({
   useEffect(() => {
     const supabase = createClient();
     supabase.rpc("is_acid_admin").then(({ data }) => setIsAcid(data === true));
+    supabase
+      .rpc("sou_admin_do_meu_tenant")
+      .then(({ data }) => setIsTenantAdmin(data === true));
     supabase.rpc("meu_branding").then(({ data }) => {
       if (!data || typeof data !== "object") return;
       const b = data as TenantBranding;
@@ -85,8 +96,9 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Ticker de créditos — fixo, visível em qualquer página do dashboard */}
-      <CreditTicker isAdmin={isAdmin} />
+      {/* Ticker de créditos — fixo, visível em qualquer página do dashboard.
+          Linka pro extrato pra quem pode ver o admin (app_admin ou admin do tenant). */}
+      <CreditTicker isAdmin={canAdmin} />
 
       {/* Desktop dock — fixed 80px icon rail with hover tooltips */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-20 md:z-40 border-r border-border bg-bg">
