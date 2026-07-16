@@ -374,13 +374,32 @@ export async function runAllActiveRadars(): Promise<void> {
     return
   }
 
+  // Enforcement de créditos (Fase 3B): tenant sem saldo tem a varredura PULADA
+  // (não gasta scrape). Radar não quebra: a marca volta a rodar sozinha quando
+  // recarregar. Saldo resolvido em uma query batch pelos tenants das due.
+  const tenantIds = Array.from(
+    new Set(due.map(m => m.tenant_id).filter((id): id is string => Boolean(id)))
+  )
+  const { data: saldos } = tenantIds.length
+    ? await supabase.from('tenants').select('id, saldo_creditos').in('id', tenantIds)
+    : { data: [] }
+  const comSaldo = new Set(
+    (saldos ?? []).filter(t => (t.saldo_creditos ?? 0) > 0).map(t => t.id)
+  )
+
   const batchId = randomUUID()
+  let disparadas = 0
   for (const marca of due) {
+    if (!marca.tenant_id || !comSaldo.has(marca.tenant_id)) {
+      console.log(`[RADAR] Pulada (sem saldo de creditos): ${marca.nome}`)
+      continue
+    }
     try {
       await kickoffMarca(supabase, marca, batchId)
+      disparadas++
     } catch (e) {
       console.error(`[RADAR] Erro ao disparar ${marca.nome}:`, e)
     }
   }
-  console.log(`[RADAR] Disparo completo (${due.length}/${marcas.length})`)
+  console.log(`[RADAR] Disparo completo (${disparadas}/${due.length} due, ${marcas.length} ativas)`)
 }

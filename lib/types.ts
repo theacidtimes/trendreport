@@ -229,6 +229,31 @@ export interface TenantUser {
   created_at: string
 }
 
+// Módulos = os "apps" do Acid Fabric que o tenant assinou (analogia Adobe).
+// Fase 4A. Enforcement (esconder feature não assinada) vem nas fatias de UI.
+export type ModuloNome = 'radar' | 'reports' | 'dados_semanticos'
+
+export interface TenantModulo {
+  tenant_id: string
+  modulo: ModuloNome
+  ativo: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Contrato vigente do tenant. data_fim é derivada do plano_tipo por trigger.
+// Uma linha por ciclo (histórico de renovações). Fase 4A.
+export interface Assinatura {
+  id: string
+  tenant_id: string
+  plano_tipo: 'mensal' | 'trimestral' | 'semestral' | 'anual'
+  data_inicio: string
+  data_fim: string
+  auto_renovacao: boolean
+  status: 'ativa' | 'expirada' | 'cancelada'
+  created_at: string
+}
+
 export interface TrendDrop {
   id: string
   marca_id: string

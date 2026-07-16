@@ -37,6 +37,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
 
+    // Enforcement de créditos (Fase 3B): sem saldo, não gera. Checagem pré-voo
+    // ANTES de criar o job e disparar o Action — falha rápido, não gasta compute.
+    // credito_resumo() resolve o tenant do usuário pelo claim (jwt_tenant_id).
+    // O débito de verdade segue no fim da geração (idempotente, service_role).
+    const { data: resumo } = await supabase.rpc("credito_resumo");
+    const saldo = (Array.isArray(resumo) ? resumo[0]?.saldo : undefined) ?? 0;
+    if (saldo <= 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Sem créditos disponíveis. Recarregue ou fale com o administrador para continuar gerando reports.",
+        },
+        { status: 402 }
+      );
+    }
+
     const cliente =
       typeof briefing.cliente === "string" ? briefing.cliente : "Cliente";
 
