@@ -9,7 +9,7 @@
 
 import { readFileSync } from 'fs'
 import { createClient } from '@supabase/supabase-js'
-import { interpretSignal, RawSignalInput, Interpretation } from '../lib/fabric/interpret'
+import { interpretSignal, isReadIngestWorthy, RawSignalInput, Interpretation } from '../lib/fabric/interpret'
 
 function loadEnvLocal() {
   try {
@@ -32,7 +32,7 @@ function tally(map: Map<string, number>, keys: string[]) {
 
 function printDist(titulo: string, map: Map<string, number>, total: number) {
   console.log(`\n${titulo}`)
-  const rows = [...map.entries()].sort((a, b) => b[1] - a[1])
+  const rows = Array.from(map.entries()).sort((a, b) => b[1] - a[1])
   if (rows.length === 0) { console.log('  (vazio)'); return }
   for (const [k, n] of rows) {
     const pct = Math.round((n / total) * 100)
@@ -62,8 +62,9 @@ async function main() {
     .limit(2000)
   if (error) throw new Error(`radar_raw_data: ${error.message}`)
   const all = pool ?? []
-  for (let i = all.length - 1; i > 0; i--) {   // Fisher-Yates
-    const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]
+  for (let i = all.length - 1; i > 0; i--) {   // Fisher-Yates (swap via temp, downlevel-safe)
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = all[i]; all[i] = all[j]; all[j] = tmp
   }
   const sample = all.slice(0, n)
   console.log(`\n=== levantamento de distribuicao | ${sample.length} sinais aleatorios de ${all.length} ===\n`)
@@ -76,7 +77,7 @@ async function main() {
   const inflexao = new Map<string, number>()
   const negocio = new Map<string, number>()
   const porMarca = new Map<string, number>()
-  let nulos = 0, semTema = 0, vazamentos = 0
+  let nulos = 0, semTema = 0, vazamentos = 0, ingeriveis = 0, descartaveis = 0
 
   // roda em lotes pequenos pra ir mais rapido sem estourar rate limit
   for (let i = 0; i < sample.length; i += 6) {
@@ -110,14 +111,16 @@ async function main() {
       tally(negocio, I.lente_negocio.length ? I.lente_negocio : ['(vazio)'])
       if (!I.tema_deid) semTema++
       if (I.tema_deid && /@|https?:\/\//i.test(I.tema_deid)) { vazamentos++; }
+      if (isReadIngestWorthy(I)) ingeriveis++; else descartaveis++
       console.log(`  [${marca.slice(0, 14).padEnd(14)}] setor=${(I.setor ?? '—').padEnd(14)} ${(I.tema_deid ?? '—').slice(0, 62)}`)
     }
   }
 
   const total = sample.length
   console.log(`\n${'═'.repeat(60)}`)
-  console.log(`amostra por marca: ${[...porMarca.entries()].map(([k, v]) => `${k}=${v}`).join('  ')}`)
+  console.log(`amostra por marca: ${Array.from(porMarca.entries()).map(([k, v]) => `${k}=${v}`).join('  ')}`)
   console.log(`interpretacoes nulas: ${nulos}   sem tema: ${semTema}   vazamentos de identidade: ${vazamentos}`)
+  console.log(`FILTRO DE INGESTAO → ingeriveis: ${ingeriveis} (${Math.round(ingeriveis / total * 100)}%)   descartados por leitura fina: ${descartaveis} (${Math.round(descartaveis / total * 100)}%)`)
   printDist('SETOR', setor, total)
   printDist('FORMATO', formato, total)
   printDist('MOMENTO (esperado: tudo nulo — derivado na agregacao)', momento, total)
