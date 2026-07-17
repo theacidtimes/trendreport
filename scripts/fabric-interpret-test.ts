@@ -8,11 +8,32 @@
 //
 // Requer: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY.
 
+import { readFileSync } from 'fs'
 import { createClient } from '@supabase/supabase-js'
 import { interpretSignal, RawSignalInput } from '../lib/fabric/interpret'
 import { ingestSignal } from '../lib/fabric/ingest'
 
+// Loader minimo de .env.local (o --env-file do Node pula linhas em certos
+// formatos de valor). Preenche so o que ainda nao esta no ambiente.
+function loadEnvLocal() {
+  try {
+    for (const raw of readFileSync('.env.local', 'utf8').split('\n')) {
+      const line = raw.trim()
+      if (!line || line.startsWith('#')) continue
+      const eq = line.indexOf('=')
+      if (eq < 0) continue
+      const k = line.slice(0, eq).trim()
+      let v = line.slice(eq + 1).trim()
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+        v = v.slice(1, -1)
+      }
+      if (!(k in process.env)) process.env[k] = v
+    }
+  } catch { /* sem .env.local: assume ambiente ja setado */ }
+}
+
 async function main() {
+  loadEnvLocal()
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('faltam NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY')
