@@ -118,10 +118,14 @@ function buildTool(tax: Taxonomy): Anthropic.Tool {
         formato: single('formato', 'Formato do conteudo do sinal.'),
         regiao: single('regiao', 'Regiao geografica predominante. Omita se incerto.'),
         idioma: single('idioma', 'Idioma predominante do sinal.'),
-        momento: single('momento', 'Estagio do ciclo do tema (leitura do agora).'),
+        // momento (estagio do ciclo) NAO e julgado aqui: e propriedade do TEMA
+        // ao longo do tempo, nao de um sinal isolado. Derivado na agregacao.
         comportamento: multi('comportamento', 'O que as pessoas estao FAZENDO com o tema (0 a 3).'),
         emocao: multi('emocao', 'Tom afetivo dominante (0 a 3).'),
-        inflexao: multi('inflexao', 'A mudanca cultural que o sinal denuncia (0 a 2).'),
+        inflexao: multi('inflexao',
+          'A mudanca cultural que o sinal EVIDENCIA. Deixe VAZIO na maioria dos ' +
+          'sinais: so marque quando ha sinal claro de virada. E a dimensao mais ' +
+          'rara e valiosa; nao infira por associacao (0 a 2, geralmente 0).'),
         lente_negocio: multi('lente_negocio', 'Traducao pra oportunidade de negocio (0 a 2).'),
         tema_deid: {
           type: 'string',
@@ -147,6 +151,8 @@ function buildSystem(tax: Taxonomy): string {
     '- Prefira PRECISAO a cobertura: se uma dimensao nao se aplica com clareza, ',
     '  deixe vazia. Nao force tags.',
     '- Voce interpreta o que o sinal MOSTRA agora, nao preve o futuro.',
+    '- inflexao e EXCECAO, nao regra: a maioria dos sinais nao denuncia uma ',
+    '  virada cultural. So marque com evidencia clara; na duvida, deixe vazio.',
     '',
     'Guia de anotacao das dimensoes semanticas:',
     `comportamento: ${vocabGuide(tax.dims.comportamento)}`,
@@ -227,7 +233,7 @@ export async function interpretSignal(
     formato: singleValid('formato', out.formato),
     regiao: singleValid('regiao', out.regiao) ?? (input.regiao_hint ?? null),
     idioma: singleValid('idioma', out.idioma) ?? (input.idioma_hint ?? null),
-    momento: singleValid('momento', out.momento),
+    momento: null,   // derivado na agregacao (propriedade do tema no tempo), nao por sinal
     comportamento: keepValid(tax, 'comportamento', cleanList(out.comportamento)).slice(0, 3),
     emocao: keepValid(tax, 'emocao', cleanList(out.emocao)).slice(0, 3),
     inflexao: keepValid(tax, 'inflexao', cleanList(out.inflexao)).slice(0, 2),
