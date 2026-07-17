@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { RawDataPoint } from '../types'
 import { embedDocuments } from './embeddings'
+import { forkSignalsToLake, fabricIngestEnabled, ForkItem } from '../fabric/fork'
 
 const DEDUP_THRESHOLD = 0.92   // só corta sinais quase-idênticos
 const RETRIEVE_COUNT = 8
@@ -100,6 +101,25 @@ export async function processMemory(
     }))
     const { error } = await supabase.from('radar_raw_data').insert(rows)
     if (error) console.error('[MEMORY] Erro ao persistir sinais:', error)
+  }
+
+  // 5. FORK dormente pra Fabric Lake (Fase 5): so roda com FABRIC_LAKE_INGEST
+  // ligada. Reusa os embeddings JA computados aqui (nao paga vetor novo) e e
+  // fail-safe por dentro — nunca atrasa/derruba o run do cliente. Off = no-op.
+  if (fabricIngestEnabled() && fresh.length > 0) {
+    const items: ForkItem[] = fresh.map(({ point, emb }) => ({
+      input: {
+        fonte: point.fonte,
+        titulo: point.titulo,
+        snippet: point.snippet,
+        url: point.url,
+        occurred_at: point.coletado_em,
+        upvotes: point.upvotes ?? null,
+        comentarios: point.comentarios ?? null
+      },
+      embedding: emb
+    }))
+    await forkSignalsToLake(supabase, items)
   }
 
   return { freshData: fresh.map(f => f.point), retrieved }
