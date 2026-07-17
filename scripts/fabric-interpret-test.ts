@@ -27,7 +27,7 @@ function loadEnvLocal() {
       if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
         v = v.slice(1, -1)
       }
-      if (!(k in process.env)) process.env[k] = v
+      if (!process.env[k]) process.env[k] = v   // seta se ausente OU vazio
     }
   } catch { /* sem .env.local: assume ambiente ja setado */ }
 }

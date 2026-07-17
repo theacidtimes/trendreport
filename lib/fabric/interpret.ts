@@ -4,7 +4,13 @@ import {
   loadTaxonomy, keepValid, Taxonomy, TaxonomyTerm, FabricDimension
 } from './taxonomy'
 
-const anthropic = new Anthropic()
+// Cliente lazy: so instancia na 1a chamada, quando ANTHROPIC_API_KEY ja esta no
+// ambiente (evita capturar env vazio em import de script/teste).
+let _anthropic: Anthropic | null = null
+function anthropicClient(): Anthropic {
+  if (!_anthropic) _anthropic = new Anthropic()
+  return _anthropic
+}
 
 // Modelo da camada de interpretacao. Versionado junto do resultado (signal.
 // modelo_versao) pra sabermos com QUE lente + QUE modelo um sinal foi lido.
@@ -190,7 +196,7 @@ export async function interpretSignal(
 
   let out: Record<string, unknown>
   try {
-    const res = await anthropic.messages.create({
+    const res = await anthropicClient().messages.create({
       model: INTERPRET_MODEL,
       max_tokens: 400,
       system: buildSystem(tax),
