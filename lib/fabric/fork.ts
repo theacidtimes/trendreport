@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js'
-import { interpretSignal, RawSignalInput } from './interpret'
+import { interpretSignal, isReadIngestWorthy, RawSignalInput } from './interpret'
 import { ingestSignal } from './ingest'
 
 // Item do fork: o sinal bruto + o embedding JA COMPUTADO no run do cliente
@@ -27,10 +27,12 @@ export async function forkSignalsToLake(
   if (!fabricIngestEnabled() || items.length === 0) return { ingeridos: 0 }
 
   let ingeridos = 0
+  let descartados = 0   // leitura fina demais (setor nulo + rodas vazias) — vira ruido no trend_cell
   for (const item of items) {
     try {
       const interp = await interpretSignal(supabase, item.input)
       if (!interp) continue
+      if (!isReadIngestWorthy(interp)) { descartados++; continue }
       const id = await ingestSignal(supabase, interp, item.embedding)
       if (id) ingeridos++
     } catch (e) {
@@ -38,6 +40,8 @@ export async function forkSignalsToLake(
       console.error('[FABRIC] fork falhou num sinal:', e)
     }
   }
-  if (ingeridos > 0) console.log(`[FABRIC] ${ingeridos}/${items.length} sinais na lake`)
+  if (ingeridos > 0 || descartados > 0) {
+    console.log(`[FABRIC] ${ingeridos}/${items.length} sinais na lake (${descartados} descartados por leitura fina)`)
+  }
   return { ingeridos }
 }

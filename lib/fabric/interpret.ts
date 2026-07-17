@@ -171,6 +171,25 @@ const cleanList = (v: unknown): string[] =>
 const cleanStr = (v: unknown): string | null =>
   typeof v === 'string' && v.trim().length > 0 ? v.trim() : null
 
+// Vale a pena INGERIR esta leitura na lake? (filtro de ruido, NAO parte do
+// interpret — interpretSignal continua puro pros harness de teste/levantamento
+// verem TUDO; o filtro e POLITICA de ingestao, aplicada no fork.)
+//
+// Motivacao (levantamento offline de 45 sinais reais, 2026-07-17): ~42% do dado
+// bruto e LIXO fino (tweet de 1 palavra, "Volume: n/d", @mencao pelada) que o
+// interpret corretamente lê como setor nulo + rodas quase vazias. Esses sinais
+// nao agregam valor no trend_cell (so ruido). comportamento/emocao sozinhos NAO
+// qualificam: o modelo atribui um termo-muleta (ex. sinalizacao_status) ate no
+// lixo. Exige uma ANCORA concreta: setor identificado, OU inflexao (a dimensao
+// rara/valiosa), OU lente_negocio (significado de negocio explicito).
+export function isReadIngestWorthy(interp: Interpretation): boolean {
+  return (
+    interp.setor !== null ||
+    interp.inflexao.length > 0 ||
+    interp.lente_negocio.length > 0
+  )
+}
+
 // Interpreta um sinal bruto → leitura des-identificada. NAO persiste (o caller
 // anexa o embedding ja pago e chama fabric_ingest_signal). Determinismo primeiro
 // (plataforma, faixa), LLM so pra semantica; toda saida do LLM e validada contra
