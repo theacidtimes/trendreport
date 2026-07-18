@@ -48,17 +48,19 @@ export default function ConsoleLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-bg">
+    <div className="min-h-screen grid place-items-center bg-bg p-4 md:p-6">
+      {/* Caixa centralizada, cantos arredondados (estilo Krea) */}
+      <div className="relative w-full max-w-[940px] h-[min(86vh,600px)] flex overflow-hidden rounded-3xl border border-border bg-surface shadow-card">
       {/* Painel do formulário */}
-      <div className="relative flex flex-1 items-center justify-center px-6 py-10 md:px-10">
+      <div className="relative flex flex-1 items-center justify-center px-6 md:px-10">
         {/* Marca no canto superior esquerdo (só o símbolo) */}
-        <div className="absolute top-6 left-6 md:top-8 md:left-8">
+        <div className="absolute top-6 left-6">
           <AcidLogo size="md" wordmark={false} />
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="w-full max-w-[380px] flex flex-col gap-5"
+          className="w-full max-w-[320px] flex flex-col gap-4"
         >
           <input
             type="email"
@@ -106,10 +108,9 @@ export default function ConsoleLoginPage() {
       </div>
 
       {/* Painel visual — sketch generativa (tint roxo do console) */}
-      <div className="hidden md:block w-[46%] max-w-[760px] p-3">
-        <div className="relative h-full w-full overflow-hidden rounded-3xl bg-black">
-          <GenerativeBackdrop tint="#A063E8" highlight="#FFFFFF" />
-        </div>
+      <div className="hidden md:block w-1/2 relative bg-black">
+        <GenerativeBackdrop tint="#A063E8" highlight="#FFFFFF" />
+      </div>
       </div>
     </div>
   );
