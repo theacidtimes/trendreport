@@ -40,6 +40,11 @@ export default function ReportCard({
   const [copied, setCopied] = useState(false);
   const bg = TILE_BG[(index - 1) % TILE_BG.length];
   const isLight = bg === "bg-white";
+  // Tile roxo é claro/saturado: texto muted (cinza) some nele. Trata como tile
+  // "colorido" e usa branco pra garantir leitura. Só o tile branco vira preto.
+  const isColored = bg === "bg-purple";
+  const secondaryText = isLight ? "text-black/50" : isColored ? "text-white/75" : "text-muted";
+  const bodyText = isLight ? "text-black/70" : isColored ? "text-white/90" : "text-muted";
 
   async function handleCopy() {
     const url = `${window.location.origin}/r/${slug}`;
@@ -122,16 +127,14 @@ export default function ReportCard({
           {cliente}
         </span>
         <span
-          className={`flex items-center gap-1.5 text-xs ${isLight ? "text-black/50" : "text-muted"}`}
+          className={`flex items-center gap-1.5 text-xs ${secondaryText}`}
         >
           <Clock className="w-3 h-3 shrink-0" strokeWidth={2.5} />
           {dataFormatada}
         </span>
         {hypeMotivo && (
           <p
-            className={`text-sm leading-relaxed line-clamp-2 ${
-              isLight ? "text-black/70" : "text-muted"
-            }`}
+            className={`text-sm leading-relaxed line-clamp-2 ${bodyText}`}
           >
             {hypeMotivo}
           </p>
