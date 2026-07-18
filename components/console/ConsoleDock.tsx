@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef } from "react";
-import { Activity, Building2, Droplets, Zap, LogOut } from "lucide-react";
+import { Activity, Building2, Droplets, LogOut } from "lucide-react";
 import {
   motion,
   useMotionValue,
@@ -83,7 +83,8 @@ export default function ConsoleDock({ userEmail }: { userEmail?: string }) {
         <DockCell mouseX={mouseX} label="Console Acid Fabric" tone="brand">
           {(iconSize) => (
             <motion.span style={{ width: iconSize, height: iconSize }} className="grid place-items-center">
-              <Zap className="w-full h-full" strokeWidth={2.4} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/fabric-mark.svg" alt="Acid Fabric" className="w-full h-full object-contain" />
             </motion.span>
           )}
         </DockCell>
