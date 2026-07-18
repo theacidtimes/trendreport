@@ -103,9 +103,11 @@ export async function processMemory(
     if (error) console.error('[MEMORY] Erro ao persistir sinais:', error)
   }
 
-  // 5. FORK dormente pra Fabric Lake (Fase 5): so roda com FABRIC_LAKE_INGEST
-  // ligada. Reusa os embeddings JA computados aqui (nao paga vetor novo) e e
-  // fail-safe por dentro — nunca atrasa/derruba o run do cliente. Off = no-op.
+  // 5. FORK pra Fabric Lake (Fase 5): so roda com FABRIC_LAKE_INGEST ligada.
+  // Reusa os embeddings JA computados aqui (nao paga vetor novo). Awaited (o run
+  // e serverless: fire-and-forget perderia sinal ao retornar) mas PARALELIZADO em
+  // lotes por dentro — latencia limitada a ceil(N/6) idas ao Haiku, nao N seriais.
+  // Fail-safe: erro num sinal e engolido, nunca derruba o run. Off = no-op.
   if (fabricIngestEnabled() && fresh.length > 0) {
     const items: ForkItem[] = fresh.map(({ point, emb }) => ({
       input: {
