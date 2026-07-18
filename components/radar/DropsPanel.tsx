@@ -151,13 +151,13 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
   return (
     <div>
       {/* Loader fino: barra deslizante sutil enquanto os drops carregam. */}
-      <div style={{ height: 2, marginBottom: 14, borderRadius: 2, overflow: 'hidden', background: loading ? 'rgba(129,211,0,0.08)' : 'transparent' }}>
+      <div style={{ height: 2, marginBottom: 14, borderRadius: 2, overflow: 'hidden', background: loading ? 'color-mix(in srgb, var(--lime) 8%, transparent)' : 'transparent' }}>
         {loading && <div className="drops-loader-bar" />}
       </div>
       <style>{`
         .drops-loader-bar {
           position: relative; height: 100%; width: 35%; border-radius: 2px;
-          background: linear-gradient(90deg, transparent, #81D300, transparent);
+          background: linear-gradient(90deg, transparent, var(--lime), transparent);
           animation: dropsSlide 1.1s ease-in-out infinite;
         }
         @keyframes dropsSlide { 0% { left: -35%; } 100% { left: 100%; } }

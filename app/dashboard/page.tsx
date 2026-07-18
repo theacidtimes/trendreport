@@ -20,8 +20,8 @@ function HypeGauge({ value }: { value: number }) {
       <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
         <defs>
           <linearGradient id="hypeGradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#4a2e63" />
-            <stop offset="100%" stopColor="#a063e8" />
+            <stop offset="0%" stopColor="var(--purple-mid)" />
+            <stop offset="100%" stopColor="var(--purple)" />
           </linearGradient>
         </defs>
         <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(245,243,239,0.08)" strokeWidth="9" />
@@ -318,7 +318,7 @@ export default async function DashboardPage() {
                       className="font-serif font-medium tabular-nums text-transparent bg-clip-text text-[6.5rem] md:text-[8rem] leading-none"
                       style={{
                         backgroundImage:
-                          "linear-gradient(160deg, #a063e8 0%, #4a2e63 60%, #181818 100%)",
+                          "linear-gradient(160deg, var(--purple) 0%, var(--purple-mid) 60%, #181818 100%)",
                       }}
                     />
                   </div>

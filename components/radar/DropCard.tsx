@@ -5,14 +5,14 @@ import { TrendDrop } from '@/lib/types'
 const SERIF = 'var(--font-libre-caslon), Georgia, serif'
 
 const STATUS_CONFIG = {
-  em_alta:       { bg: '#81d300', color: '#0b0b0b', label: 'EM ALTA' },
-  subindo:       { bg: '#a063e8', color: '#fff',    label: 'SUBINDO' },
+  em_alta:       { bg: 'var(--lime)', color: '#0b0b0b', label: 'EM ALTA' },
+  subindo:       { bg: 'var(--purple)', color: '#fff',    label: 'SUBINDO' },
   estabilizando: { bg: 'transparent', color: '#a8a29e', label: 'ESTABILIZANDO', border: '1px solid #232323' },
   esfriando:     { bg: 'transparent', color: '#6e6a66', label: 'ESFRIANDO',     border: '1px solid #232323' },
 }
 
 const FUNIL_CONFIG = {
-  growth: { color: '#81d300', label: '↗ GROWTH' },
+  growth: { color: 'var(--lime)', label: '↗ GROWTH' },
   base:   { color: '#a8a29e', label: '→ BASE' },
 }
 
@@ -54,8 +54,8 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
 
       <p style={{ fontSize: 14, color: '#a8a29e', margin: 0, lineHeight: 1.55 }}>{drop.descricao_fato}</p>
 
-      <div style={{ borderLeft: '2px solid #81d300', paddingLeft: 14, lineHeight: 1.55 }}>
-        <span style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#81d300', display: 'block', marginBottom: 4, fontFamily: 'var(--font-space-grotesk), sans-serif' }}>Insight</span>
+      <div style={{ borderLeft: '2px solid var(--lime)', paddingLeft: 14, lineHeight: 1.55 }}>
+        <span style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--lime)', display: 'block', marginBottom: 4, fontFamily: 'var(--font-space-grotesk), sans-serif' }}>Insight</span>
         <span style={{ fontSize: 14, color: '#f5f3ef' }}>{drop.gancho_produto}</span>
       </div>
 
@@ -69,7 +69,7 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 12, color: '#a8a29e', width: 84, flexShrink: 0 }}>{label}</span>
             <div style={{ flex: 1, height: 6, borderRadius: 3, background: '#181818', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${value}%`, background: 'linear-gradient(90deg, #4a2e63, #81d300)', borderRadius: 3 }} />
+              <div style={{ height: '100%', width: `${value}%`, background: 'linear-gradient(90deg, var(--purple-mid), var(--lime))', borderRadius: 3 }} />
             </div>
             <span style={{ fontSize: 12, color: '#f5f3ef', fontWeight: 500, width: 24, textAlign: 'right', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
           </div>

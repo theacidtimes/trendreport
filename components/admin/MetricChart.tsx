@@ -3,9 +3,9 @@ import { DailyMetric } from "@/lib/radar/metrics";
 type Metric = "captados" | "drops" | "runs";
 
 const META: Record<Metric, { label: string; color: string }> = {
-  captados: { label: "Dados captados", color: "#81d300" },
-  drops: { label: "Drops gerados", color: "#a063e8" },
-  runs: { label: "Runs do agente", color: "#4a2e63" },
+  captados: { label: "Dados captados", color: "var(--lime)" },
+  drops: { label: "Drops gerados", color: "var(--purple)" },
+  runs: { label: "Runs do agente", color: "var(--purple-mid)" },
 };
 
 function fmtDay(iso: string): string {

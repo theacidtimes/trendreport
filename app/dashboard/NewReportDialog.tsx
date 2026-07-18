@@ -46,7 +46,7 @@ export default function NewReportDialog() {
         <ShineBorder
           borderWidth={1.5}
           duration={12}
-          shineColor={["#a063e8", "#81d300"]}
+          shineColor={["var(--purple)", "var(--lime)"]}
         />
         <div className="flex flex-col gap-1.5">
           <span className="kicker text-purple/60">Novo report</span>
