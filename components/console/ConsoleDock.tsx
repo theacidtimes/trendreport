@@ -2,11 +2,20 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useRef } from "react";
 import { Activity, Building2, DoorOpen, Droplets, Zap, LogOut } from "lucide-react";
+import {
+  motion,
+  useMotionValue,
+  useSpring,
+  useTransform,
+  type MotionValue,
+} from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 
 // Dock flutuante — EXCLUSIVO do console ACID. É o sinal visual de que se saiu do
 // produto do cliente (rail lateral) e entrou no ambiente cross-tenant da ACID.
+// Estilo aceternity: os ícones ampliam conforme a proximidade do cursor.
 // Não reusar no workspace do tenant.
 const ITEMS = [
   {
@@ -29,89 +38,164 @@ const ITEMS = [
   },
 ];
 
+// Tamanhos base e ampliado (px) da célula e do ícone.
+const BASE = 52;
+const MAG = 90;
+const ICON_BASE = 22;
+const ICON_MAG = 40;
+const RANGE = 150; // distância de influência do cursor
+
+function useMagnify(mouseX: MotionValue<number>, ref: React.RefObject<HTMLElement | null>) {
+  const distance = useTransform(mouseX, (val) => {
+    const b = ref.current?.getBoundingClientRect();
+    const center = b ? b.x + b.width / 2 : 0;
+    return val - center;
+  });
+  const sizeSync = useTransform(distance, [-RANGE, 0, RANGE], [BASE, MAG, BASE]);
+  const iconSync = useTransform(distance, [-RANGE, 0, RANGE], [ICON_BASE, ICON_MAG, ICON_BASE]);
+  const spring = { mass: 0.1, stiffness: 150, damping: 12 };
+  return {
+    size: useSpring(sizeSync, spring),
+    icon: useSpring(iconSync, spring),
+  };
+}
+
 export default function ConsoleDock({ userEmail }: { userEmail?: string }) {
   const pathname = usePathname();
   const router = useRouter();
+  const mouseX = useMotionValue(Infinity);
 
   async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push("/login");
+    router.push("/console/login");
     router.refresh();
   }
 
   return (
-    <nav className="fixed z-50 bottom-5 left-1/2 -translate-x-1/2 print:hidden">
-      <div className="flex items-center gap-1 rounded-2xl border border-border bg-surface-2/80 backdrop-blur-xl px-2 py-2 shadow-elevated">
+    <nav className="fixed z-50 bottom-6 left-1/2 -translate-x-1/2 print:hidden">
+      <motion.div
+        onMouseMove={(e) => mouseX.set(e.pageX)}
+        onMouseLeave={() => mouseX.set(Infinity)}
+        className="flex items-end gap-2 rounded-3xl border border-border bg-surface-2/80 backdrop-blur-xl px-3.5 py-3 shadow-elevated"
+      >
         {/* Marca do console — Acid Fabric */}
-        <span
-          className="group/item relative grid place-items-center h-11 w-11 rounded-xl bg-purple/15 text-purple"
-          aria-label="Console Acid Fabric"
-        >
-          <Zap className="w-[18px] h-[18px]" strokeWidth={2.4} />
-          <Tooltip>Console Acid Fabric</Tooltip>
-        </span>
+        <DockCell mouseX={mouseX} label="Console Acid Fabric" tone="brand">
+          {(iconSize) => (
+            <motion.span style={{ width: iconSize, height: iconSize }} className="grid place-items-center">
+              <Zap className="w-full h-full" strokeWidth={2.4} />
+            </motion.span>
+          )}
+        </DockCell>
 
-        <span className="mx-1 h-6 w-px bg-hairline" />
+        <Divider />
 
         {ITEMS.map(({ href, label, icon: Icon, match }) => {
           const active = match(pathname);
           return (
-            <Link
+            <DockCell
               key={href}
+              mouseX={mouseX}
+              label={label}
               href={href}
-              aria-label={label}
-              className={`group/item relative grid place-items-center h-11 w-11 rounded-xl transition-colors ${
-                active
-                  ? "bg-surface-3 text-white"
-                  : "text-muted hover:text-white hover:bg-surface/70"
-              }`}
+              active={active}
             >
-              {active && (
-                <span className="absolute -bottom-0.5 h-0.5 w-5 rounded-full bg-purple" />
+              {(iconSize) => (
+                <motion.span style={{ width: iconSize, height: iconSize }} className="grid place-items-center">
+                  <Icon className="w-full h-full" strokeWidth={active ? 2.4 : 2} />
+                </motion.span>
               )}
-              <Icon className="w-[18px] h-[18px]" strokeWidth={active ? 2.4 : 2} />
-              <Tooltip>{label}</Tooltip>
-            </Link>
+            </DockCell>
           );
         })}
 
-        <span className="mx-1 h-6 w-px bg-hairline" />
+        <Divider />
 
-        {/* Sair do console de volta pro workspace do tenant */}
-        <Link
-          href="/dashboard"
-          aria-label="Voltar ao workspace"
-          className="group/item relative grid place-items-center h-11 w-11 rounded-xl text-muted hover:text-white hover:bg-surface/70 transition-colors"
-        >
-          <DoorOpen className="w-[18px] h-[18px]" strokeWidth={2} />
-          <Tooltip>Voltar ao workspace</Tooltip>
-        </Link>
+        {/* Voltar pro workspace do tenant */}
+        <DockCell mouseX={mouseX} label="Voltar ao workspace" href="/dashboard">
+          {(iconSize) => (
+            <motion.span style={{ width: iconSize, height: iconSize }} className="grid place-items-center">
+              <DoorOpen className="w-full h-full" strokeWidth={2} />
+            </motion.span>
+          )}
+        </DockCell>
 
-        <button
+        <DockCell
+          mouseX={mouseX}
+          label={userEmail ? `Sair · ${userEmail}` : "Sair"}
           onClick={handleSignOut}
-          aria-label="Sair"
-          className="group/item relative grid place-items-center h-11 w-11 rounded-xl text-muted hover:text-white hover:bg-surface/70 transition-colors"
         >
-          <LogOut className="w-[18px] h-[18px]" strokeWidth={2} />
-          <span className="pointer-events-none absolute bottom-full mb-3 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center whitespace-nowrap rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-white opacity-0 translate-y-1 shadow-elevated transition-all duration-150 group-hover/item:opacity-100 group-hover/item:translate-y-0">
-            <span className="font-medium leading-tight">Sair</span>
-            {userEmail && (
-              <span className="text-[11px] text-muted-2 leading-tight">
-                {userEmail}
-              </span>
-            )}
-          </span>
-        </button>
-      </div>
+          {(iconSize) => (
+            <motion.span style={{ width: iconSize, height: iconSize }} className="grid place-items-center">
+              <LogOut className="w-full h-full" strokeWidth={2} />
+            </motion.span>
+          )}
+        </DockCell>
+      </motion.div>
     </nav>
   );
 }
 
-function Tooltip({ children }: { children: React.ReactNode }) {
+function Divider() {
+  return <span className="self-center mx-0.5 h-8 w-px bg-hairline" />;
+}
+
+function DockCell({
+  mouseX,
+  label,
+  href,
+  onClick,
+  active = false,
+  tone = "default",
+  children,
+}: {
+  mouseX: MotionValue<number>;
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  active?: boolean;
+  tone?: "default" | "brand";
+  children: (iconSize: MotionValue<number>) => React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { size, icon } = useMagnify(mouseX, ref);
+
+  const base =
+    tone === "brand"
+      ? "bg-purple/15 text-purple"
+      : active
+        ? "bg-surface-3 text-white"
+        : "text-muted hover:text-white hover:bg-surface/70";
+
+  const inner = (
+    <>
+      {active && (
+        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-purple" />
+      )}
+      {children(icon)}
+      <span className="pointer-events-none absolute bottom-full mb-3 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 translate-y-1 shadow-elevated transition-all duration-150 group-hover/cell:opacity-100 group-hover/cell:translate-y-0">
+        {label}
+      </span>
+    </>
+  );
+
+  const className = `group/cell relative grid place-items-center rounded-2xl transition-colors ${base}`;
+
   return (
-    <span className="pointer-events-none absolute bottom-full mb-3 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 translate-y-1 shadow-elevated transition-all duration-150 group-hover/item:opacity-100 group-hover/item:translate-y-0">
-      {children}
-    </span>
+    <motion.div ref={ref} style={{ width: size, height: size }} className="shrink-0">
+      {href ? (
+        <Link href={href} aria-label={label} className={`${className} w-full h-full`}>
+          {inner}
+        </Link>
+      ) : onClick ? (
+        <button onClick={onClick} aria-label={label} className={`${className} w-full h-full`}>
+          {inner}
+        </button>
+      ) : (
+        <span aria-label={label} className={`${className} w-full h-full`}>
+          {inner}
+        </span>
+      )}
+    </motion.div>
   );
 }
