@@ -1,0 +1,26 @@
+name: Fabric Lake — Rebuild do Agregado
+
+on:
+  schedule:
+    # 1x/dia às 06:00 UTC (03:00 BRT). O trend_cell agrega em buckets de semana/
+    # mês, então não precisa de tique curto como o radar: reconstruir uma vez ao
+    # dia mantém a torneira (/console/lake) fresca sem custo. Idempotente.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Fabric Rebuild API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.APP_URL }}/api/fabric/rebuild" \
+            -H "Authorization: Bearer ${{ secrets.RADAR_CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          echo "Status: $response"
+          if [ "$response" != "200" ]; then
+            echo "Falha — status $response"
+            exit 1
+          fi
