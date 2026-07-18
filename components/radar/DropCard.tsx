@@ -50,7 +50,7 @@ export default function DropCard({ drop }: { drop: TrendDrop }) {
 
       <div style={{ height: 1, background: '#232323' }} />
 
-      <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 500, color: '#f5f3ef', lineHeight: 1.25 }}>{drop.insight_titulo}</div>
+      <div style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 500, color: '#f5f3ef', lineHeight: 1.25 }}>{drop.insight_titulo}</div>
 
       <p style={{ fontSize: 14, color: '#a8a29e', margin: 0, lineHeight: 1.55 }}>{drop.descricao_fato}</p>
 
