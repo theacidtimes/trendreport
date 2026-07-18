@@ -14,8 +14,6 @@ import {
 } from "lucide-react";
 import SmartImage from "@/components/SmartImage";
 
-const TILE_BG = ["bg-surface", "bg-purple", "bg-white"];
-
 export default function ReportCard({
   index,
   slug,
@@ -38,13 +36,6 @@ export default function ReportCard({
   corMarca: string | null;
 }) {
   const [copied, setCopied] = useState(false);
-  const bg = TILE_BG[(index - 1) % TILE_BG.length];
-  const isLight = bg === "bg-white";
-  // Tile roxo é claro/saturado: texto muted (cinza) some nele. Trata como tile
-  // "colorido" e usa branco pra garantir leitura. Só o tile branco vira preto.
-  const isColored = bg === "bg-purple";
-  const secondaryText = isLight ? "text-black/50" : isColored ? "text-white/75" : "text-muted";
-  const bodyText = isLight ? "text-black/70" : isColored ? "text-white/90" : "text-muted";
 
   async function handleCopy() {
     const url = `${window.location.origin}/r/${slug}`;
@@ -63,7 +54,7 @@ export default function ReportCard({
   return (
     <Link
       href={`/dashboard/${slug}`}
-      className={`group flex flex-col rounded-3xl overflow-hidden border border-border transition-colors hover:border-white/20 shadow-card ${bg}`}
+      className="group flex flex-col rounded-[28px] overflow-hidden border border-border bg-surface transition-colors hover:border-white/20 shadow-card"
     >
       {/* IMAGE */}
       <div
@@ -126,25 +117,19 @@ export default function ReportCard({
         >
           {cliente}
         </span>
-        <span
-          className={`flex items-center gap-1.5 text-xs ${secondaryText}`}
-        >
+        <span className="flex items-center gap-1.5 text-xs text-muted">
           <Clock className="w-3 h-3 shrink-0" strokeWidth={2.5} />
           {dataFormatada}
         </span>
         {hypeMotivo && (
-          <p
-            className={`text-sm leading-relaxed line-clamp-2 ${bodyText}`}
-          >
+          <p className="text-sm leading-relaxed line-clamp-2 text-muted">
             {hypeMotivo}
           </p>
         )}
 
         <div className="flex items-center gap-2 pt-2">
           <span
-            className={`text-xs uppercase tracking-wide font-medium border rounded-lg px-4 py-2 flex items-center gap-1.5 group-hover:border-lime group-hover:text-lime transition-colors ${
-              isLight ? "border-black/15 text-black" : "border-white/20 text-white"
-            }`}
+            className="text-xs uppercase tracking-wide font-medium border border-white/20 text-white rounded-lg px-4 py-2 flex items-center gap-1.5 group-hover:border-lime group-hover:text-lime transition-colors"
           >
             {status === "ready" ? "Revisar" : "Ver"}
             <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={2.5} />
