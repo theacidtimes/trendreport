@@ -6,6 +6,8 @@ import DropCard from './DropCard'
 // Ritmo do auto-refresh silencioso. O cron gera drops a cada ~15min; 60s pega os novos
 // logo depois de salvos sem martelar a API.
 const POLL_MS = 60_000
+// Tamanho da página do infinite feed. Carrega em blocos e vai anexando no scroll.
+const PAGE_SIZE = 12
 
 type Periodo = '' | 'semana' | 'mes' | 'custom'
 
@@ -21,6 +23,8 @@ function desdeISO(periodo: Periodo, customDe: string): string {
 export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[]; marcaId?: string }) {
   const [drops, setDrops] = useState<TrendDrop[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [filtroStatus, setFiltroStatus] = useState('')
   const [filtroFunil, setFiltroFunil] = useState('')
   const [filtroMarca, setFiltroMarca] = useState('')
@@ -30,8 +34,8 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
 
   const marcaAtiva = marcaId || filtroMarca
 
-  // silent=true no auto-refresh: atualiza a lista sem acender o loader (evita piscar).
-  const fetchDrops = useCallback(async (silent = false) => {
+  // Monta os params de filtro; paginação (offset/limit) entra por cima em cada chamada.
+  const buildParams = useCallback((offset: number, limit: number) => {
     const params = new URLSearchParams()
     if (marcaAtiva)   params.set('marca_id', marcaAtiva)
     if (filtroStatus) params.set('status', filtroStatus)
@@ -39,30 +43,81 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
     const desde = desdeISO(periodo, customDe)
     if (desde) params.set('desde', desde)
     if (periodo === 'custom' && customAte) params.set('ate', new Date(customAte).toISOString())
-
-    if (!silent) setLoading(true)
-    try {
-      const d = await fetch(`/api/radar/drops?${params}`).then(r => r.json())
-      setDrops(d.drops || [])
-    } finally {
-      if (!silent) setLoading(false)
-    }
+    params.set('offset', String(offset))
+    params.set('limit', String(limit))
+    return params
   }, [marcaAtiva, filtroStatus, filtroFunil, periodo, customDe, customAte])
 
-  // Carga a cada mudança de filtro (com loader).
-  useEffect(() => { fetchDrops(false) }, [fetchDrops])
+  // Página inicial: troca a lista inteira (com loader). Dispara a cada mudança de filtro.
+  const loadFirst = useCallback(async () => {
+    setLoading(true)
+    try {
+      const d = await fetch(`/api/radar/drops?${buildParams(0, PAGE_SIZE)}`).then(r => r.json())
+      setDrops(d.drops || [])
+      setHasMore(!!d.hasMore)
+    } finally {
+      setLoading(false)
+    }
+  }, [buildParams])
 
-  // Auto-refresh silencioso enquanto a aba está visível. Ref evita recriar o intervalo a
-  // cada mudança de filtro sem perder o filtro atual no tick.
-  const fetchRef = useRef(fetchDrops)
-  fetchRef.current = fetchDrops
+  useEffect(() => { loadFirst() }, [loadFirst])
+
+  // Próxima página: anexa ao fim, deduplicando por id. O offset é o tamanho atual.
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore) return
+    setLoadingMore(true)
+    try {
+      const d = await fetch(`/api/radar/drops?${buildParams(drops.length, PAGE_SIZE)}`).then(r => r.json())
+      setDrops(prev => {
+        const vistos = new Set(prev.map(x => x.id))
+        const novos = ((d.drops || []) as TrendDrop[]).filter(x => !vistos.has(x.id))
+        return [...prev, ...novos]
+      })
+      setHasMore(!!d.hasMore)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [buildParams, drops.length, loading, loadingMore, hasMore])
+
+  // Auto-refresh silencioso: só o topo. Atualiza status dos drops já vistos e prepende os
+  // novos, sem descartar o que o usuário já scrollou. Ordena por created_at desc.
+  const refreshHead = useCallback(async () => {
+    const d = await fetch(`/api/radar/drops?${buildParams(0, PAGE_SIZE)}`).then(r => r.json())
+    const fresh = (d.drops || []) as TrendDrop[]
+    setDrops(prev => {
+      if (prev.length === 0) return fresh
+      const porId = new Map(prev.map(x => [x.id, x]))
+      for (const f of fresh) porId.set(f.id, f)
+      return Array.from(porId.values()).sort((a, b) => b.created_at.localeCompare(a.created_at))
+    })
+  }, [buildParams])
+
+  // Refs evitam recriar interval/observer a cada mudança de filtro sem perder o estado atual.
+  const refreshRef = useRef(refreshHead)
+  refreshRef.current = refreshHead
   useEffect(() => {
     const tick = () => {
-      if (document.visibilityState === 'visible') fetchRef.current(true)
+      if (document.visibilityState === 'visible') refreshRef.current()
     }
     const id = setInterval(tick, POLL_MS)
     document.addEventListener('visibilitychange', tick)
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick) }
+  }, [])
+
+  // Sentinela do infinite scroll: quando entra na viewport (com folga de 400px), puxa a
+  // próxima página. rootMargin adianta a carga antes do usuário bater no fim.
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const loadMoreRef = useRef(loadMore)
+  loadMoreRef.current = loadMore
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) loadMoreRef.current() },
+      { rootMargin: '400px' }
+    )
+    io.observe(el)
+    return () => io.disconnect()
   }, [])
 
   const filterBtn = (label: string, value: string, current: string, setter: (v: string) => void) => (
@@ -147,6 +202,16 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
         {drops.map(drop => <DropCard key={drop.id} drop={drop} />)}
       </div>
+
+      {/* Sentinela sempre montada pra o observer poder rastreá-la desde o início. */}
+      <div ref={sentinelRef} style={{ height: 1 }} />
+
+      {loadingMore && (
+        <p style={{ textAlign: 'center', color: '#6e6a66', fontSize: 12, marginTop: 20 }}>carregando mais…</p>
+      )}
+      {!loading && !hasMore && drops.length > 0 && (
+        <p style={{ textAlign: 'center', color: '#6e6a66', fontSize: 12, marginTop: 20 }}>fim dos drops.</p>
+      )}
     </div>
   )
 }

@@ -5,11 +5,16 @@ export async function GET(request: Request) {
   const supabase = createClient()
   const { searchParams } = new URL(request.url)
 
+  // Paginação do infinite feed: janela [offset, offset+limit). Busca limit+1 itens
+  // pra saber se há próxima página sem uma query de count separada.
+  const limit  = Math.min(Math.max(Number(searchParams.get('limit')) || 12, 1), 50)
+  const offset = Math.max(Number(searchParams.get('offset')) || 0, 0)
+
   let query = supabase
     .from('trends_radar')
     .select('*, marca:marcas(nome)')
     .order('created_at', { ascending: false })
-    .limit(50)
+    .range(offset, offset + limit)
 
   const marca_id = searchParams.get('marca_id')
   const status   = searchParams.get('status')
@@ -25,5 +30,8 @@ export async function GET(request: Request) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error }, { status: 500 })
-  return NextResponse.json({ drops: data })
+
+  const rows = data ?? []
+  const hasMore = rows.length > limit
+  return NextResponse.json({ drops: hasMore ? rows.slice(0, limit) : rows, hasMore })
 }
