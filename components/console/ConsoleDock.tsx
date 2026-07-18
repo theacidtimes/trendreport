@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef } from "react";
-import { Activity, Building2, DoorOpen, Droplets, Zap, LogOut } from "lucide-react";
+import { Activity, Building2, Droplets, Zap, LogOut } from "lucide-react";
 import {
   motion,
   useMotionValue,
@@ -110,15 +110,6 @@ export default function ConsoleDock({ userEmail }: { userEmail?: string }) {
         })}
 
         <Divider />
-
-        {/* Voltar pro workspace do tenant */}
-        <DockCell mouseX={mouseX} label="Voltar ao workspace" href="/dashboard">
-          {(iconSize) => (
-            <motion.span style={{ width: iconSize, height: iconSize }} className="grid place-items-center">
-              <DoorOpen className="w-full h-full" strokeWidth={2} />
-            </motion.span>
-          )}
-        </DockCell>
 
         <DockCell
           mouseX={mouseX}

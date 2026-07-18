@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Bolt,
-  Building2,
   LayoutGrid,
   LogOut,
   Plus,
@@ -62,16 +61,11 @@ export default function Sidebar({
     return !m || modulos === null || modulos.includes(m);
   });
 
-  // Entrada pro console ACID: só o super-admin da ACID vê. Detectado no client
-  // (rpc is_acid_admin) pra não ter que threadar prop por todos os layouts do
-  // workspace — o rail em si fica intacto, só ganha um item extra pra 1 usuário.
-  const [isAcid, setIsAcid] = useState(false);
   // Marca white-label do tenant (Fase 4E) — busca única via rpc, fallback ACID
   // fica no próprio Logo. Só o admin do tenant edita; todos do tenant enxergam.
   const [branding, setBranding] = useState<TenantBranding>({});
   useEffect(() => {
     const supabase = createClient();
-    supabase.rpc("is_acid_admin").then(({ data }) => setIsAcid(data === true));
     supabase
       .rpc("sou_admin_do_meu_tenant")
       .then(({ data }) => setIsTenantAdmin(data === true));
@@ -101,7 +95,6 @@ export default function Sidebar({
     });
   }, []);
   const logoUrl = branding.logo_url || undefined;
-  const displayName = branding.display_name || undefined;
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -156,18 +149,6 @@ export default function Sidebar({
         </nav>
 
         <div className="mt-auto px-3 pb-6">
-          {isAcid && (
-            <Link
-              href="/console"
-              aria-label="Console Acid Fabric"
-              className="group/item relative grid place-items-center h-12 rounded-xl text-purple hover:bg-purple/10 transition-colors"
-            >
-              <Building2 className="w-[18px] h-[18px]" strokeWidth={2.2} />
-              <span className="pointer-events-none absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 translate-x-[-4px] shadow-elevated transition-all duration-150 group-hover/item:opacity-100 group-hover/item:translate-x-0">
-                Console Acid Fabric
-              </span>
-            </Link>
-          )}
           <div className="pt-4 border-t border-hairline">
             <button
               onClick={handleSignOut}
@@ -191,7 +172,7 @@ export default function Sidebar({
       {/* Mobile top bar */}
       <header className="flex md:hidden h-14 items-center justify-between px-5 border-b border-border bg-bg/95 backdrop-blur sticky top-0 z-40">
         <Link href="/dashboard" className="flex items-center">
-          <Logo size="sm" logoUrl={logoUrl} displayName={displayName} />
+          <Logo size="sm" wordmarkClassName="hidden" logoUrl={logoUrl} />
         </Link>
         <div className="flex items-center gap-4">
           {visibleNav.map(({ href, icon: Icon, label }) => {
@@ -211,15 +192,6 @@ export default function Sidebar({
               </Link>
             );
           })}
-          {isAcid && (
-            <Link
-              href="/console"
-              aria-label="Console Acid Fabric"
-              className="grid place-items-center w-9 h-9 rounded-lg text-purple"
-            >
-              <Building2 className="w-5 h-5" strokeWidth={2.2} />
-            </Link>
-          )}
           {userEmail && (
             <button
               onClick={handleSignOut}
