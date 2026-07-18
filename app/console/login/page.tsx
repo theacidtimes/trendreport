@@ -81,7 +81,7 @@ export default function ConsoleLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-purple text-white font-semibold text-[15px] tracking-[-0.01em] w-full h-12 rounded-full mt-1 flex items-center justify-center gap-2 hover:brightness-110 transition-[filter] disabled:opacity-60 disabled:pointer-events-none"
+            className="bg-purple text-white font-semibold text-[15px] tracking-[-0.01em] w-full h-12 rounded-xl mt-1 flex items-center justify-center gap-2 hover:brightness-110 transition-[filter] disabled:opacity-60 disabled:pointer-events-none"
           >
             {loading ? (
               <>
