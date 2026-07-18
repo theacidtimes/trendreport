@@ -50,18 +50,16 @@ export default function ConsoleLoginPage() {
   return (
     <div className="min-h-screen flex bg-bg">
       {/* Painel do formulário */}
-      <div className="flex flex-1 items-center justify-center px-6 py-10 md:px-10">
+      <div className="relative flex flex-1 items-center justify-center px-6 py-10 md:px-10">
+        {/* Marca no canto superior esquerdo (só o símbolo) */}
+        <div className="absolute top-6 left-6 md:top-8 md:left-8">
+          <AcidLogo size="md" wordmark={false} />
+        </div>
+
         <form
           onSubmit={handleSubmit}
           className="w-full max-w-[380px] flex flex-col gap-5"
         >
-          <div className="flex flex-col items-start gap-2 mb-3">
-            <AcidLogo size="lg" />
-            <span className="text-muted uppercase text-xs tracking-[0.14em] font-medium">
-              console
-            </span>
-          </div>
-
           <input
             type="email"
             required
