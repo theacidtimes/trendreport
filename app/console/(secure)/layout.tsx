@@ -17,7 +17,7 @@ export default async function ConsoleLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/console/login");
   if (!(await checkIsAcidAdmin(supabase))) redirect("/dashboard");
 
   return (

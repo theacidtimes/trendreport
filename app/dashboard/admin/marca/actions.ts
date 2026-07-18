@@ -22,8 +22,16 @@ export async function salvarBranding(input: {
   const cor_primaria = clean(input.cor_primaria);
   const cor_destaque = clean(input.cor_destaque);
 
-  if (logo_url && !/^https?:\/\//i.test(logo_url)) {
-    throw new Error("O logo precisa ser uma URL http(s).");
+  // Aceita URL http(s) OU o SVG vetorial embutido como data URI (upload do
+  // painel). O data URI mantém o vetor auto-contido, sem depender de storage.
+  const isHttp = /^https?:\/\//i.test(logo_url);
+  const isSvgDataUri = /^data:image\/svg\+xml(;[^,]*)?,/i.test(logo_url);
+  if (logo_url && !isHttp && !isSvgDataUri) {
+    throw new Error("O logo precisa ser um SVG (upload) ou uma URL http(s).");
+  }
+  // Teto defensivo: um vetor cabe folgado em ~256 KB; barra abuso do jsonb.
+  if (logo_url.length > 262144) {
+    throw new Error("O arquivo do logo é grande demais (máx ~180 KB de SVG).");
   }
   if (cor_primaria && !HEX.test(cor_primaria)) {
     throw new Error("Cor primária inválida (use #RRGGBB).");

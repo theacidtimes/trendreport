@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
+import GenerativeBackdrop from "@/components/login/GenerativeBackdrop";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,12 +37,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-[400px] bg-surface border border-border rounded-2xl p-10 flex flex-col gap-5 shadow-card"
-      >
-        <div className="flex flex-col items-center gap-2 mb-1">
+    <div className="min-h-screen flex bg-bg">
+      {/* Painel do formulário */}
+      <div className="flex flex-1 items-center justify-center px-6 py-10 md:px-10">
+        <form
+          onSubmit={handleSubmit}
+          className="w-full max-w-[380px] flex flex-col gap-5"
+        >
+        <div className="flex flex-col items-start gap-2 mb-3">
           <Logo size="lg" />
           <span className="text-muted uppercase text-xs tracking-[0.14em] font-medium">
             trend report
@@ -85,12 +88,20 @@ export default function LoginPage() {
         </button>
 
         {error && (
-          <p className="text-red-400 text-sm flex items-center gap-2 justify-center">
+          <p className="text-red-400 text-sm flex items-center gap-2">
             <TriangleAlert className="w-4 h-4 shrink-0" strokeWidth={2} />
             {error}
           </p>
         )}
-      </form>
+        </form>
+      </div>
+
+      {/* Painel visual — sketch generativa em código (rodízio futuro) */}
+      <div className="hidden md:block w-[46%] max-w-[760px] p-3">
+        <div className="relative h-full w-full overflow-hidden rounded-3xl bg-black">
+          <GenerativeBackdrop tint="#81D300" highlight="#FFFFFF" />
+        </div>
+      </div>
     </div>
   );
 }

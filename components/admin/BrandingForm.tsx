@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, UploadCloud, X } from "lucide-react";
 import { salvarBranding } from "@/app/dashboard/admin/marca/actions";
 import type { TenantBranding } from "@/lib/types";
+
+// Espec do logo — espelha o mascote atual do tenant Caramelo (public/logo-dog.svg,
+// viewBox 140×122.5). Vetor auto-contido, guardado como data URI no branding.
+const LOGO_SPEC = { w: 140, h: 122, maxKB: 180 };
 
 const FIELD =
   "w-full rounded-xl bg-surface-2 border border-border px-3.5 py-2.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-purple/50 transition-colors";
@@ -30,6 +34,38 @@ export default function BrandingForm({
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dims, setDims] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleFile(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    setDims(null);
+    if (file.type !== "image/svg+xml" && !file.name.toLowerCase().endsWith(".svg")) {
+      setError("O logo precisa ser um arquivo SVG (vetor).");
+      return;
+    }
+    if (file.size > LOGO_SPEC.maxKB * 1024) {
+      setError(`O SVG passou de ${LOGO_SPEC.maxKB} KB. Simplifique o vetor.`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUri = String(reader.result || "");
+      // Lê o viewBox só pra informar as dimensões detectadas ao usuário.
+      const raw = svgTextFromDataUri(dataUri);
+      const vb = raw.match(/viewBox\s*=\s*["']\s*[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)/i);
+      setDims(vb ? `${Math.round(+vb[1])} × ${Math.round(+vb[2])} px` : null);
+      setLogoUrl(dataUri);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearLogo() {
+    setLogoUrl("");
+    setDims(null);
+    if (fileRef.current) fileRef.current.value = "";
+  }
 
   const primariaPreview = HEX.test(corPrimaria)
     ? corPrimaria
@@ -80,15 +116,64 @@ export default function BrandingForm({
           />
         </label>
 
-        <label className="flex flex-col gap-1.5">
-          <span className={LABEL}>Logo (URL)</span>
+        <div className="flex flex-col gap-1.5">
+          <span className={LABEL}>Logo (SVG vetorial)</span>
           <input
-            value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
-            placeholder="https://…/logo.svg"
-            className={FIELD}
+            ref={fileRef}
+            type="file"
+            accept=".svg,image/svg+xml"
+            onChange={(e) => handleFile(e.target.files?.[0])}
+            className="hidden"
           />
-        </label>
+          {logoUrl ? (
+            <div className="flex items-center gap-3 rounded-xl bg-surface-2 border border-border px-3.5 py-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt=""
+                className="w-12 h-12 rounded-lg object-contain bg-bg shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-white text-sm font-medium truncate">
+                  Logo carregado
+                </p>
+                <p className="text-muted-2 text-[11px]">
+                  {dims ? `Vetor ${dims}` : "Vetor SVG embutido"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="text-muted hover:text-white text-xs font-medium px-2 py-1 rounded-md hover:bg-surface/70 transition"
+              >
+                Trocar
+              </button>
+              <button
+                type="button"
+                onClick={clearLogo}
+                aria-label="Remover logo"
+                className="text-muted hover:text-red-400 p-1 rounded-md hover:bg-surface/70 transition"
+              >
+                <X className="w-4 h-4" strokeWidth={2.2} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-surface-2 px-4 py-6 text-center hover:border-purple/50 hover:bg-surface-2/70 transition-colors"
+            >
+              <UploadCloud className="w-5 h-5 text-muted" strokeWidth={2} />
+              <span className="text-white text-sm font-medium">
+                Enviar SVG
+              </span>
+              <span className="text-muted-2 text-[11px] leading-relaxed">
+                Vetor · proporção ~{LOGO_SPEC.w} × {LOGO_SPEC.h} px (igual ao
+                mascote atual) · fundo transparente · máx {LOGO_SPEC.maxKB} KB
+              </span>
+            </button>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <ColorField
@@ -196,6 +281,23 @@ export default function BrandingForm({
       </div>
     </form>
   );
+}
+
+// Extrai o texto do SVG de um data URI (base64 ou percent-encoded) só pra
+// inspecionar o viewBox. Falha silenciosa devolve string vazia.
+function svgTextFromDataUri(uri: string): string {
+  const comma = uri.indexOf(",");
+  if (comma < 0) return "";
+  const meta = uri.slice(0, comma);
+  const payload = uri.slice(comma + 1);
+  try {
+    if (/;base64/i.test(meta)) {
+      return decodeURIComponent(escape(atob(payload)));
+    }
+    return decodeURIComponent(payload);
+  } catch {
+    return "";
+  }
 }
 
 function ColorField({
