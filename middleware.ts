@@ -27,6 +27,10 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // IMPORTANTE: chamar getUser() em TODA rota é o que refresca o token e reescreve
+  // os cookies de sessão (via setAll acima). Se o middleware não roda numa rota, a
+  // sessão não refresca ali — foi o que derrubava o /console a cada ~1h (o matcher
+  // antigo só cobria /dashboard). Agora roda em tudo, menos assets estáticos.
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -41,5 +45,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: [
+    // Tudo exceto os estáticos do Next e imagens — assim a sessão refresca em
+    // qualquer navegação (dashboard, console, api), não só no /dashboard.
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };
