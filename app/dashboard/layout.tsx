@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TenantBloqueado from "@/components/TenantBloqueado";
+import AvisosBanner from "@/components/AvisosBanner";
 
 // Guard TRANSPARENTE do workspace inteiro. Cada pagina do /dashboard ja renderiza
 // sua propria Sidebar/chrome, entao este layout NAO desenha nada: so autentica e
@@ -27,5 +28,10 @@ export default async function DashboardLayout({
     return <TenantBloqueado status={status} email={user.email} />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <AvisosBanner />
+      {children}
+    </>
+  );
 }
