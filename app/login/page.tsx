@@ -51,9 +51,9 @@ export default function LoginPage() {
             onSubmit={handleSubmit}
             className="w-full max-w-[320px] flex flex-col gap-4"
           >
-            <div className="flex flex-col gap-1 mb-1">
-              <h1 className="text-white text-2xl font-semibold tracking-[-0.02em]">
-                Bem-vindo de volta.
+            <div className="flex flex-col gap-1.5 mb-1">
+              <h1 className="text-white font-serif font-medium text-[26px] leading-[1.15] tracking-[-0.01em]">
+                Transformando ruído em sinais.
               </h1>
               <p className="text-muted text-sm">
                 Entre para acompanhar seus trends.
