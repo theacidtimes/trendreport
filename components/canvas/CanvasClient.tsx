@@ -38,8 +38,8 @@ import {
 import type { CanvasGraph, CanvasDrop } from "@/lib/canvas/buildGraph";
 
 const FUNNEL_COLOR: Record<string, string> = {
-  growth: "#81d300",
-  base: "#a063e8",
+  growth: "var(--lime)",
+  base: "var(--purple)",
   mixed: "#c6a15b",
 };
 const funnelColor = (f: string | null) => FUNNEL_COLOR[f ?? ""] ?? "#8a8580";
@@ -51,8 +51,8 @@ const FUNNEL_LABEL: Record<string, string> = {
 };
 
 const STATUS_DOT: Record<string, string> = {
-  em_alta: "#81d300",
-  subindo: "#a063e8",
+  em_alta: "var(--lime)",
+  subindo: "var(--purple)",
   estabilizando: "#a8a29e",
   esfriando: "#6e6a66",
 };
@@ -114,9 +114,9 @@ function CoreNode({ data }: NodeProps<Node<{ label: string }>>) {
       style={{
         width: 132,
         height: 132,
-        background: "radial-gradient(circle at 30% 30%, #4a2e63, #181818 70%)",
-        border: "1.5px solid #a063e8aa",
-        boxShadow: "0 0 40px -10px #a063e880",
+        background: "radial-gradient(circle at 30% 30%, var(--purple-mid), #181818 70%)",
+        border: "1.5px solid color-mix(in srgb, var(--purple) 67%, transparent)",
+        boxShadow: "0 0 40px -10px color-mix(in srgb, var(--purple) 50%, transparent)",
       }}
     >
       <Handle type="target" position={Position.Top} style={hiddenHandle} isConnectable={false} />
@@ -265,7 +265,7 @@ function Toolbar({
         </span>
         <span
           className="flex items-center gap-1 text-[11px]"
-          style={{ color: graph.meta.semantic ? "#81d300" : "#6e6a66" }}
+          style={{ color: graph.meta.semantic ? "var(--lime)" : "#6e6a66" }}
         >
           <Sparkles className="w-3 h-3" />
           {graph.meta.semantic ? "semântico" : "estrutural"}
@@ -404,7 +404,7 @@ export default function CanvasClient({
           target: e.target,
           type: "floating",
           style: {
-            stroke: web ? "#a8a29e" : "#4a2e63",
+            stroke: web ? "#a8a29e" : "var(--purple-mid)",
             strokeWidth: web ? 0.8 + e.weight * 1.8 : 1,
             opacity: web ? 0.22 + e.weight * 0.4 : 0.55,
           },
@@ -455,7 +455,7 @@ export default function CanvasClient({
             pannable
             zoomable
             nodeColor={(n) =>
-              n.type === "core" ? "#a063e8" : funnelColor((n.data as ThemeData).funnel)
+              n.type === "core" ? "var(--purple)" : funnelColor((n.data as ThemeData).funnel)
             }
             maskColor="rgba(11,11,11,0.75)"
             style={{ background: "#121212", border: "1px solid #232323" }}
