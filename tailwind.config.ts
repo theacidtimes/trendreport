@@ -32,9 +32,9 @@ const config: Config = {
       fontFamily: {
         // Space Grotesk — UI, labels, kickers (Linear / Apple Pro cadence)
         sans: ["var(--font-space-grotesk)", "sans-serif"],
-        // Fraunces — editorial serif for display and pull quotes
-        serif: ["var(--font-fraunces)", "Georgia", "serif"],
-        display: ["var(--font-fraunces)", "Georgia", "serif"],
+        // Libre Caslon Display — Acid's editorial serif for display and pull quotes
+        serif: ["var(--font-libre-caslon)", "Georgia", "serif"],
+        display: ["var(--font-libre-caslon)", "Georgia", "serif"],
         // Inter — body text
         body: ["var(--font-inter)", "sans-serif"],
       },

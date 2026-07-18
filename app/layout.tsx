@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter, Fraunces } from "next/font/google";
+import { Space_Grotesk, Inter, Libre_Caslon_Display } from "next/font/google";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -14,11 +14,12 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const fraunces = Fraunces({
+// Libre Caslon Display — serifada oficial da Acid. Só peso 400 (sem itálico
+// real); títulos usam 400 e pull-quotes caem em itálico sintético.
+const libreCaslon = Libre_Caslon_Display({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-fraunces",
+  weight: "400",
+  variable: "--font-libre-caslon",
 });
 
 export const metadata: Metadata = {
@@ -34,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body
-        className={`${spaceGrotesk.variable} ${inter.variable} ${fraunces.variable} antialiased`}
+        className={`${spaceGrotesk.variable} ${inter.variable} ${libreCaslon.variable} antialiased`}
       >
         {children}
       </body>

@@ -98,7 +98,7 @@ body {
 
   /* Serif display headline */
   .display {
-    font-family: var(--font-fraunces), Georgia, serif;
+    font-family: var(--font-libre-caslon), Georgia, serif;
     font-weight: 500;
     line-height: 1.02;
     letter-spacing: -0.02em;
@@ -107,7 +107,7 @@ body {
   }
 
   .headline {
-    font-family: var(--font-fraunces), Georgia, serif;
+    font-family: var(--font-libre-caslon), Georgia, serif;
     font-weight: 500;
     line-height: 1.08;
     letter-spacing: -0.015em;
@@ -126,7 +126,7 @@ body {
 
   /* Editorial pull quote */
   .pull-quote {
-    font-family: var(--font-fraunces), Georgia, serif;
+    font-family: var(--font-libre-caslon), Georgia, serif;
     font-weight: 400;
     font-style: italic;
     font-size: clamp(1.5rem, 2.6vw, 2.25rem);

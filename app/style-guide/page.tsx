@@ -192,13 +192,13 @@ export default function StyleGuidePage() {
               <p className="kicker mt-3">Today&apos;s Brief · Weekly Signals</p>
             </div>
             <div className="border-b border-hairline pb-8">
-              <span className="kicker text-muted-2">Display · Fraunces</span>
+              <span className="kicker text-muted-2">Display · Libre Caslon</span>
               <p className="display mt-3 text-balance">
                 Cultura em movimento
               </p>
             </div>
             <div className="border-b border-hairline pb-8">
-              <span className="kicker text-muted-2">Headline · Fraunces</span>
+              <span className="kicker text-muted-2">Headline · Libre Caslon</span>
               <p className="headline mt-3 text-balance">
                 O sinal por trás do ruído
               </p>
@@ -219,7 +219,7 @@ export default function StyleGuidePage() {
               </p>
             </div>
             <div>
-              <span className="kicker text-muted-2">Pull quote · Fraunces</span>
+              <span className="kicker text-muted-2">Pull quote · Libre Caslon</span>
               <p className="pull-quote mt-4 max-w-prose">
                 “A interface deve comunicar confiança, não decoração.”
               </p>

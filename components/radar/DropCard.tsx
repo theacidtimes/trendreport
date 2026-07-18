@@ -2,7 +2,7 @@
 import { Clock } from 'lucide-react'
 import { TrendDrop } from '@/lib/types'
 
-const SERIF = 'var(--font-fraunces), Georgia, serif'
+const SERIF = 'var(--font-libre-caslon), Georgia, serif'
 
 const STATUS_CONFIG = {
   em_alta:       { bg: '#81d300', color: '#0b0b0b', label: 'EM ALTA' },
