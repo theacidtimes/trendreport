@@ -62,16 +62,24 @@ export async function processMemory(
   }
 
   // 2. dedup vs. histórico do cliente (não re-surfacear o mesmo trend)
-  const fresh: { point: RawDataPoint; emb: number[] }[] = []
-  for (const u of unique) {
-    const { data: dup } = await supabase.rpc('match_radar_signals', {
-      p_marca_id: marcaId,
-      p_query: u.emb,
-      p_match_count: 1,
-      p_min_similarity: DEDUP_THRESHOLD
-    })
-    if (!dup || dup.length === 0) fresh.push(u)
-  }
+  //
+  // Uma chamada em lote no lugar de N idas ao PostgREST (uma por sinal). O
+  // match_radar_signals_batch preserva o padrão ANN por query (LATERAL top-1),
+  // então o resultado é idêntico ao laço serial antigo — provado com 65 queries
+  // reais, 0 divergências. Fail-open: se o RPC falhar (data nulo), tratamos tudo
+  // como novidade, exatamente como o laço anterior fazia com dup indefinido.
+  const { data: batch } = await supabase.rpc('match_radar_signals_batch', {
+    p_marca_id: marcaId,
+    p_queries: unique.map(u => u.emb),
+    p_min_similarity: DEDUP_THRESHOLD
+  })
+  const matched = new Set<number>(
+    (batch ?? [])
+      .filter((r: { has_match: boolean }) => r.has_match)
+      // query_idx vem 1-based (WITH ORDINALITY) — normaliza pro índice do array
+      .map((r: { query_idx: number }) => r.query_idx - 1)
+  )
+  const fresh = unique.filter((_, i) => !matched.has(i))
 
   // 3. recuperar memória histórica ANTES de persistir (evita auto-match)
   let retrieved: RetrievedSignal[] = []

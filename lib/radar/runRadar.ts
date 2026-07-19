@@ -21,6 +21,14 @@ const MODEL = 'claude-sonnet-4-6'
 // 'running' — passado esse teto, tratamos como falha pra não travar a fila.
 const JOB_STALE_MS = 30 * 60 * 1000
 
+// Orçamento de tempo do finalize: antes de começar CADA marca, se já passou deste
+// teto a gente para e deixa o resto dos batches como não-processados — o próximo
+// tick os pega (mesmo comportamento de um batch ainda coletando). Isso garante
+// que a gente sempre cede o controle de forma limpa antes do host matar o processo
+// no meio de uma marca (foi assim que a VOLL ficou com memória órfã e sem drops).
+// Folga confortável abaixo do timeout-minutes do workflow (30min).
+const FINALIZE_BUDGET_MS = 25 * 60 * 1000
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -180,7 +188,7 @@ async function markJob(supabase: SupabaseLike, job: ScrapeJob, status: string): 
 // FINALIZAÇÃO: pega todo job ainda não processado, atualiza os 'running', e roda a
 // pipeline por marca assim que TODOS os jobs do batch dela ficam terminais. Batches
 // com alguma fonte ainda 'running' esperam o próximo tick.
-async function finalize(supabase: SupabaseLike, anthropic: AnthropicLike): Promise<void> {
+async function finalize(supabase: SupabaseLike, anthropic: AnthropicLike, deadline: number): Promise<void> {
   const { data: jobs } = await supabase
     .from('radar_scrape_jobs')
     .select('*')
@@ -200,6 +208,12 @@ async function finalize(supabase: SupabaseLike, anthropic: AnthropicLike): Promi
   }
 
   for (const group of Array.from(groups.values())) {
+    // Cede o controle antes de o host matar o processo no meio de uma marca. O que
+    // sobrar fica não-processado e o próximo tick reprocessa (idempotente por batch).
+    if (Date.now() > deadline) {
+      console.log('[RADAR] Orçamento de finalize atingido, adiando batches restantes pro próximo tick')
+      break
+    }
     if (group.some((j: ScrapeJob) => j.status === 'running')) continue // batch ainda coletando
 
     const marcaId = group[0].marca_id
@@ -355,8 +369,10 @@ export async function runAllActiveRadars(): Promise<void> {
   const supabase = getSupabase()
   const anthropic = getAnthropic()
 
+  const deadline = Date.now() + FINALIZE_BUDGET_MS
+
   // 1. Finaliza o que já voltou.
-  await finalize(supabase, anthropic)
+  await finalize(supabase, anthropic, deadline)
 
   // 2. Dispara as vencidas.
   const { data: marcas, error } = await supabase
