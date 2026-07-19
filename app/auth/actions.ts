@@ -68,3 +68,26 @@ export async function redefinirSenha(novaSenha: string): Promise<{ ok: true }> {
   if (error) throw new Error(error.message);
   return { ok: true };
 }
+
+// ─── Ativar conta (convite de onboarding, sessão via /auth/confirm type=invite) ─
+// A pessoa já foi anexada ao tenant como admin no convite; aqui ela só define nome
+// e senha e vira usuário ativo. full_name entra no user_metadata.
+export async function ativarConta(
+  nomeRaw: string,
+  senha: string
+): Promise<{ ok: true }> {
+  const nome = nomeRaw.trim();
+  if (!nome) throw new Error("Informe seu nome.");
+  if (senha.length < 8) throw new Error("A senha precisa ter ao menos 8 caracteres.");
+
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Convite expirado. Peça um novo para o administrador.");
+
+  const { error } = await supabase.auth.updateUser({
+    password: senha,
+    data: { full_name: nome },
+  });
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}

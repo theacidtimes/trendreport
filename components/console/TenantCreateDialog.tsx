@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { provisionarTenant } from "@/app/console/actions";
+import { convidarAdminInicial } from "@/app/console/usuarios-actions";
 import type { ModuloNome } from "@/lib/types";
 
 const FIELD =
@@ -21,6 +22,9 @@ export default function TenantCreateDialog() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Guarda o id do tenant JA provisionado: se o convite do admin falhar, um novo
+  // submit reenvia so o convite em vez de recriar o tenant (evita duplicata).
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const [modulos, setModulos] = useState<Set<ModuloNome>>(
     () => new Set<ModuloNome>(["radar", "reports", "dados_semanticos"])
   );
@@ -29,6 +33,7 @@ export default function TenantCreateDialog() {
     if (loading) return;
     setOpen(false);
     setError(null);
+    setCreatedId(null);
   }, [loading]);
 
   useEffect(() => {
@@ -59,27 +64,45 @@ export default function TenantCreateDialog() {
     setError(null);
     const fd = new FormData(e.currentTarget);
     const nome = String(fd.get("nome") || "").trim();
+    const adminEmail = String(fd.get("admin_email") || "").trim();
     if (!nome) {
       setError("Informe o nome do tenant.");
       return;
     }
     setLoading(true);
     try {
-      const id = await provisionarTenant({
-        nome,
-        tipo: String(fd.get("tipo") || "agency"),
-        seats: Number(fd.get("seats")) || 5,
-        plano: String(fd.get("plano") || "mensal"),
-        modulos: Array.from(modulos),
-        cnpj: String(fd.get("cnpj") || ""),
-        creditos: Number(fd.get("creditos")) || 0,
-      });
+      // Provisiona só se ainda não foi (retry de convite não recria o tenant).
+      let id = createdId;
+      if (!id) {
+        id = await provisionarTenant({
+          nome,
+          tipo: String(fd.get("tipo") || "agency"),
+          seats: Number(fd.get("seats")) || 5,
+          plano: String(fd.get("plano") || "mensal"),
+          modulos: Array.from(modulos),
+          cnpj: String(fd.get("cnpj") || ""),
+          creditos: Number(fd.get("creditos")) || 0,
+        });
+        setCreatedId(id);
+      }
+
+      // Convite do 1o admin (best-effort): tenant já existe; se falhar aqui, o
+      // próximo submit reenvia só o convite.
+      if (adminEmail) {
+        await convidarAdminInicial(id, adminEmail);
+      }
+
       setOpen(false);
+      setCreatedId(null);
       router.push(`/console/tenants/${id}`);
       router.refresh();
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao provisionar o tenant.";
+      // Tenant já nasceu mas o convite falhou: sinaliza que é só reenviar.
       setError(
-        err instanceof Error ? err.message : "Erro ao provisionar o tenant."
+        createdId
+          ? `Tenant criado, mas o convite falhou: ${msg}. Corrija o e-mail e envie de novo, ou avance sem convidar.`
+          : msg
       );
     } finally {
       setLoading(false);
@@ -146,6 +169,20 @@ export default function TenantCreateDialog() {
                 </select>
               </label>
             </div>
+
+            <label className="flex flex-col gap-1.5">
+              <span className={LABEL}>E-mail do admin inicial</span>
+              <input
+                name="admin_email"
+                type="email"
+                placeholder="pessoa@empresa.com"
+                className={FIELD}
+              />
+              <span className="text-muted/70 text-xs">
+                Recebe um e-mail de boas-vindas para ativar a conta e definir a senha.
+                Vira o primeiro administrador do workspace. Opcional.
+              </span>
+            </label>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1.5">
@@ -231,7 +268,13 @@ export default function TenantCreateDialog() {
                 disabled={loading}
                 className="rounded-full bg-lime text-black text-sm font-semibold px-5 py-2.5 hover:brightness-95 transition disabled:opacity-50"
               >
-                {loading ? "Provisionando..." : "Provisionar"}
+                {loading
+                  ? createdId
+                    ? "Enviando convite..."
+                    : "Provisionando..."
+                  : createdId
+                    ? "Reenviar convite"
+                    : "Provisionar"}
               </button>
             </div>
           </form>

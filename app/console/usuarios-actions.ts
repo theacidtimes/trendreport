@@ -1,8 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { sendEmail } from "@/lib/email/send";
+import { inviteEmail } from "@/lib/email/templates";
 
 // Gerenciamento de usuarios/seats dos tenants pela ACID. As RPCs (0026) travam
 // em is_acid_admin() por dentro; estas actions so orquestram. A criacao de conta
@@ -29,6 +32,14 @@ function serviceDb() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
+}
+
+// Origem real da requisicao (local: localhost; prod: dominio Vercel via forwarded).
+function origin(): string {
+  const h = headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
 }
 
 // Senha temporaria forte pra conta recem-criada. O usuario troca depois; aqui
@@ -163,4 +174,78 @@ export async function adicionarUsuario(
 
   revalidatePath(`/console/tenants/${tenantId}`);
   return { criado: true, email, senhaTemporaria: senha };
+}
+
+// ─── Convidar o admin INICIAL de um tenant (onboarding por e-mail) ─
+// Diferente do adicionarUsuario (senha temporaria repassada na mao): aqui a pessoa
+// recebe um e-mail branded, clica, define a PROPRIA senha e vira o 1o usuario ativo.
+// Fluxo:
+//  1. Ja existe conta? -> so anexa como admin (sem e-mail; conta ja ativa).
+//  2. Nao existe -> generateLink type=invite CRIA a conta e devolve o token; anexa
+//     como admin e manda o e-mail de convite apontando pro /auth/confirm -> /ativar.
+// Best-effort proposital: e chamado DEPOIS do provisionar_tenant, entao um erro aqui
+// nao desfaz o tenant — a ACID reenvia o convite pela pagina do tenant.
+export async function convidarAdminInicial(
+  tenantId: string,
+  emailRaw: string
+): Promise<{ criado: boolean; email: string }> {
+  const email = emailRaw.trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) throw new Error("E-mail do admin inválido.");
+
+  const supabase = createClient();
+
+  // Nome do tenant pro corpo do e-mail.
+  const { data: tenantRow } = await supabase
+    .from("tenants")
+    .select("nome")
+    .eq("id", tenantId)
+    .maybeSingle();
+  const tenantNome = (tenantRow as { nome: string } | null)?.nome ?? "seu workspace";
+
+  // 1. Conta ja existe -> so anexa como admin.
+  const { data: existingId, error: buscaErr } = await supabase.rpc(
+    "acid_buscar_usuario",
+    { p_email: email }
+  );
+  if (buscaErr) throw new Error(buscaErr.message);
+
+  if (existingId) {
+    const { error } = await supabase.rpc("acid_definir_papel", {
+      p_tenant: tenantId,
+      p_user: existingId as string,
+      p_role: "admin",
+    });
+    if (error) throw new Error(error.message);
+    revalidatePath(`/console/tenants/${tenantId}`);
+    return { criado: false, email };
+  }
+
+  // 2. Conta nova -> generateLink type=invite cria a conta e devolve o token.
+  const admin = serviceDb();
+  const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
+    type: "invite",
+    email,
+  });
+  if (linkErr) throw new Error(linkErr.message);
+  const newId = link.user?.id;
+  const hash = link.properties?.hashed_token;
+  if (!newId || !hash) throw new Error("Falha ao gerar o convite.");
+
+  // Anexa como admin. Rollback best-effort se falhar (nao orfanar a conta).
+  const { error: papelErr } = await supabase.rpc("acid_definir_papel", {
+    p_tenant: tenantId,
+    p_user: newId,
+    p_role: "admin",
+  });
+  if (papelErr) {
+    await admin.auth.admin.deleteUser(newId).catch(() => {});
+    throw new Error(papelErr.message);
+  }
+
+  const actionUrl = `${origin()}/auth/confirm?token_hash=${hash}&type=invite&next=/ativar`;
+  const { subject, html } = inviteEmail({ tenantNome, actionUrl });
+  await sendEmail({ to: email, subject, html });
+
+  revalidatePath(`/console/tenants/${tenantId}`);
+  return { criado: true, email };
 }
