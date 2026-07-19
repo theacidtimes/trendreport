@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ArrowRight, Loader2, TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import AcidLogo from "@/components/AcidLogo";
@@ -88,6 +89,13 @@ export default function ConsoleLoginPage() {
             placeholder="senha"
             className="bg-bg border border-border text-white text-base h-12 px-4 rounded-lg outline-none focus:border-purple transition-colors placeholder:text-muted/70"
           />
+
+          <Link
+            href="/esqueci-senha"
+            className="text-muted text-sm self-end -mt-1 hover:text-purple transition-colors"
+          >
+            Esqueci minha senha
+          </Link>
 
           <button
             type="submit"
