@@ -123,9 +123,12 @@ function lanesFor(marca: Marca): ScrapeLane[] {
   // Âncora de marca: Reddit direto na marca + News pt-br (peso mínimo, só ancoragem factual).
   lanes.push({ fonte: 'reddit', keywords: brand })
   lanes.push({ fonte: 'news', keywords: brand })
-  // Única fonte ligável: LinkedIn, discurso profissional. Só liga se há termo cultural.
-  if (k.linkedin_ativo && cultural.length) {
-    lanes.push({ fonte: 'linkedin', keywords: cultural })
+  // Única fonte ligável: LinkedIn, discurso profissional. Usa termos_linkedin (léxico
+  // B2B do decisor) quando existirem; senão cai nos culturais (compat). Só liga se há
+  // algum termo pra buscar.
+  if (k.linkedin_ativo) {
+    const linkedinTerms = k.termos_linkedin?.length ? k.termos_linkedin : cultural
+    if (linkedinTerms.length) lanes.push({ fonte: 'linkedin', keywords: linkedinTerms })
   }
   return lanes
 }

@@ -174,6 +174,13 @@ export interface MarcaKnowledge {
   // LinkedIn é a ÚNICA fonte ligável por marca (as outras são default). Liga só pra
   // cliente B2B/B2BC onde o discurso profissional é sinal. Ausente/false = não raspa.
   linkedin_ativo?: boolean
+  // Termos DEDICADOS da lane LinkedIn. O LinkedIn é o canal do decisor B2B (travel
+  // manager, controladoria, CFO), não do consumidor — os termos_culturais, pensados
+  // pro coração TikTok/Reddit, puxam conversa pessoa física e afinam o ângulo pro
+  // discurso profissional que é o valor do LinkedIn. Este campo deixa apontar a lane
+  // pro léxico B2B certo (ex. VOLL: "gestão de viagens corporativas"). Vazio/ausente
+  // = fallback pros termos_culturais (compat com marcas que já rodavam sem isto).
+  termos_linkedin?: string[]
 }
 
 export interface Marca {
