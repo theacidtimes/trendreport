@@ -2,7 +2,7 @@ name: Trend Radar — Varredura Contínua
 
 on:
   schedule:
-    # A cada 15min. O endpoint só DISPARA as marcas que "venceram" o próprio
+    # A cada 15min. A varredura só DISPARA as marcas que "venceram" o próprio
     # intervalo_horas (cadência por cliente) — então esta frequência é só o
     # tique do relógio; quem decide se dispara é o intervalo de cada marca.
     # Ticks curtos importam porque a coleta agora é assíncrona: cada tick também
@@ -11,19 +11,32 @@ on:
     - cron: '*/15 * * * *'
   workflow_dispatch:
 
+# Um tick de cada vez: se uma varredura passar dos 15min, o próximo agendamento
+# espera em vez de rodar em paralelo e reprocessar os mesmos batches.
+concurrency:
+  group: radar-cron
+  cancel-in-progress: false
+
 jobs:
   run-radar:
     runs-on: ubuntu-latest
+    # A varredura roda AQUI no runner (não mais via curl pra Vercel), então não
+    # há mais o teto de 300s da serverless function — o limite é este timeout.
     timeout-minutes: 30
     steps:
-      - name: Trigger Radar API
-        run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "${{ secrets.APP_URL }}/api/radar/run" \
-            -H "Authorization: Bearer ${{ secrets.RADAR_CRON_SECRET }}" \
-            -H "Content-Type: application/json")
-          echo "Status: $response"
-          if [ "$response" != "200" ]; then
-            echo "Falha — status $response"
-            exit 1
-          fi
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run radar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
