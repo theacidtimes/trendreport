@@ -248,7 +248,7 @@ async function processMarcaBatch(
   console.log(`[RADAR] Finalizando: ${marca.nome}`)
   const rawData: RawDataPoint[] = jobs
     .filter(j => j.status === 'done')
-    .flatMap(j => mapItems(j.fonte as Fonte, j.raw || []))
+    .flatMap(j => mapItems(j.fonte as Fonte, j.raw || [], marca.yaml_conhecimento.idioma))
 
   if (rawData.length < 3) {
     console.log(`[RADAR] Dados insuficientes para ${marca.nome}`)

@@ -197,11 +197,11 @@ export async function fetchDataset(datasetId: string): Promise<any[]> {
 // Converte itens crus do dataset (por fonte) em RawDataPoint[]. Puro — roda no tick
 // que finaliza o batch, sobre o raw guardado em radar_scrape_jobs.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapItems(fonte: Fonte, items: any[]): RawDataPoint[] {
+export function mapItems(fonte: Fonte, items: any[], idioma?: string): RawDataPoint[] {
   if (fonte === 'reddit') return mapReddit(items)
   if (fonte === 'news' || fonte === 'news_global') return mapNews(items)
   if (fonte === 'tiktok') return mapTikTok(items)
-  if (fonte === 'linkedin') return mapLinkedin(items)
+  if (fonte === 'linkedin') return mapLinkedin(items, idioma)
   return mapTwitter(items)
 }
 
@@ -354,13 +354,31 @@ function mapTikTok(items: any[]): RawDataPoint[] {
 const LINKEDIN_MIN_ENGAJAMENTO = 3
 const LINKEDIN_MIN_CORPO = 120
 
+// Detecta português no corpo do post. O actor de LinkedIn não expõe idioma no nível do
+// post (só locale do autor, proxy fraco), então a peneira é no texto. Barra sobretudo
+// inglês (GRC/cyber global etc.): marcadores fortes de PT que praticamente inexistem em
+// EN (ã, õ, ç, "você", "está"), com fallback por densidade de função-palavras PT pra
+// pegar texto PT mesmo sem acento. Não separa PT-BR de PT-PT (isso é fase 2, por geo).
+function ehPortugues(txt: string): boolean {
+  const t = txt.toLowerCase()
+  // Marcadores fortes de PT, quase inexistentes em inglês.
+  if (/[ãõç]/.test(t) || /\bvocê\b|\bestá\b|\bportuguês\b/.test(t)) return true
+  // Fallback: densidade de função-palavras PT (pega PT em ASCII, sem acento).
+  const fw =
+    t.match(
+      /\b(?:de|que|para|com|uma?|dos|das|por|como|mais|seu|sua|pra|isso|quando|porque|sobre|mas|ou|se|na|no|nao|voce|sao)\b/g
+    ) || []
+  const palavras = t.split(/\s+/).filter(Boolean).length || 1
+  return fw.length / palavras >= 0.1
+}
+
 // Posts do LinkedIn por busca de palavra-chave (harvestapi/linkedin-post-search). Discurso
 // profissional/B2B: o corpo do post JÁ é o argumento (o valor está no texto, não em thread).
 // content vira título+snippet; repost.content cobre o caso de compartilhamento. engagement.likes
 // →upvotes, engagement.comments→comentarios alimentam densidade. LGPD: NÃO carregamos nome de
 // autor pro sinal (o prompt cita a ideia, nunca quem falou); o snippet leva só o conteúdo.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapLinkedin(items: any[]): RawDataPoint[] {
+function mapLinkedin(items: any[], idioma = 'pt'): RawDataPoint[] {
   return items
     .map((i) => {
       const corpo = String(i.content || i.repost?.content || i.article?.title || '').replace(/\s+/g, ' ').trim()
@@ -379,6 +397,9 @@ function mapLinkedin(items: any[]): RawDataPoint[] {
       item.titulo &&
       item.url &&
       item.snippet.length >= LINKEDIN_MIN_CORPO &&
-      item.upvotes + item.comentarios >= LINKEDIN_MIN_ENGAJAMENTO
+      item.upvotes + item.comentarios >= LINKEDIN_MIN_ENGAJAMENTO &&
+      // Peneira de idioma: só barra quando a marca é PT (é o único detector que temos).
+      // Idioma != 'pt' passa sem filtro — não dropar às cegas sem detector pro idioma.
+      (idioma !== 'pt' || ehPortugues(item.snippet))
     )
 }

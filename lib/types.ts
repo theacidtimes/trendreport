@@ -181,6 +181,12 @@ export interface MarcaKnowledge {
   // pro léxico B2B certo (ex. VOLL: "gestão de viagens corporativas"). Vazio/ausente
   // = fallback pros termos_culturais (compat com marcas que já rodavam sem isto).
   termos_linkedin?: string[]
+  // Idioma editorial da marca (ISO curto: 'pt', 'en', 'es'). Governa a peneira de
+  // idioma da lane LinkedIn — o actor busca global e não filtra geo/idioma, então post
+  // fora do idioma da marca é ruído (ex.: GRC global em inglês pra marca BR). Ausente =
+  // 'pt' (todos os tenants atuais são BR). Só o LinkedIn usa isto hoje; as outras fontes
+  // já vêm ancoradas em BR pelos parâmetros de busca.
+  idioma?: string
 }
 
 export interface Marca {
