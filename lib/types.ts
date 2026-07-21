@@ -187,6 +187,33 @@ export interface MarcaKnowledge {
   // 'pt' (todos os tenants atuais são BR). Só o LinkedIn usa isto hoje; as outras fontes
   // já vêm ancoradas em BR pelos parâmetros de busca.
   idioma?: string
+  // Domínios da agenda cultural compartilhada (pulso_cultural) que esta marca ASSINA.
+  // Ex.: ['esporte','entretenimento','musica','massa']. É o eixo que separa marca
+  // cultural-led (assina muitos) de category-led (assina 0-1 ou nenhum). Ausente/vazio =
+  // NÃO puxa agenda, roda só as lanes evergreen+marca (fallback = comportamento atual).
+  dominios_culturais?: string[]
+  // Dial 0..1: quanto a agenda viva domina o mix vs. lanes evergreen/marca. Escala o
+  // número de clusters de agenda por varredura (N = round(peso × CAP)). Ausente = 0.5.
+  // 0 = ignora agenda mesmo com domínios assinados; 1 = puxa o teto de clusters.
+  peso_cultural?: number
+}
+
+// Entrada da AGENDA CULTURAL compartilhada (tabela pulso_cultural). Brand-agnóstica:
+// computada uma vez por ciclo no nível do tenant e reusada por todas as marcas que
+// assinam o domínio. tenant_id null = agenda global curada pela ACID. Âncoras datadas
+// (Oscar em março, junino em junho) usam janela; perenes (Brasileirão) deixam null.
+export interface PulsoCultural {
+  id: string
+  tenant_id: string | null
+  dominio: string
+  titulo: string
+  termos: string[]
+  janela_inicio: string | null
+  janela_fim: string | null
+  peso: number
+  ativo: boolean
+  origem: string
+  created_at: string
 }
 
 export interface Marca {

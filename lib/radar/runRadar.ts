@@ -12,7 +12,8 @@ import { scoreHype, scoreForDrop } from './scoreHype'
 import { buildRadarPrompt } from './radarPrompt'
 import { computeStatus } from './momentum'
 import { processMemory, RetrievedSignal } from './memory'
-import { Marca, RawDataPoint } from '../types'
+import { planLanes } from './planner'
+import { Marca, RawDataPoint, PulsoCultural } from '../types'
 import Anthropic from '@anthropic-ai/sdk'
 
 const MODEL = 'claude-sonnet-4-6'
@@ -82,62 +83,16 @@ async function closeRun(
   }
 }
 
-// Uma lane é um scrape (fonte + query). O composto nasce daqui: várias lanes por
-// marca, cada uma com seu recorte. O grupo em finalize é count-agnóstico, então N
-// lanes de reddit convivem sem migração — só somam sinais no mesmo batch.
-type ScrapeLane = { fonte: Fonte; keywords: string[] }
-
-function brandKeywords(marca: Marca): string[] {
-  const k = marca.yaml_conhecimento
-  // termos_busca são as palavras-chave curadas pro search. Fallback pra marca+
-  // produto só cobre registros antigos ainda sem termos — o DNA editorial
-  // (universos_culturais) NÃO entra aqui: como query cru ele retorna zero.
-  return k.termos_busca?.length
-    ? k.termos_busca
-    : [k.marca, k.produto].filter(Boolean)
-}
-
-// COMPOSTO PROPORCIONAL (Brasil 65% / global 20% / setor 15%). A lane CULTURAL
-// (interesse/contexto, sem citar a marca) é o coração dominante: Reddit + TikTok + X,
-// onde a audiência já vive, estilo interest targeting do Meta. News é âncora de MARCA e
-// tem peso mínimo (anti-alucinação, não domina drop). news_global pega early signals antes
-// de chegarem ao BR. LinkedIn é a ÚNICA fonte ligável (B2B/B2BC). Guardas por termo garantem
-// compat: sem termos_culturais roda só marca; sem termos_culturais_en pula o global.
-function lanesFor(marca: Marca): ScrapeLane[] {
-  const k = marca.yaml_conhecimento
-  const brand = brandKeywords(marca)
-  const cultural = k.termos_culturais ?? []
-  const culturalEn = k.termos_culturais_en ?? []
-  const lanes: ScrapeLane[] = []
-
-  // Coração cultural (dominante): a conversa real onde a audiência vive.
-  if (cultural.length) {
-    lanes.push({ fonte: 'reddit', keywords: cultural })
-    lanes.push({ fonte: 'tiktok', keywords: cultural })
-    lanes.push({ fonte: 'twitter', keywords: cultural })
-  }
-  // Early signals global (20%): o sinal antes de virar mainstream no BR.
-  if (culturalEn.length) {
-    lanes.push({ fonte: 'news_global', keywords: culturalEn })
-  }
-  // Âncora de marca: Reddit direto na marca + News pt-br (peso mínimo, só ancoragem factual).
-  lanes.push({ fonte: 'reddit', keywords: brand })
-  lanes.push({ fonte: 'news', keywords: brand })
-  // Única fonte ligável: LinkedIn, discurso profissional. Usa termos_linkedin (léxico
-  // B2B do decisor) quando existirem; senão cai nos culturais (compat). Só liga se há
-  // algum termo pra buscar.
-  if (k.linkedin_ativo) {
-    const linkedinTerms = k.termos_linkedin?.length ? k.termos_linkedin : cultural
-    if (linkedinTerms.length) lanes.push({ fonte: 'linkedin', keywords: linkedinTerms })
-  }
-  return lanes
-}
+// Composição de lanes (evergreen + agenda cultural + âncoras) vive em planner.ts.
+// O composto ainda é count-agnóstico no finalize: N lanes por fonte somam no mesmo batch.
 
 // DISPARO: começa os scrapes das lanes da marca (sem esperar), grava uma linha de
 // job por lane e marca a varredura como feita. O ultima_varredura sai daqui pra o
 // isDue não re-disparar a mesma marca antes do resultado voltar num tick seguinte.
-async function kickoffMarca(supabase: SupabaseLike, marca: Marca, batchId: string): Promise<void> {
-  const lanes = lanesFor(marca)
+// agenda = rows de pulso_cultural do tick (globais + do tenant); marca não-migrada
+// as ignora e roda idêntica ao comportamento legado.
+async function kickoffMarca(supabase: SupabaseLike, marca: Marca, batchId: string, agenda: PulsoCultural[]): Promise<void> {
+  const lanes = planLanes(marca, agenda)
   const runIds = await Promise.all(lanes.map(l => startScrape(l.fonte, l.keywords)))
   const rows = lanes.map((lane, i) => ({
     batch_id: batchId,
@@ -425,6 +380,17 @@ export async function runAllActiveRadars(): Promise<void> {
     else if (!temRadar) motivo.set(t.id, 'modulo radar inativo')
   }
 
+  // Agenda cultural do tick: uma vez pra todas as marcas (globais + do tenant). O
+  // planner filtra por assinatura/janela por marca. FAIL-OPEN: se falhar, agenda vazia
+  // — marca migrada segue com evergreen+âncoras, marca legada nem usa. Vigência é
+  // resolvida no planner, aqui só cortamos por ativo e escopo de tenant.
+  const orScope = tenantIds.length
+    ? `tenant_id.is.null,tenant_id.in.(${tenantIds.join(',')})`
+    : 'tenant_id.is.null'
+  const { data: agendaRows } = await supabase
+    .from('pulso_cultural').select('*').eq('ativo', true).or(orScope)
+  const agenda = (agendaRows ?? []) as PulsoCultural[]
+
   const batchId = randomUUID()
   let disparadas = 0
   for (const marca of due) {
@@ -436,7 +402,7 @@ export async function runAllActiveRadars(): Promise<void> {
       continue
     }
     try {
-      await kickoffMarca(supabase, marca, batchId)
+      await kickoffMarca(supabase, marca, batchId, agenda)
       disparadas++
     } catch (e) {
       console.error(`[RADAR] Erro ao disparar ${marca.nome}:`, e)
