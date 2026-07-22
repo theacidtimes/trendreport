@@ -1,8 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { sendEmail } from "@/lib/email/send";
+import { contaCriadaEmail } from "@/lib/email/templates";
 
 // Gestao self-serve de membros pelo ADMIN DO TENANT, dentro do workspace. As RPCs
 // (0028) travam em sou_admin_do_meu_tenant() por dentro e resolvem o tenant SEMPRE
@@ -35,6 +38,14 @@ function serviceDb() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
+}
+
+// Origem real da requisicao (local: localhost; prod: dominio Vercel via forwarded).
+function origin(): string {
+  const h = headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
 }
 
 // Senha temporaria forte pra conta recem-criada. O usuario troca depois; aqui
@@ -158,6 +169,24 @@ export async function adicionarMembro(
     // Rollback best-effort: a conta nasceu mas nao pertence a nenhum tenant.
     await admin.auth.admin.deleteUser(newId).catch(() => {});
     throw new Error(papelErr.message);
+  }
+
+  // Best-effort: avisa a pessoa que a conta foi criada e deixa ela definir a
+  // propria senha (link de recovery -> /ativar). Se o Resend falhar, NAO derruba a
+  // acao — a senha temporaria devolvida abaixo segue como fallback manual.
+  try {
+    const { data: tenantRow2 } = await supabase
+      .from("tenants").select("nome").eq("id", tenantId).maybeSingle();
+    const tenantNome = (tenantRow2 as { nome: string } | null)?.nome ?? "seu workspace";
+    const { data: link } = await admin.auth.admin.generateLink({ type: "recovery", email });
+    const hash = link?.properties?.hashed_token;
+    if (hash) {
+      const actionUrl = `${origin()}/auth/confirm?token_hash=${hash}&type=recovery&next=/ativar`;
+      const { subject, html } = contaCriadaEmail({ tenantNome, actionUrl });
+      await sendEmail({ to: email, subject, html });
+    }
+  } catch (e) {
+    console.error("Falha ao enviar e-mail de conta criada (tenant):", e);
   }
 
   revalidatePath("/dashboard/admin/usuarios");

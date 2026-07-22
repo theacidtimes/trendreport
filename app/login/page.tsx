@@ -7,6 +7,7 @@ import { ArrowRight, Loader2, TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
 import GenerativeBackdrop from "@/components/login/GenerativeBackdrop";
+import LegalFooter from "@/components/LegalFooter";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-bg p-4 md:p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-5 bg-bg p-4 md:p-6">
       {/* Caixa centralizada, cantos arredondados (estilo Krea) */}
       <div className="relative w-full max-w-[940px] h-[min(86vh,600px)] flex overflow-hidden rounded-3xl border border-border bg-surface shadow-card">
         {/* Painel do formulário */}
@@ -120,6 +121,8 @@ export default function LoginPage() {
           <GenerativeBackdrop tint="#81D300" highlight="#FFFFFF" />
         </div>
       </div>
+
+      <LegalFooter className="w-full max-w-[940px]" />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Bolt,
+  Info,
   LayoutGrid,
   LogOut,
   Plus,
@@ -14,6 +15,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
 import CreditTicker from "./CreditTicker";
+import TermosModal from "./TermosModal";
+import { OPERADO_POR } from "@/lib/legal";
 import type { TenantBranding } from "@/lib/types";
 
 // `modulo` mapeia o item ao "app" do Acid Fabric que o habilita (enforcement de
@@ -50,6 +53,7 @@ export default function Sidebar({
   // que threadar prop por todos os layouts do workspace.
   const [isTenantAdmin, setIsTenantAdmin] = useState(false);
   const canAdmin = isAdmin || isTenantAdmin;
+  const [termosOpen, setTermosOpen] = useState(false);
 
   // Modulos ativos do tenant (enforcement): esconde do rail o que nao foi
   // assinado. null = carregando OU rpc falhou -> mostra TUDO (fail-open, sem
@@ -149,7 +153,7 @@ export default function Sidebar({
         </nav>
 
         <div className="mt-auto px-3 pb-6">
-          <div className="pt-4 border-t border-hairline">
+          <div className="pt-4 border-t border-hairline flex flex-col gap-1">
             <button
               onClick={handleSignOut}
               aria-label="Sair"
@@ -163,6 +167,26 @@ export default function Sidebar({
                     {userEmail}
                   </span>
                 )}
+              </span>
+            </button>
+
+            {/* Atribuição legal fixa da operadora — presente no produto pra
+                qualquer tenant, independente do branding white-label. Abre os
+                T&C em modal, sem tirar o usuário do workspace. */}
+            <button
+              type="button"
+              onClick={() => setTermosOpen(true)}
+              aria-label="Termos e Condições"
+              className="group/item relative grid place-items-center w-full h-8 rounded-xl text-muted-2 hover:text-muted hover:bg-surface/70 transition-colors"
+            >
+              <Info className="w-[15px] h-[15px]" strokeWidth={2} />
+              <span className="pointer-events-none absolute left-full ml-3 z-50 flex flex-col whitespace-nowrap rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-white opacity-0 translate-x-[-4px] shadow-elevated transition-all duration-150 group-hover/item:opacity-100 group-hover/item:translate-x-0">
+                <span className="text-[11px] text-muted leading-tight">
+                  {OPERADO_POR}
+                </span>
+                <span className="text-[11px] font-medium leading-tight mt-0.5">
+                  Termos e Condições
+                </span>
               </span>
             </button>
           </div>
@@ -203,6 +227,8 @@ export default function Sidebar({
           )}
         </div>
       </header>
+
+      {termosOpen && <TermosModal onClose={() => setTermosOpen(false)} />}
     </>
   );
 }

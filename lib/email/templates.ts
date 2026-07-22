@@ -93,6 +93,35 @@ export function inviteEmail(opts: {
   };
 }
 
+// ─── Conta criada (membro adicionado por admin/console) ───────
+// Diferente do inviteEmail (que fala em "administrador"): aqui o papel pode ser
+// qualquer um, entao a copy e neutra. A conta ja existe com senha temporaria; este
+// link de recovery deixa a pessoa definir a PROPRIA senha e entrar direto.
+export function contaCriadaEmail(opts: {
+  tenantNome: string;
+  actionUrl: string;
+}): EmailContent {
+  const LIME = "#81D300";
+  return {
+    subject: `Sua conta no workspace ${opts.tenantNome} está pronta`,
+    html: shell({
+      accent: LIME,
+      preheader: `Defina sua senha e entre no workspace ${opts.tenantNome}.`,
+      heading: "Sua conta foi criada",
+      body: [
+        paragraph(
+          `Uma conta foi criada para você no workspace <strong style="color:${TEXT};">${opts.tenantNome}</strong>, na plataforma de inteligência cultural da Acid Fabric.`
+        ),
+        paragraph(
+          "Para acessar, defina sua senha e entre. Leva menos de um minuto:"
+        ),
+        button(opts.actionUrl, "Definir minha senha", LIME, "#000000"),
+        fallbackLink(opts.actionUrl),
+      ].join(""),
+    }),
+  };
+}
+
 // ─── Reset de senha ───────────────────────────────────────────
 export function resetEmail(opts: { actionUrl: string }): EmailContent {
   const PURPLE = "#A063E8";

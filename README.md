@@ -2,6 +2,8 @@
 
 Ferramenta interna da cccaramelo: cole um briefing em YAML, gere um relatório visual de tendências e compartilhe o link público com o cliente. Sem PDF, sem Figma, sem envio de arquivo — o cliente só abre o link.
 
+> **Titularidade e operação:** a plataforma é desenvolvida e operada por **The Acid Times** (CNPJ 36.458.402/0001-81). Os clientes (ex. cccaramelo/Caramelo) licenciam o uso; a titularidade do software permanece com a The Acid Times. Os Termos e Condições de Uso ficam em `/termos` e são aceitos pelo usuário no primeiro login (ver `lib/legal.ts`).
+
 ## Stack
 
 - Next.js 14 (App Router) + TypeScript

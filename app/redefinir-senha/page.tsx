@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Loader2, TriangleAlert, CheckCircle2 } from "lucide-react";
 import { redefinirSenha } from "@/app/auth/actions";
 import Logo from "@/components/Logo";
+import LegalFooter from "@/components/LegalFooter";
 
 export default function RedefinirSenhaPage() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function RedefinirSenhaPage() {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-bg p-4 md:p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-5 bg-bg p-4 md:p-6">
       <div className="relative w-full max-w-[420px] flex flex-col overflow-hidden rounded-3xl border border-border bg-surface shadow-card px-8 py-10">
         <div className="mb-6">
           <Logo size="md" />
@@ -121,6 +122,8 @@ export default function RedefinirSenhaPage() {
           </form>
         )}
       </div>
+
+      <LegalFooter className="w-full max-w-[420px]" />
     </div>
   );
 }

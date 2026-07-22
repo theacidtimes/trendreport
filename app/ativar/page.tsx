@@ -6,12 +6,15 @@ import Link from "next/link";
 import { ArrowRight, Loader2, TriangleAlert, CheckCircle2 } from "lucide-react";
 import { ativarConta } from "@/app/auth/actions";
 import Logo from "@/components/Logo";
+import LegalFooter from "@/components/LegalFooter";
+import TermosLink from "@/components/TermosLink";
 
 export default function AtivarPage() {
   const router = useRouter();
   const [nome, setNome] = useState("");
   const [senha, setSenha] = useState("");
   const [confirma, setConfirma] = useState("");
+  const [aceito, setAceito] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState(false);
@@ -31,9 +34,13 @@ export default function AtivarPage() {
       setError("As senhas não conferem.");
       return;
     }
+    if (!aceito) {
+      setError("É necessário aceitar os Termos e Condições.");
+      return;
+    }
     setLoading(true);
     try {
-      await ativarConta(nome, senha);
+      await ativarConta(nome, senha, aceito);
       setOk(true);
       setTimeout(() => {
         router.push("/dashboard");
@@ -46,7 +53,7 @@ export default function AtivarPage() {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-bg p-4 md:p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-5 bg-bg p-4 md:p-6">
       <div className="relative w-full max-w-[420px] flex flex-col overflow-hidden rounded-3xl border border-border bg-surface shadow-card px-8 py-10">
         <div className="mb-6">
           <Logo size="md" />
@@ -100,9 +107,25 @@ export default function AtivarPage() {
               className="bg-bg border border-border text-white text-base h-12 px-4 rounded-lg outline-none focus:border-lime transition-colors placeholder:text-muted/70"
             />
 
+            <label className="flex items-start gap-2.5 cursor-pointer select-none mt-1">
+              <input
+                type="checkbox"
+                checked={aceito}
+                onChange={(e) => setAceito(e.target.checked)}
+                className="mt-0.5 w-4 h-4 shrink-0 rounded border-border bg-bg accent-lime cursor-pointer"
+              />
+              <span className="text-muted text-[13px] leading-snug">
+                Li e aceito os{" "}
+                <TermosLink className="text-lime underline underline-offset-2 hover:brightness-110 transition">
+                  Termos e Condições
+                </TermosLink>{" "}
+                da The Acid Times.
+              </span>
+            </label>
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !aceito}
               className="bg-lime text-black font-semibold text-[15px] tracking-[-0.01em] w-full h-12 rounded-xl mt-1 flex items-center justify-center gap-2 shadow-lime hover:brightness-105 transition-[filter] disabled:opacity-60 disabled:pointer-events-none"
             >
               {loading ? (
@@ -135,6 +158,8 @@ export default function AtivarPage() {
           </form>
         )}
       </div>
+
+      <LegalFooter className="w-full max-w-[420px]" />
     </div>
   );
 }

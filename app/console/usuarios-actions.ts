@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/send";
-import { inviteEmail } from "@/lib/email/templates";
+import { inviteEmail, contaCriadaEmail } from "@/lib/email/templates";
 
 // Gerenciamento de usuarios/seats dos tenants pela ACID. As RPCs (0026) travam
 // em is_acid_admin() por dentro; estas actions so orquestram. A criacao de conta
@@ -170,6 +170,24 @@ export async function adicionarUsuario(
     // Rollback best-effort: a conta nasceu mas nao pertence a nenhum tenant.
     await admin.auth.admin.deleteUser(newId).catch(() => {});
     throw new Error(papelErr.message);
+  }
+
+  // Best-effort: avisa a pessoa que a conta foi criada e deixa ela definir a
+  // propria senha (link de recovery -> /ativar). Se o Resend falhar, NAO derruba a
+  // acao — a senha temporaria devolvida abaixo segue como fallback manual.
+  try {
+    const { data: tenantRow2 } = await supabase
+      .from("tenants").select("nome").eq("id", tenantId).maybeSingle();
+    const tenantNome = (tenantRow2 as { nome: string } | null)?.nome ?? "seu workspace";
+    const { data: link } = await admin.auth.admin.generateLink({ type: "recovery", email });
+    const hash = link?.properties?.hashed_token;
+    if (hash) {
+      const actionUrl = `${origin()}/auth/confirm?token_hash=${hash}&type=recovery&next=/ativar`;
+      const { subject, html } = contaCriadaEmail({ tenantNome, actionUrl });
+      await sendEmail({ to: email, subject, html });
+    }
+  } catch (e) {
+    console.error("Falha ao enviar e-mail de conta criada (console):", e);
   }
 
   revalidatePath(`/console/tenants/${tenantId}`);
