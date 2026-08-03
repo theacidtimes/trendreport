@@ -17,7 +17,24 @@ function toLines(v: string): string[] {
     .filter(Boolean);
 }
 
-export default function MarcaDialog({ marca }: { marca?: Marca }) {
+// Mantido em sincronia com CAP_AGENDA_CLUSTERS do planner (importar o módulo do
+// radar aqui arrastaria o SDK da Anthropic pro bundle do cliente). O check
+// script assere que os dois números são o mesmo.
+const CAP_VAGAS = 6;
+
+// Países com calendário próprio na agenda. Curto de propósito: cada país aqui
+// implica linhas de `pulso_cultural` naquele calendário, e hoje só BR tem acervo
+// — os outros existem para a marca sair com agenda VAZIA e visível em vez de
+// cair no calendário brasileiro por omissão.
+const PAISES = ["BR", "AU", "US", "PT", "ES", "MX", "AR"];
+
+export default function MarcaDialog({
+  marca,
+  dominios = [],
+}: {
+  marca?: Marca;
+  dominios?: string[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,6 +42,25 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
 
   const isEdit = Boolean(marca);
   const dna = marca?.yaml_conhecimento;
+
+  // A agenda cultural é DERIVADA por padrão. O modo manual existe porque a
+  // derivação é um chute bom, não uma autoridade: quem olhou a marca e discordou
+  // precisa poder decidir — e precisa que a decisão SOBREVIVA ao próximo save,
+  // que é o que a mesclagem no updateMarca garante.
+  const [manual, setManual] = useState(false);
+  const vagasAtuais = Math.round(
+    Math.max(0, Math.min(1, dna?.peso_cultural ?? 0)) * CAP_VAGAS
+  );
+  const [vagas, setVagas] = useState(vagasAtuais);
+  const [assinados, setAssinados] = useState<string[]>(
+    dna?.dominios_culturais ?? []
+  );
+
+  function toggleDominio(d: string) {
+    setAssinados((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
+    );
+  }
 
   const close = useCallback(() => {
     if (loading) return;
@@ -65,7 +101,21 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
       ambicao_de_marca: String(fd.get("ambicao_de_marca") || ""),
       termos_busca: toLines(String(fd.get("termos_busca") || "")),
       linkedin_ativo: fd.get("linkedin_ativo") === "on",
+      pais: String(fd.get("pais") || "BR"),
       intervalo_horas: Number(fd.get("intervalo_horas")) || 24,
+      // Só vai no payload no modo manual. Ausente (`undefined`) é o sinal que o
+      // `precisaDerivar` lê como "ninguém opinou, pode derivar"; mandar os
+      // valores atuais aqui congelaria a derivação para sempre no primeiro save.
+      ...(manual
+        ? {
+            dominios_culturais: assinados,
+            // Vagas (0-6) e não o float: é a unidade em que a decisão é
+            // avaliável ("4 de 6"), e a que se traduz direto em custo. O peso
+            // 0..1 é reconstruído exatamente aqui porque o planner faz
+            // round(peso × CAP) de volta.
+            peso_cultural: assinados.length ? vagas / CAP_VAGAS : 0,
+          }
+        : {}),
     };
     setLoading(true);
     try {
@@ -231,7 +281,115 @@ export default function MarcaDialog({ marca }: { marca?: Marca }) {
               />
             </label>
 
+            {/* ── Agenda cultural ──────────────────────────────
+                Estes dois campos existiam só no banco: a única forma de
+                preenchê-los era SQL direto, então marca criada por aqui saía,
+                por construção, sem agenda cultural nenhuma — e a ausência não
+                dava erro nem log. */}
+            <div className="rounded-2xl border border-border bg-surface/40 p-4 flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex flex-col gap-1">
+                  <span className={LABEL}>Agenda cultural</span>
+                  <span className="text-muted/60 text-[11px] max-w-sm">
+                    Assuntos do calendário compartilhado (Dia dos Pais, Black
+                    Friday, Brasileirão) que entram na varredura. Cada vaga custa
+                    3 lanes de raspagem — nenhuma vaga é uma resposta válida.
+                  </span>
+                </div>
+                <label className="flex items-center gap-2.5 cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={manual}
+                    onChange={(e) => setManual(e.target.checked)}
+                    className="w-4 h-4 rounded accent-lime"
+                  />
+                  <span className="text-sm text-white">Definir manualmente</span>
+                </label>
+              </div>
+
+              {!manual ? (
+                <p className="text-muted text-[13px] leading-relaxed">
+                  {dna?.justificativa_cultural ? (
+                    <>
+                      <span className="text-white">
+                        {dna.dominios_culturais?.length
+                          ? `${dna.dominios_culturais.join(", ")} · ${vagasAtuais} de ${CAP_VAGAS} vagas`
+                          : "Nenhum domínio assinado"}
+                      </span>
+                      <span className="block text-muted/70 mt-0.5">
+                        {dna.justificativa_cultural}
+                      </span>
+                    </>
+                  ) : (
+                    "Será derivada do DNA acima ao salvar."
+                  )}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    {dominios.length === 0 ? (
+                      <span className="text-muted/60 text-[13px]">
+                        Nenhum domínio ativo na agenda ainda.
+                      </span>
+                    ) : (
+                      dominios.map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => toggleDominio(d)}
+                          className={`rounded-full border px-3 h-8 text-xs font-medium transition-colors ${
+                            assinados.includes(d)
+                              ? "border-lime/60 bg-lime/10 text-lime"
+                              : "border-border text-muted hover:text-white hover:border-white/20"
+                          }`}
+                        >
+                          {d}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <label className="flex items-center gap-3 flex-wrap">
+                    <span className={LABEL}>Vagas por varredura</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={CAP_VAGAS}
+                      value={vagas}
+                      onChange={(e) => setVagas(Number(e.target.value))}
+                      disabled={assinados.length === 0}
+                      className="accent-lime max-w-[12rem] disabled:opacity-40"
+                    />
+                    <span className="text-white text-sm tabular-nums">
+                      {assinados.length === 0 ? 0 : vagas} de {CAP_VAGAS}
+                    </span>
+                  </label>
+                  {/* As duas metades têm que concordar: domínio assinado com
+                      zero vaga é config que parece ligada e não roda; vaga sem
+                      domínio é custo reservado para uma agenda vazia. */}
+                  {assinados.length > 0 && vagas === 0 && (
+                    <span className="text-[11px] text-amber-400">
+                      Domínios assinados com 0 vaga não rodam. Suba pelo menos 1.
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="flex flex-wrap items-end gap-6">
+              <label className="flex flex-col gap-1.5 max-w-[8rem]">
+                <span className={LABEL}>País</span>
+                <select
+                  name="pais"
+                  defaultValue={dna?.pais ?? "BR"}
+                  className={FIELD}
+                >
+                  {PAISES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="flex flex-col gap-1.5 max-w-[10rem]">
                 <span className={LABEL}>Intervalo (horas)</span>
                 <input

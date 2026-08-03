@@ -40,7 +40,7 @@ export default function ReportView({
   logoUrl?: string;
   displayName?: string;
 }) {
-  const { meta, tendencias = [], oportunidades, copy, radar, insights, glossario, fontes } = report;
+  const { meta, tendencias = [], memes = [], oportunidades, copy, radar, insights, glossario, fontes } = report;
   const corMarca = meta.cor_marca || "#660099";
 
   const featuredPostIndex = tendencias
@@ -165,13 +165,13 @@ export default function ReportView({
         </div>
       )}
 
-      {/* MEMES EM ALTA */}
+      {/* TENDÊNCIAS */}
       {tendencias.length > 0 && (
         <div className="max-w-6xl mx-auto px-5 md:px-10 pb-14 flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <Eyebrow>Cultura pop agora</Eyebrow>
             <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
-              Memes em alta
+              Tendências em alta
             </h2>
           </div>
           <div className="flex flex-col gap-5">
@@ -187,6 +187,23 @@ export default function ReportView({
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MEMES EM ALTA */}
+      {memes.length > 0 && (
+        <div className="max-w-6xl mx-auto px-5 md:px-10 pb-14 flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <Eyebrow>Linguagem da internet</Eyebrow>
+            <h2 className="font-serif text-white font-medium text-2xl md:text-3xl leading-tight">
+              Memes em alta
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {memes.map((m, i) => (
+              <TrendCard key={i} tendencia={m} index={i + 1} />
+            ))}
           </div>
         </div>
       )}

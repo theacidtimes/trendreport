@@ -86,7 +86,7 @@ export default function ReportEditor({
   const [publishing, setPublishing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [savedAt, setSavedAt] = useState(false);
-  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   function mutate(fn: (draft: TrendReport) => void) {
@@ -99,15 +99,19 @@ export default function ReportEditor({
   }
 
   // Sobe uma imagem escolhida pelo analista pro bucket público report-images e
-  // aponta a imagem_url da tendência pra URL definitiva do Storage — que não
+  // aponta a imagem_url do item pra URL definitiva do Storage — que não
   // expira, ao contrário das URLs assinadas das redes.
-  async function handleImageUpload(index: number, file: File) {
+  async function handleImageUpload(
+    alvo: "tendencias" | "memes",
+    index: number,
+    file: File
+  ) {
     if (!file.type.startsWith("image/")) {
       setError("Selecione um arquivo de imagem.");
       return;
     }
     setError("");
-    setUploadingIndex(index);
+    setUploadingKey(`${alvo}-${index}`);
 
     try {
       const supabase = createClient();
@@ -122,12 +126,13 @@ export default function ReportEditor({
 
       const { data } = supabase.storage.from("report-images").getPublicUrl(path);
       mutate((d) => {
-        d.tendencias[index].imagem_url = data.publicUrl;
+        const lista = alvo === "memes" ? d.memes : d.tendencias;
+        if (lista?.[index]) lista[index].imagem_url = data.publicUrl;
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao subir a imagem.");
     } finally {
-      setUploadingIndex(null);
+      setUploadingKey(null);
     }
   }
 
@@ -336,10 +341,10 @@ export default function ReportEditor({
             </div>
           </section>
 
-          {/* MEMES / TENDÊNCIAS */}
+          {/* TENDÊNCIAS */}
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <SectionHeading>Memes em alta</SectionHeading>
+              <SectionHeading>Tendências em alta</SectionHeading>
               <span className="flex items-center gap-1.5 text-muted text-[11px] uppercase tracking-[0.1em]">
                 <Lock className="w-3 h-3" strokeWidth={2.5} />
                 link travado
@@ -358,7 +363,7 @@ export default function ReportEditor({
                     onClick={() =>
                       mutate((d) => d.tendencias.splice(i, 1))
                     }
-                    aria-label="Remover meme"
+                    aria-label="Remover tendência"
                     className="text-muted hover:text-red-400 transition-colors flex items-center gap-1 text-xs"
                   >
                     <X className="w-3.5 h-3.5" strokeWidth={2} /> remover
@@ -383,7 +388,7 @@ export default function ReportEditor({
                   <div className="flex flex-col items-start gap-1.5">
                     <label
                       className={`flex items-center gap-1.5 text-xs font-medium border border-border rounded-lg px-3 py-2 transition-colors ${
-                        uploadingIndex === i
+                        uploadingKey === `tendencias-${i}`
                           ? "text-muted"
                           : "text-white hover:border-lime/40 cursor-pointer"
                       }`}
@@ -392,14 +397,14 @@ export default function ReportEditor({
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        disabled={uploadingIndex === i}
+                        disabled={uploadingKey === `tendencias-${i}`}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) handleImageUpload(i, file);
+                          if (file) handleImageUpload("tendencias", i, file);
                           e.target.value = "";
                         }}
                       />
-                      {uploadingIndex === i ? (
+                      {uploadingKey === `tendencias-${i}` ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2.5} />
                           Enviando...
@@ -411,7 +416,7 @@ export default function ReportEditor({
                         </>
                       )}
                     </label>
-                    {t.imagem_url && uploadingIndex !== i && (
+                    {t.imagem_url && uploadingKey !== `tendencias-${i}` && (
                       <button
                         onClick={() => mutate((d) => (d.tendencias[i].imagem_url = undefined))}
                         className="text-muted hover:text-red-400 transition-colors text-[11px]"
@@ -474,6 +479,146 @@ export default function ReportEditor({
               </div>
             ))}
           </section>
+
+          {/* MEMES */}
+          {(report.memes?.length ?? 0) > 0 && (
+            <section className="flex flex-col gap-4">
+              <SectionHeading>Memes em alta</SectionHeading>
+              {report.memes?.map((m, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col gap-3 bg-surface/50 border border-border rounded-xl p-4"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted text-xs font-medium">
+                      #{String(i + 1).padStart(2, "0")}
+                    </span>
+                    <button
+                      onClick={() => mutate((d) => d.memes?.splice(i, 1))}
+                      aria-label="Remover meme"
+                      className="text-muted hover:text-red-400 transition-colors flex items-center gap-1 text-xs"
+                    >
+                      <X className="w-3.5 h-3.5" strokeWidth={2} /> remover
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-16 h-20 rounded-lg overflow-hidden bg-black border border-border shrink-0">
+                      {m.imagem_url ? (
+                        <SmartImage
+                          src={m.imagem_url}
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <ImageIcon className="w-5 h-5 text-white/25" strokeWidth={1.5} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-start gap-1.5">
+                      <label
+                        className={`flex items-center gap-1.5 text-xs font-medium border border-border rounded-lg px-3 py-2 transition-colors ${
+                          uploadingKey === `memes-${i}`
+                            ? "text-muted"
+                            : "text-white hover:border-lime/40 cursor-pointer"
+                        }`}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingKey === `memes-${i}`}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload("memes", i, file);
+                            e.target.value = "";
+                          }}
+                        />
+                        {uploadingKey === `memes-${i}` ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2.5} />
+                            Enviando...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5" strokeWidth={2.5} />
+                            {m.imagem_url ? "Trocar imagem" : "Adicionar imagem"}
+                          </>
+                        )}
+                      </label>
+                      {m.imagem_url && uploadingKey !== `memes-${i}` && (
+                        <button
+                          onClick={() =>
+                            mutate((d) => {
+                              if (d.memes?.[i]) d.memes[i].imagem_url = undefined;
+                            })
+                          }
+                          className="text-muted hover:text-red-400 transition-colors text-[11px]"
+                        >
+                          remover imagem
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Título">
+                      <input
+                        type="text"
+                        value={m.titulo}
+                        onChange={(e) =>
+                          mutate((d) => {
+                            if (d.memes?.[i]) d.memes[i].titulo = e.target.value;
+                          })
+                        }
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Status">
+                      <select
+                        value={m.status}
+                        onChange={(e) =>
+                          mutate((d) => {
+                            if (d.memes?.[i])
+                              d.memes[i].status = e.target.value as TendenciaStatus;
+                          })
+                        }
+                        className={`${inputClass} [color-scheme:dark]`}
+                      >
+                        {STATUS_OPCOES.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                  <Field label="Descrição">
+                    <textarea
+                      value={m.descricao}
+                      onChange={(e) =>
+                        mutate((d) => {
+                          if (d.memes?.[i]) d.memes[i].descricao = e.target.value;
+                        })
+                      }
+                      className={`${inputClass} min-h-[60px] resize-y`}
+                    />
+                  </Field>
+                  <Field label="Linguagem que o meme espalha">
+                    <textarea
+                      value={m.linguagem}
+                      onChange={(e) =>
+                        mutate((d) => {
+                          if (d.memes?.[i]) d.memes[i].linguagem = e.target.value;
+                        })
+                      }
+                      className={`${inputClass} min-h-[60px] resize-y`}
+                    />
+                  </Field>
+                </div>
+              ))}
+            </section>
+          )}
 
           {/* OPORTUNIDADES */}
           <section className="flex flex-col gap-4">

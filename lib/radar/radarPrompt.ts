@@ -20,12 +20,96 @@ tornar oportunidades de marca antes que virem mainstream, e os entrega curados e
 contextualizados como insumo para o time criativo.
 `.trim()
 
+// ── Quantos sinais de cada fonte chegam ao modelo ─────────────────────────
+//
+// MEDIDO (Vivo, 10 dias de jul/2026): a coleta entrega 99–197 tweets, 56–114
+// TikToks, 39–80 notícias e 17–46 posts de Reddit POR DIA. Os limites antigos
+// (10/8/8/6/8) mandavam ~34 itens ao modelo, ou seja ~9% do que foi raspado e
+// pago. O resto era descartado — e, pior, descartado por ordem de chegada.
+//
+// Os tetos abaixo dobram o que o modelo enxerga. O custo é só token de input:
+// ~7k → ~15k tokens por varredura, algo como +$0,02 por run no Sonnet (menos
+// de $2/mês no volume atual, contra os $69 que o sistema já gasta). Barato
+// perto de raspar 400 itens e mostrar 34.
+//
+// Reddit tem o teto mais alto em relação ao volume porque é onde está a
+// conversa (post + até 5 comentários por item); Twitter e TikTok são o grosso
+// da coleta e é lá que o corte doía mais.
+const LIMITES: Record<string, number> = {
+  reddit: 20,
+  tiktok: 20,
+  twitter: 20,
+  linkedin: 12,
+  news: 15
+}
+
+function numero(v: unknown): number {
+  // Comparador que devolve NaN deixa a ordenação indefinida — um único item com
+  // campo sujo bagunçaria a lista inteira, em silêncio.
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0
+}
+
+/**
+ * Engajamento de um sinal: reações + conversa.
+ *
+ * Só é usado para ordenar DENTRO de uma mesma fonte, e é por isso que somar os
+ * dois campos crus funciona sem normalização: 400 upvotes é topo do Reddit no
+ * mesmo dia em que 250 mil curtidas é topo do Twitter, mas essas duas listas
+ * nunca se comparam entre si.
+ *
+ * Não inventei peso para "comentário vale N curtidas": não tenho dado que
+ * sustente o número, e chutar um multiplicador aqui seria trocar um viés
+ * arbitrário (ordem de chegada) por outro mais difícil de enxergar.
+ */
+export function engajamento(d: RawDataPoint): number {
+  return numero(d.upvotes) + numero(d.comentarios)
+}
+
+/**
+ * Os `limite` sinais mais engajados de uma fonte.
+ *
+ * O bug que isto corrige: antes era `.filter(...).slice(0, 8)`, sem ordenar.
+ * O `.slice` pegava os primeiros na ordem em que a Apify devolveu, o que na
+ * prática é sorteio. Consequência medida na Vivo em 01/08/2026: um drop foi
+ * construído sobre dois tweets de 2 e 9 curtidas (posições 92 e 82 de 99),
+ * postados em 2019 e 2023, enquanto o tweet nº 11 do dia — 16.885 curtidas,
+ * sobre a estreia do Homem-Aranha — nunca chegou ao modelo.
+ *
+ * O `.filter` já devolve array novo, então o `.sort` NÃO reordena o array do
+ * chamador: `rawData` continua na ordem original para o `urlsReais` e o
+ * `scoreForDrop` do runRadar.
+ *
+ * A ordenação é estável (garantia da spec desde ES2019) e o comparador devolve
+ * 0 no empate. Isso importa para o `news`, que não tem contador de engajamento
+ * nenhum: todos empatam em 0 e a lista preserva a ordem de chegada, que ali é
+ * a ordem de relevância do próprio Google News.
+ */
+export function maisRelevantes(
+  data: RawDataPoint[],
+  fonte: RawDataPoint['fonte'],
+  limite: number
+): RawDataPoint[] {
+  return data
+    .filter(d => d.fonte === fonte)
+    .sort((a, b) => engajamento(b) - engajamento(a))
+    .slice(0, limite)
+}
+
+/** Quanto da coleta ficou de fora, por fonte. Vira log em runRadar. */
+export function resumirCorte(data: RawDataPoint[]): string {
+  const partes = Object.keys(LIMITES).map(fonte => {
+    const total = data.filter(d => d.fonte === fonte).length
+    return `${fonte} ${Math.min(total, LIMITES[fonte])}/${total}`
+  })
+  return partes.join(', ')
+}
+
 function buildCamadaInternet(data: RawDataPoint[]): string {
-  const reddit   = data.filter(d => d.fonte === 'reddit').slice(0, 10)
-  const tiktok   = data.filter(d => d.fonte === 'tiktok').slice(0, 8)
-  const twitter  = data.filter(d => d.fonte === 'twitter').slice(0, 8)
-  const linkedin = data.filter(d => d.fonte === 'linkedin').slice(0, 6)
-  const news     = data.filter(d => d.fonte === 'news').slice(0, 8)
+  const reddit   = maisRelevantes(data, 'reddit',   LIMITES.reddit)
+  const tiktok   = maisRelevantes(data, 'tiktok',   LIMITES.tiktok)
+  const twitter  = maisRelevantes(data, 'twitter',  LIMITES.twitter)
+  const linkedin = maisRelevantes(data, 'linkedin', LIMITES.linkedin)
+  const news     = maisRelevantes(data, 'news',     LIMITES.news)
 
   const blocos = [
     `--- REDDIT (comportamento e conversas reais) ---
@@ -46,7 +130,21 @@ ${linkedin.map(d => `[LINKEDIN] ${d.titulo} (${d.comentarios || 0} comentários,
   blocos.push(`--- GOOGLE NEWS (transbordo de mídia, âncora factual) ---
 ${news.map(d => `[NEWS] ${d.titulo}\n${d.snippet}\nFonte: ${d.url}`).join('\n\n') || 'sem dados'}`)
 
-  return `DADOS COLETADOS NAS ÚLTIMAS 48H:\n\n${blocos.join('\n\n')}`.trim()
+  // O cabeçalho dizia "COLETADOS NAS ÚLTIMAS 48H" e isso era FALSO: só o
+  // Reddit (time=month) e o TikTok (PAST_MONTH) têm janela; a busca do Twitter
+  // roda com sort=Top e recorte nenhum. Medido na Vivo (1.215 tweets em 10
+  // dias): 45,9% eram das últimas 48h e 123 tinham mais de um ano — havia coisa
+  // de 2015. Enquanto a lane não ganhar janela (correção separada), o prompt
+  // não afirma uma recência que o dado não tem, e avisa o modelo para conferir.
+  return `SINAIS COLETADOS NESTA VARREDURA (mais engajados primeiro, dentro de cada fonte):
+
+A data de publicação NÃO vem nos dados. Boa parte da coleta é recente, mas há
+material antigo misturado. Antes de tratar um sinal como "está acontecendo
+agora", procure a âncora temporal no próprio conteúdo (o que ele cita, a que
+responde). Na dúvida, prefira o sinal que várias fontes sustentam ao mesmo
+tempo — e não descreva como novidade o que pode ser reprise.
+
+${blocos.join('\n\n')}`.trim()
 }
 
 function buildCamadaMemoria(retrieved: RetrievedSignal[]): string {
@@ -138,7 +236,7 @@ export function buildRadarPrompt(
   knowledge: MarcaKnowledge,
   data: RawDataPoint[],
   retrieved: RetrievedSignal[] = []
-): { system: string; user: string } {
+): { system: string; user: string; corte: string } {
   const memoria = buildCamadaMemoria(retrieved)
   const userBlocks = [buildCamadaInternet(data)]
   if (memoria) userBlocks.push(memoria)
@@ -146,6 +244,7 @@ export function buildRadarPrompt(
 
   return {
     system: [CAMADA_CCCARAMELO, '\n\n---\n\n', buildCamadaMarca(knowledge)].join(''),
-    user:   userBlocks.join('\n\n---\n\n')
+    user:   userBlocks.join('\n\n---\n\n'),
+    corte:  resumirCorte(data)
   }
 }

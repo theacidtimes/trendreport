@@ -12,8 +12,9 @@ import { scoreHype, scoreForDrop } from './scoreHype'
 import { buildRadarPrompt } from './radarPrompt'
 import { computeStatus } from './momentum'
 import { processMemory, RetrievedSignal } from './memory'
-import { planLanes } from './planner'
+import { planLanes, diagnosticarAgenda } from './planner'
 import { Marca, RawDataPoint, PulsoCultural } from '../types'
+import { registrarCustos, custoAnthropic } from '../custos'
 import Anthropic from '@anthropic-ai/sdk'
 
 const MODEL = 'claude-sonnet-4-6'
@@ -74,11 +75,27 @@ async function closeRun(
   // Metering (Fase 3A): 1 varredura = 1 crédito, resolvido pelo tenant da marca.
   // Idempotente por run e NÃO bloqueia — se o débito falhar, o ledger fica
   // incompleto mas a coleta/geração segue normal. Débito só se o run foi gravado.
+  //
+  // ATENÇÃO ao formato do erro: supabase-js NÃO rejeita a promise quando o
+  // Postgres devolve erro — resolve com { data, error }. O try/catch aqui só
+  // pega falha de rede/runtime; um erro de permissão ou de função passaria
+  // batido e a varredura rodaria de graça, sem uma linha de log. Por isso o
+  // `error` é lido explicitamente. Continua não bloqueando, mas agora GRITA.
   if (run?.id) {
     try {
-      await supabase.rpc('cobrar_radar_run', { p_marca: marcaId, p_ref: run.id })
+      const { error } = await supabase.rpc('cobrar_radar_run', {
+        p_marca: marcaId, p_ref: run.id
+      })
+      if (error) {
+        console.error(
+          `[RADAR][CUSTO] FALHA AO DEBITAR CREDITO — varredura rodou e gastou ` +
+          `scrape sem cobrar. marca=${marcaId} run=${run.id}: ${error.message}`
+        )
+      }
     } catch (e) {
-      console.error('[RADAR] Falha ao debitar credito (nao bloqueia):', e)
+      console.error(
+        `[RADAR][CUSTO] FALHA AO DEBITAR CREDITO (excecao) marca=${marcaId} run=${run.id}:`, e
+      )
     }
   }
 }
@@ -93,6 +110,12 @@ async function closeRun(
 // as ignora e roda idêntica ao comportamento legado.
 async function kickoffMarca(supabase: SupabaseLike, marca: Marca, batchId: string, agenda: PulsoCultural[]): Promise<void> {
   const lanes = planLanes(marca, agenda)
+  // Agenda vazia é indistinguível de agenda desligada olhando só o resultado da
+  // varredura — as duas produzem as mesmas lanes evergreen+marca. Esta linha é o
+  // que teria denunciado, meses antes, que marca criada pela tela nunca recebia
+  // agenda nenhuma: o run dizia "8 lanes disparadas" e ninguém tinha como saber
+  // que zero delas eram culturais.
+  console.log(`[RADAR][AGENDA] ${diagnosticarAgenda(marca, agenda).resumo}`)
   const runIds = await Promise.all(lanes.map(l => startScrape(l.fonte, l.keywords)))
   const rows = lanes.map((lane, i) => ({
     batch_id: batchId,
@@ -119,7 +142,26 @@ async function pollRunningJobs(supabase: SupabaseLike, jobs: ScrapeJob[]): Promi
       await markJob(supabase, job, 'failed')
       continue
     }
-    const { status, datasetId } = await getRunStatus(job.apify_run_id)
+    const { status, datasetId, usageTotalUsd, startedAt } = await getRunStatus(job.apify_run_id)
+
+    // Custo real do run, atribuído a marca+tenant. Registrado em QUALQUER estado
+    // terminal (inclusive falha: a Apify cobra a taxa de start mesmo quando o
+    // run morre) e ANTES de qualquer early-continue abaixo, pra nenhum caminho
+    // de saída perder o lançamento. Idempotente pelo unique (provedor, ref).
+    const terminal = status === 'SUCCEEDED' || TERMINAL_FAIL.has(status)
+    if (terminal && usageTotalUsd !== null) {
+      await registrarCustos(supabase, [{
+        tenantId: job.tenant_id,
+        marcaId: job.marca_id,
+        origem: 'radar',
+        provedor: 'apify',
+        detalhe: job.fonte,
+        ref: job.apify_run_id,
+        custoUsd: usageTotalUsd,
+        ocorridoEm: startedAt ?? job.created_at
+      }])
+    }
+
     if (status === 'SUCCEEDED' && datasetId) {
       const raw = await fetchDataset(datasetId)
       job.raw = raw
@@ -243,13 +285,41 @@ async function processMarcaBatch(
   }
 
   const k = marca.yaml_conhecimento
-  const { system, user } = buildRadarPrompt(k, freshData, retrieved)
+  const { system, user, corte } = buildRadarPrompt(k, freshData, retrieved)
+  // Quanto da coleta chegou ao modelo, por fonte. Sem isto o descarte é
+  // invisível: o run diz "300 sinais captados" e ninguém vê que o prompt levou
+  // 40. É o log que teria denunciado o corte por ordem de chegada.
+  console.log(`[RADAR][PROMPT] ${marca.nome}: ${corte} (de ${freshData.length} sinais novos)`)
   const response = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 4000,
     system,
     messages: [{ role: 'user', content: user }]
   })
+
+  // Custo do LLM. Até aqui só a Apify era medida, então o radar parecia mais
+  // barato do que é — a geração de drops é a outra metade da conta e nunca
+  // apareceu em lugar nenhum. `ref` usa o id da resposta da Anthropic, que é
+  // único por chamada e serve de chave de idempotência.
+  const usd = custoAnthropic(MODEL, response.usage)
+  if (usd === null) {
+    console.error(
+      `[RADAR][CUSTO] modelo '${MODEL}' fora da tabela de precos em lib/custos.ts — ` +
+      `custo de LLM desta varredura NAO foi contabilizado`
+    )
+  } else {
+    await registrarCustos(supabase, [{
+      tenantId: marca.tenant_id,
+      marcaId: marca.id,
+      origem: 'radar',
+      provedor: 'anthropic',
+      detalhe: MODEL,
+      ref: response.id,
+      custoUsd: usd,
+      tokensIn: response.usage?.input_tokens,
+      tokensOut: response.usage?.output_tokens
+    }])
+  }
 
   const raw = response.content.map(b => b.type === 'text' ? b.text : '').join('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

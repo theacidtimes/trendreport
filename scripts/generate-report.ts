@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import * as yaml from "js-yaml";
 import WebSocket from "ws";
 import { generateReport } from "../lib/generateReport";
+import { registrarCustos } from "../lib/custos";
 import type { MarcaKnowledge } from "../lib/types";
 
 async function main() {
@@ -57,9 +58,11 @@ async function main() {
     // gerador bebe do yaml_conhecimento dela. Sem marca_id, marcaKnowledge fica
     // undefined e o gerador cai no bloco de marca padrão (comportamento atual).
     let marcaKnowledge: MarcaKnowledge | undefined;
+    // tenant_id vem junto porque é ele que dá dono ao custo de fornecedor
+    // gasto nesta geração (ver registrarCustos mais abaixo).
     const { data: reportRow, error: reportError } = await supabase
       .from("reports")
-      .select("marca_id")
+      .select("marca_id, tenant_id")
       .eq("slug", slug)
       .maybeSingle();
     if (reportError) {
@@ -92,6 +95,42 @@ async function main() {
     }, marcaKnowledge);
     console.log("FASE 3: generateReport() concluído.", "error" in result ? "(com erro)" : "(sucesso)");
 
+    // CUSTO REAL DESTA GERAÇÃO, com dono.
+    //
+    // Este é o ponto que fechou o buraco do "NAO ATRIBUIDO" em /console/custos:
+    // antes o report usava o endpoint síncrono da Apify, que não devolve run
+    // id, então o dólar existia na fatura e não tinha como ser ligado a um
+    // tenant. Com o runActor refatorado, cada run vem identificado até aqui —
+    // que é o único lugar da cadeia que sabe de quem é o report.
+    //
+    // Roda ANTES do desvio de erro de propósito: geração que falhou no meio já
+    // consumiu scrape e token, e esse dinheiro saiu igual. E não bloqueia: se
+    // o registro de custo falhar, o report ainda é entregue (registrarCustos
+    // loga o problema por dentro).
+    if (result.custos.length) {
+      await registrarCustos(
+        supabase,
+        result.custos.map((c) => ({
+          ...c,
+          tenantId: reportRow?.tenant_id ?? null,
+          marcaId: reportRow?.marca_id ?? null,
+          origem: "report" as const,
+        }))
+      );
+      const totalUsd = result.custos.reduce((s, c) => s + c.custoUsd, 0);
+      console.log(
+        `[REPORT][CUSTO] ${result.custos.length} evento(s) registrado(s), ` +
+          `US$${totalUsd.toFixed(4)} — tenant=${reportRow?.tenant_id ?? "SEM DONO"}`
+      );
+    } else {
+      // Chegar aqui sem nenhum evento significa que nem a Apify nem o Anthropic
+      // devolveram algo mensurável. Não é normal e não deve passar calado.
+      console.error(
+        `[REPORT][CUSTO] nenhum evento de custo medido nesta geracao (slug=${slug}) — ` +
+          `o painel financeiro vai subestimar o gasto deste report`
+      );
+    }
+
     if ("error" in result) {
       await supabase
         .from("reports")
@@ -122,10 +161,27 @@ async function main() {
     // Metering (Fase 3A): 1 report = 1 crédito. Debitado no ponto onde o
     // trabalho de fato termina (report salvo como "ready"). Idempotente por
     // report.id no lado do banco. NÃO bloqueia: metering, não trava (trava é 3B).
+    //
+    // ATENÇÃO ao formato do erro: supabase-js NÃO rejeita a promise quando o
+    // Postgres devolve erro — resolve com { data, error }. Sem ler o `error`,
+    // um report podia ser entregue ao cliente sem nunca ser cobrado, em
+    // silêncio absoluto. Segue sem bloquear (o report já está pronto), mas
+    // agora falha ruidosamente.
     try {
-      await supabase.rpc("cobrar_report", { p_slug: slug });
+      const { error: cobrancaErr } = await supabase.rpc("cobrar_report", {
+        p_slug: slug,
+      });
+      if (cobrancaErr) {
+        console.error(
+          `[REPORT][CUSTO] FALHA AO DEBITAR CREDITO — report entregue sem ` +
+            `cobrar. slug=${slug}: ${cobrancaErr.message}`
+        );
+      }
     } catch (e) {
-      console.error("[REPORT] Falha ao debitar credito (nao bloqueia):", e);
+      console.error(
+        `[REPORT][CUSTO] FALHA AO DEBITAR CREDITO (excecao) slug=${slug}:`,
+        e
+      );
     }
 
     console.log(`Report ${slug} gerado com sucesso.`);

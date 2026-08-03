@@ -45,7 +45,9 @@ const NEWS_SITES_GLOBAL = [
 // News fazem os runs passarem de 60s, então NÃO dá pra esperar inline — quem dispara
 // (startScrape) não espera; o resultado é buscado num tick posterior via getRunStatus
 // + fetchDataset. Ver runRadar.ts.
-function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string; input: object } {
+// Exportada só para o check: o recorte de cada lane é CONFIGURAÇÃO, e config
+// que some não levanta exceção — a lane volta a raspar tweet de 2015 calada.
+export function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string; input: Record<string, unknown> } {
   if (fonte === 'reddit') {
     const query = keywords.slice(0, 3).join(' OR ')
     // includeMediaLinks é o que traz upVotes/numberOfComments — sem ele os contadores
@@ -129,6 +131,12 @@ function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string; input:
   }
   // twitter: busca real de tweets (apidojo). Substitui o trends actor, que só dava
   // label+volume sem conteúdo nem URL. Top + pt trazem a conversa que embasa o drop.
+  //
+  // ATÉ 01/08/2026 esta lane rodava SEM recorte temporal e sem piso de
+  // engajamento, e era a única assim: o Reddit já tinha time=month e o TikTok
+  // PAST_MONTH. Medido na Vivo (1.215 tweets em 10 dias): só 45,9% eram das
+  // últimas 48h, 123 tinham mais de um ano e havia coisa de 2015. O prompt
+  // ainda por cima anunciava tudo como "coletado nas últimas 48h".
   const query = keywords.slice(0, 3).join(' OR ')
   return {
     actorId: 'apidojo/tweet-scraper',
@@ -136,9 +144,40 @@ function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string; input:
       searchTerms: [query],
       maxItems: 20,
       sort: 'Top',
-      tweetLanguage: 'pt'
+      tweetLanguage: 'pt',
+      // Janela de recência. 7 dias e não 2: o radar da marca roda a cada 12–24h,
+      // mas 48h com sort=Top esvazia termo de nicho (é o mesmo motivo de o
+      // Reddit usar month e não day). Uma semana ainda é "está acontecendo".
+      start: janelaDeBusca(7),
+      // Piso de engajamento. Referência real: o drop da Vivo de 01/08 foi
+      // construído sobre tweets de 2 e 9 curtidas. 10 é conservador de
+      // propósito (medido: 86,3% de 2.207 tweets sobrevivem) — conversa
+      // legítima de nicho passa, feed morto não.
+      //
+      // ATENÇÃO, MEDIDO NA APIFY REAL (02/08/2026): isto vira `min_faves:10`
+      // na busca do Twitter e NÃO filtra tudo. Numa run de 20 itens, 11
+      // vieram abaixo do piso — todos das últimas ~9h, com 2 a 130 views. O
+      // `sort=Top` injeta uma cauda recente que ainda não foi pontuada e
+      // escapa do operador. Ou seja: o piso limpa o corpo indexado, não o
+      // que acabou de ser postado.
+      //
+      // Não é buraco aberto: quem garante o corte é o `maisRelevantes` do
+      // radarPrompt, que ordena por engajamento ANTES de cortar em 20 — com
+      // várias lanes de twitter por marca, essa cauda de 0 curtida fica no
+      // fim da fila e não chega ao modelo. O que se perde é só o dinheiro de
+      // raspar o que já era pra ter sido barrado na origem.
+      minimumFavorites: 10,
+      // Devolve, em cada tweet, o termo que o encontrou. Custa zero e responde
+      // "qual lane trouxe isto?" — pergunta que ficou sem resposta na
+      // investigação do Homem-Aranha porque o radar_raw_data não guarda a lane.
+      includeSearchTerms: true
     }
   }
+}
+
+// `start` do tweet-scraper: data a partir da qual buscar (YYYY-MM-DD).
+function janelaDeBusca(dias: number, now: Date = new Date()): string {
+  return new Date(now.getTime() - dias * 86_400_000).toISOString().slice(0, 10)
 }
 
 // Dispara o run e NÃO espera (waitForFinish=0). Devolve o id do run pra ser pollado
@@ -174,15 +213,29 @@ export async function startScrape(fonte: Fonte, keywords: string[]): Promise<str
 // READY/RUNNING seguem pendentes.
 export const TERMINAL_FAIL = new Set(['FAILED', 'ABORTED', 'TIMED-OUT', 'ABORTING', 'TIMING-OUT'])
 
-export type RunStatus = { status: string; datasetId: string | null }
+export type RunStatus = {
+  status: string
+  datasetId: string | null
+  // Custo real do run em US$, como a própria Apify contabilizou. Vem de graça
+  // nesta mesma resposta — não custa uma chamada a mais capturar. Run FAILED
+  // TAMBÉM cobra (a taxa de start é por run, não por sucesso): conferido num
+  // run real FAILED que saiu por $0.04. Por isso o custo é lido em todo estado
+  // terminal, não só no SUCCEEDED.
+  usageTotalUsd: number | null
+  // Quando o run rodou de fato — o custo pertence a esta data, não à data em
+  // que a gente registrou.
+  startedAt: string | null
+}
 
 export async function getRunStatus(runId: string): Promise<RunStatus> {
   const res = await fetch(`${APIFY_BASE}/actor-runs/${runId}?token=${APIFY_TOKEN}`)
-  if (!res.ok) return { status: 'FAILED', datasetId: null }
+  if (!res.ok) return { status: 'FAILED', datasetId: null, usageTotalUsd: null, startedAt: null }
   const run = await res.json()
   return {
     status: run?.data?.status ?? 'FAILED',
-    datasetId: run?.data?.defaultDatasetId ?? null
+    datasetId: run?.data?.defaultDatasetId ?? null,
+    usageTotalUsd: typeof run?.data?.usageTotalUsd === 'number' ? run.data.usageTotalUsd : null,
+    startedAt: run?.data?.startedAt ?? null
   }
 }
 

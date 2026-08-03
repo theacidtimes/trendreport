@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef } from "react";
-import { Activity, Building2, Droplets, LogOut } from "lucide-react";
+import { Activity, Building2, DollarSign, Droplets, LogOut } from "lucide-react";
 import {
   motion,
   useMotionValue,
@@ -29,6 +29,12 @@ const ITEMS = [
     label: "Saúde",
     icon: Activity,
     match: (p: string) => p.startsWith("/console/saude"),
+  },
+  {
+    href: "/console/custos",
+    label: "Custos",
+    icon: DollarSign,
+    match: (p: string) => p.startsWith("/console/custos"),
   },
   {
     href: "/console/lake",

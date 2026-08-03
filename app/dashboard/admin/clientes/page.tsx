@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getClienteSummary } from "@/lib/radar/metrics";
 import type { Marca } from "@/lib/types";
 import MarcaDialog from "./MarcaDialog";
+import { dominiosDaAgenda } from "@/lib/radar/agendaDominios";
 import ClienteToggle from "@/components/radar/ClienteToggle";
 
 function formatDate(iso: string | null): string {
@@ -24,6 +25,7 @@ export default async function ClientesPage() {
     .order("created_at", { ascending: false });
 
   const marcas = (data ?? []) as Marca[];
+  const dominios = await dominiosDaAgenda();
 
   const withSummary = await Promise.all(
     marcas.map(async (marca) => ({
@@ -46,7 +48,7 @@ export default async function ClientesPage() {
               {marcas.length} cadastrado{marcas.length === 1 ? "" : "s"}.
             </p>
           </div>
-          <MarcaDialog />
+          <MarcaDialog dominios={dominios} />
         </div>
       </div>
 

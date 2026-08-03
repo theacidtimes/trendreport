@@ -32,6 +32,17 @@ export interface Tendencia {
   plataforma?: "instagram" | "twitter" | "tiktok" | "news" | "reddit";
 }
 
+export interface Meme {
+  titulo: string;
+  status: TendenciaStatus;
+  descricao: string;
+  linguagem: string;
+  imagem_url?: string;
+  post_url?: string;
+  autor?: string | null;
+  plataforma?: "instagram" | "twitter" | "tiktok" | "news" | "reddit";
+}
+
 export interface RadarSinal {
   tema: string;
   url?: string | null;
@@ -76,6 +87,7 @@ export interface FontesDados {
 export interface TrendReport {
   meta: ReportMeta;
   tendencias: Tendencia[];
+  memes?: Meme[];
   oportunidades: Oportunidade[];
   copy: CopyItem[];
   radar: RadarItem[];
@@ -104,6 +116,7 @@ export interface InstagramItem {
   hashtags?: string[];
   ownerUsername?: string;
   type?: string;
+  fonte?: "meme" | "geral";
 }
 
 export interface TikTokItem {
@@ -114,6 +127,58 @@ export interface TikTokItem {
   diggCount?: number;
   playCount?: number;
   hashtags?: string[];
+  musicId?: string;
+  musicName?: string;
+  musicAuthor?: string;
+  musicOriginal?: boolean;
+  // Data de publicação. Existe porque o filtro de data do scraper está
+  // desativado na origem (ver fetchTikTok) e a recência precisa ser cortada do
+  // nosso lado, como já é feito no Instagram.
+  createTimeISO?: string;
+  // Duração em segundos. É o separador mais barato entre áudio-molde e áudio-
+  // papel-de-parede: quando o som dita o formato, os vídeos convergem na duração
+  // do trecho; quando é só música de fundo, a duração varia à vontade.
+  duration?: number;
+  // URL do arquivo de legenda no CDN do TikTok. Campo de TRABALHO, não de
+  // saída: vive entre a coleta e o trimForModel, e é apagado por
+  // enriquecerComLegendas assim que vira `transcricao` (ver lib/legendas.ts).
+  // Não deve chegar ao modelo — é token gasto num link que ele não abre.
+  subtitleUrl?: string;
+  // O que foi DITO no vídeo. Em TikTok a caption é "kkkk #fyp" e o conteúdo
+  // mora na fala: julgar relevância só pela legenda escrita é a causa
+  // estrutural do "tema certo, conteúdo irrelevante" apontado no feedback.
+  // Ausente quando o vídeo não tem legenda no TikTok — o que NÃO é erro
+  // (vídeo sem voz, só música).
+  transcricao?: string;
+}
+
+// CANDIDATO a trend, não veredito. Repetição de som/hashtag entre criadores
+// diferentes é evidência de replicabilidade, mas sozinha ela não distingue duas
+// coisas opostas: som que é MOLDE (dita o formato, quem refaz obedece) de som que
+// é PAPEL DE PAREDE (hit tocando atrás de conteúdo sem relação entre si). No
+// Brasil o segundo caso é o mais comum, então os campos abaixo existem pra
+// qualificar o candidato em vez de promovê-lo por contagem de criadores.
+export interface ClusterTrend {
+  tipo: "audio" | "hashtag";
+  chave: string;
+  videos: number;
+  criadores: number;
+  exemplos: string[];
+  // Mediana em segundos + se as durações se concentram em volta dela. Duração
+  // consistente é o indício de que o áudio está ditando o formato.
+  duracao_mediana: number;
+  duracao_consistente: boolean;
+  // Mediana (não soma) do engajamento: separa cluster com tração distribuída de
+  // cluster com um hit e vários vídeos mortos.
+  engajamento_mediano: number;
+  // Hashtags que reaparecem em 2+ vídeos do cluster, fora as genéricas. Trend de
+  // formato compartilha vocabulário; papel de parede compartilha só a música.
+  hashtags_comuns: string[];
+  // Fontes FORA do TikTok (news, reddit, twitter, instagram) que mencionam a
+  // chave. É o "transbordo" do scoreHype: corroboração factual com peso baixo.
+  transbordo: string[];
+  // Composto 0-100 das dimensões acima. Ordena os candidatos; não é veredito.
+  forca: number;
 }
 
 export interface TwitterItem {
@@ -138,6 +203,12 @@ export interface RedditItem {
   url?: string;
   upVotes?: number;
   numberOfComments?: number;
+  // Imagem do post quando hospedada no Reddit. Em sub de meme ela costuma SER o
+  // meme (imagem-modelo), então sem ela o item chega ao report como texto solto.
+  imageUrl?: string;
+  // Mesma semântica do fonte do Instagram: separa a comunidade que produz meme
+  // da que discute assunto. Muda como o modelo lê o item, não só de onde veio.
+  fonte?: "meme" | "geral";
 }
 
 export interface RawData {
@@ -187,6 +258,13 @@ export interface MarcaKnowledge {
   // 'pt' (todos os tenants atuais são BR). Só o LinkedIn usa isto hoje; as outras fontes
   // já vêm ancoradas em BR pelos parâmetros de busca.
   idioma?: string
+  // País do CALENDÁRIO da marca (ISO-2: 'BR', 'AU', 'US'). Distinto de `idioma`:
+  // idioma governa a peneira de texto do LinkedIn, país governa QUAL agenda faz
+  // sentido. Uma granola australiana fala português nenhum, mas o problema não é
+  // esse — é que o Dia dos Pais dela é em setembro, o Brasileirão não existe e
+  // "volta às aulas" cai em janeiro. Sem este campo, assinar um domínio jogava a
+  // marca dentro do calendário brasileiro sem que nada avisasse. Ausente = 'BR'.
+  pais?: string
   // Domínios da agenda cultural compartilhada (pulso_cultural) que esta marca ASSINA.
   // Ex.: ['esporte','entretenimento','musica','massa']. É o eixo que separa marca
   // cultural-led (assina muitos) de category-led (assina 0-1 ou nenhum). Ausente/vazio =
@@ -196,6 +274,11 @@ export interface MarcaKnowledge {
   // número de clusters de agenda por varredura (N = round(peso × CAP)). Ausente = 0.5.
   // 0 = ignora agenda mesmo com domínios assinados; 1 = puxa o teto de clusters.
   peso_cultural?: number
+  // Por que os dois campos acima estão como estão. Gravado junto quando a derivação
+  // (perfilCultural.ts) os calcula. Não é enfeite: sem a frase, `peso_cultural: 0`
+  // numa marca B2B é indistinguível de campo esquecido, e ninguém ousa mexer num
+  // número que não sabe de onde veio. É o que torna o derivado auditável e editável.
+  justificativa_cultural?: string
 }
 
 // Entrada da AGENDA CULTURAL compartilhada (tabela pulso_cultural). Brand-agnóstica:
@@ -214,6 +297,12 @@ export interface PulsoCultural {
   ativo: boolean
   origem: string
   created_at: string
+  // País (ISO-2) a que esta linha pertence. null = UNIVERSAL, vale em qualquer
+  // calendário ("lançamentos de streaming", "comportamento nas redes"). Quase toda
+  // linha é datada de um país específico — mesmo as que não parecem: "Dia dos Pais"
+  // é agosto no BR e setembro na AU. Sem esta coluna, uma marca estrangeira que
+  // assina `massa` recebe o calendário brasileiro inteiro, calada.
+  pais?: string | null
 }
 
 export interface Marca {

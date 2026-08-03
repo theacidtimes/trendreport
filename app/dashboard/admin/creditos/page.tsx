@@ -62,9 +62,25 @@ export default async function CreditosPage() {
     : { data: [] };
   const ledger = (ledgerData ?? []) as CreditoLedger[];
 
-  const consumidos = ledger
-    .filter((l) => l.delta < 0)
-    .reduce((s, l) => s + Math.abs(l.delta), 0);
+  // Consumo REAL dos últimos 30 dias, direto do banco. Antes esta tela somava
+  // os débitos das 100 últimas linhas do extrato e chamava de "consumidos" —
+  // um número que dizia mais sobre o limite da query do que sobre o consumo:
+  // ao passar de 100 lançamentos ele congelava e passava a mentir pra baixo.
+  const { data: usoData } = await supabase.rpc("meus_custos", { p_dias: 30 });
+  const uso = (Array.isArray(usoData) ? usoData[0] : null) as {
+    varreduras: number;
+    reports: number;
+    creditos_gastos: number;
+    sinais_captados: number;
+    drops_gerados: number;
+    saldo_creditos: number;
+  } | null;
+
+  const saldo = tenant?.saldo_creditos ?? 0;
+  const gastos30d = uso?.creditos_gastos ?? 0;
+  // Autonomia no ritmo atual. Só faz sentido se houve consumo na janela.
+  const diasRestantes =
+    gastos30d > 0 ? Math.floor(saldo / (gastos30d / 30)) : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,32 +97,44 @@ export default async function CreditosPage() {
       </div>
 
       {/* Cartões de resumo */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-1 shadow-card">
-          <span className="text-white text-3xl font-bold tabular-nums">
-            {tenant?.saldo_creditos ?? 0}
-          </span>
-          <span className="text-muted text-[11px] uppercase tracking-wide">
-            Saldo atual
-          </span>
-        </div>
-        <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-1 shadow-card">
-          <span className="text-white text-3xl font-bold tabular-nums">
-            {consumidos}
-          </span>
-          <span className="text-muted text-[11px] uppercase tracking-wide">
-            Consumidos (100 últimos)
-          </span>
-        </div>
-        <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-1 shadow-card">
-          <span className="text-white text-3xl font-bold tabular-nums">
-            {ledger.length}
-          </span>
-          <span className="text-muted text-[11px] uppercase tracking-wide">
-            Lançamentos
-          </span>
-        </div>
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card
+          value={saldo}
+          label="Saldo atual"
+          tone={saldo <= 0 ? "critico" : "neutral"}
+        />
+        <Card value={gastos30d} label="Consumidos · 30d" />
+        <Card
+          value={
+            diasRestantes === null
+              ? "—"
+              : diasRestantes > 365
+                ? "365+"
+                : `${diasRestantes}d`
+          }
+          label="Autonomia no ritmo atual"
+          tone={
+            diasRestantes !== null && diasRestantes <= 15 ? "critico" : "neutral"
+          }
+        />
+        <Card value={ledger.length} label="Lançamentos" />
       </section>
+
+      {/* O que os créditos viraram. Crédito é abstrato; entrega não é —
+          esta faixa é o que torna a contagem "realista" pro cliente. */}
+      {uso && (
+        <section className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-3 shadow-card">
+          <span className="kicker text-muted-2">
+            O que isso virou · últimos 30 dias
+          </span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Mini value={uso.varreduras} label="varreduras" />
+            <Mini value={uso.reports} label="reports" />
+            <Mini value={uso.sinais_captados} label="sinais captados" />
+            <Mini value={uso.drops_gerados} label="drops gerados" />
+          </div>
+        </section>
+      )}
 
       {isAcidAdmin && tenantId && <RecargaForm tenantId={tenantId} />}
 
@@ -161,6 +189,44 @@ export default async function CreditosPage() {
           </ul>
         )}
       </section>
+    </div>
+  );
+}
+
+function Card({
+  value,
+  label,
+  tone = "neutral",
+}: {
+  value: number | string;
+  label: string;
+  tone?: "neutral" | "critico";
+}) {
+  return (
+    <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-1 shadow-card">
+      <span
+        className={`text-3xl font-bold tabular-nums ${
+          tone === "critico" ? "text-red-400" : "text-white"
+        }`}
+      >
+        {value}
+      </span>
+      <span className="text-muted text-[11px] uppercase tracking-wide">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function Mini({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-white text-xl font-bold tabular-nums">
+        {value.toLocaleString("pt-BR")}
+      </span>
+      <span className="text-muted-2 text-[11px] uppercase tracking-wide">
+        {label}
+      </span>
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { ArrowUpRight, Flame, Snowflake, Sparkles, Waves } from "lucide-react";
-import type { Tendencia } from "@/lib/types";
+import { ArrowUpRight, Flame, Quote, Snowflake, Sparkles, Waves } from "lucide-react";
+import type { Meme, Tendencia } from "@/lib/types";
 import { PLATFORM_ICON } from "@/lib/platforms";
 import SmartImage from "./SmartImage";
 
@@ -53,10 +53,15 @@ export default function TrendCard({
   large = false,
   index,
 }: {
-  tendencia: Tendencia;
+  tendencia: Tendencia | Meme;
   large?: boolean;
   index?: number;
 }) {
+  // Tendência destaca o gancho de produto; meme destaca a linguagem que ele
+  // espalha, que é o que a social media leva pro copy.
+  const isMeme = "linguagem" in tendencia;
+  const destaque = isMeme ? tendencia.linguagem : tendencia.gancho_produto;
+  const DestaqueIcon = isMeme ? Quote : Sparkles;
   const hasImage = Boolean(tendencia.imagem_url);
   const PlatformIcon = tendencia.plataforma ? PLATFORM_ICON[tendencia.plataforma] : null;
   // TikTok cobre vem no formato vertical nativo (9:16) — esticar num banner
@@ -128,8 +133,8 @@ export default function TrendCard({
         <p className="text-white/70 text-sm leading-relaxed">{tendencia.descricao}</p>
 
         <div className="flex items-start gap-2 bg-black/20 border border-white/10 rounded-xl px-4 py-3">
-          <Sparkles className="w-3.5 h-3.5 text-lime shrink-0 mt-0.5" strokeWidth={2.2} />
-          <p className="text-lime italic text-sm leading-relaxed">{tendencia.gancho_produto}</p>
+          <DestaqueIcon className="w-3.5 h-3.5 text-lime shrink-0 mt-0.5" strokeWidth={2.2} />
+          <p className="text-lime italic text-sm leading-relaxed">{destaque}</p>
         </div>
 
         {tendencia.post_url && (

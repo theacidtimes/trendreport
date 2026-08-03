@@ -7,6 +7,7 @@ import MetricChart from "@/components/admin/MetricChart";
 import ClienteExport from "@/components/admin/ClienteExport";
 import PublicLinkButton from "@/components/admin/PublicLinkButton";
 import MarcaDialog from "../MarcaDialog";
+import { dominiosDaAgenda } from "@/lib/radar/agendaDominios";
 import ActorsBar from "@/components/admin/ActorsBar";
 import type { Marca } from "@/lib/types";
 
@@ -69,9 +70,10 @@ export default async function ClienteDetailPage({
   if (!marcaData) notFound();
   const marca = marcaData as Marca;
 
-  const [summary, daily] = await Promise.all([
+  const [summary, daily, dominios] = await Promise.all([
     getClienteSummary(supabase, marca.id, marca.nome),
     getDailyMetrics(supabase, marca.id, 30),
+    dominiosDaAgenda(),
   ]);
 
   return (
@@ -102,7 +104,7 @@ export default async function ClienteDetailPage({
             </p>
           </div>
           <div className="flex items-center gap-2 print:hidden">
-            <MarcaDialog marca={marca} />
+            <MarcaDialog marca={marca} dominios={dominios} />
             <PublicLinkButton marcaId={marca.id} />
             <ClienteExport nome={marca.nome} summary={summary} daily={daily} />
           </div>

@@ -1,12 +1,28 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { collectAll, type SearchTerms, type SourceName } from "./apify";
+import {
+  collectAll,
+  diagnosticarColeta,
+  type ApifyRunLog,
+  type SearchTerms,
+  type SourceName,
+} from "./apify";
+import { custoAnthropic, type RegistroCusto } from "./custos";
+import { enriquecerComLegendas } from "./legendas";
 import {
   SYSTEM_PROMPT,
   CREATIVE_METHOD,
   buildBrandBlock,
   systemPromptDynamic,
 } from "./systemPrompt";
-import type { MarcaKnowledge, RawData, TrendReport } from "./types";
+import type {
+  ClusterTrend,
+  InstagramItem,
+  MarcaKnowledge,
+  RawData,
+  RedditItem,
+  TikTokItem,
+  TrendReport,
+} from "./types";
 
 export type ReportProgress =
   | { phase: "briefing"; sources_done: SourceName[] }
@@ -16,6 +32,62 @@ export type ReportProgress =
 export type OnProgress = (progress: ReportProgress) => void | Promise<void>;
 
 const anthropic = new Anthropic();
+
+const MODELO_REPORT = "claude-sonnet-4-6";
+const MODELO_TERMOS = "claude-haiku-4-5-20251001";
+
+// Custo de fornecedor medido durante a geração, sem os campos que só quem
+// chama conhece (tenant, marca, origem). Este arquivo mede; quem tem o
+// contexto do cliente é que grava — ver scripts/generate-report.ts.
+export type CustoColetado = Omit<
+  RegistroCusto,
+  "tenantId" | "marcaId" | "origem"
+>;
+
+// Converte o log de runs da Apify em lançamentos de custo. Só entra o que tem
+// run id E valor: run sem id não é rastreável e run sem valor terminal teria
+// número parcial — nos dois casos é melhor deixar o backfill resolver do que
+// gravar uma linha que a idempotência congela errada pra sempre.
+// Exportada só pra ser testável (scripts/check-apify-run.ts): é uma regra de
+// filtro cujo erro não levanta exceção nenhuma — só faz o custo sumir.
+export function custosDaApify(log: ApifyRunLog): CustoColetado[] {
+  return log
+    .filter((r) => r.runId && r.custoUsd !== null)
+    .map((r) => ({
+      provedor: "apify" as const,
+      detalhe: r.fonte,
+      ref: r.runId!,
+      custoUsd: r.custoUsd!,
+      ocorridoEm: r.startedAt ?? undefined,
+    }));
+}
+
+// O `id` da resposta do Anthropic é a chave natural do evento — mesmo papel
+// que o run id tem na Apify. Modelo fora da tabela de preços devolve null e
+// vira log, nunca zero (zero somaria como "saiu de graça").
+function registrarLlm(
+  custos: CustoColetado[],
+  modelo: string,
+  response: { id?: string; usage?: Anthropic.Usage } | null | undefined
+) {
+  if (!response?.id) return;
+  const usd = custoAnthropic(modelo, response.usage);
+  if (usd === null) {
+    console.error(
+      `[REPORT][CUSTO] modelo '${modelo}' fora da tabela de precos em ` +
+        `lib/custos.ts — custo de LLM deste report NAO foi contabilizado`
+    );
+    return;
+  }
+  custos.push({
+    provedor: "anthropic",
+    detalhe: modelo,
+    ref: response.id,
+    custoUsd: usd,
+    tokensIn: response.usage?.input_tokens,
+    tokensOut: response.usage?.output_tokens,
+  });
+}
 
 // Sequências de 2+ palavras Capitalizadas (ex: "Mortal Kombat", "Warner Play").
 // São os melhores termos de News: o nome do cliente sozinho ("Warner Bros Games")
@@ -110,7 +182,8 @@ const DERIVE_TOOL: Anthropic.Tool = {
 // scraper rodar sem termo.
 async function deriveSearchTerms(
   briefingYaml: string,
-  briefing: Record<string, unknown>
+  briefing: Record<string, unknown>,
+  custos?: CustoColetado[]
 ): Promise<SearchTerms> {
   const fallback = (): SearchTerms => {
     const kw = extractKeywords(briefing);
@@ -128,13 +201,16 @@ async function deriveSearchTerms(
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: MODELO_TERMOS,
       max_tokens: 500,
       system: DERIVE_SYSTEM,
       tools: [DERIVE_TOOL],
       tool_choice: { type: "tool", name: "termos_de_busca" },
       messages: [{ role: "user", content: `BRIEFING (YAML):\n${briefingYaml}` }],
     });
+
+    // Antes do fallback: a chamada foi cobrada mesmo que o resultado não sirva.
+    if (custos) registrarLlm(custos, MODELO_TERMOS, response);
 
     const toolUse = response.content.find(
       (c): c is Anthropic.ToolUseBlock => c.type === "tool_use"
@@ -234,13 +310,266 @@ function extractJson(text: string): string {
 // Instagram, 40 de TikTok etc.) infla o contexto e é a principal causa da
 // geração levar minutos. `fontes`/o guard de zero-dado continuam usando o
 // total real coletado (rawData), só o que vai pro modelo é reduzido.
-function trimForModel(rawData: RawData): RawData {
+// As contas de meme têm ordem de grandeza menos de likes que g1/flamengo, então
+// num corte único por engajamento elas nunca entram e a seção de memes fica sem
+// matéria-prima. Por isso o corte é feito em duas cotas separadas.
+function topInstagram(items: InstagramItem[]): InstagramItem[] {
+  const likes = (i: InstagramItem) => i.likesCount ?? 0;
+  return [
+    ...topByEngagement(items.filter((i) => i.fonte === "meme"), likes, 8),
+    ...topByEngagement(items.filter((i) => i.fonte !== "meme"), likes, 12),
+  ];
+}
+
+// Mesma armadilha do Instagram, e a cota separada na coleta não resolve sozinha:
+// de nada adianta garantir vaga na raspagem se o corte pro modelo é um top-10
+// único por upvote. Os subs de meme e os de discussão têm ordem de grandeza
+// diferente de upvote (HUEstation tem ~68k ativos por semana, eu_nvr é bem menor),
+// então um corte só entrega as 10 vagas pro lado maior — e o lado que perde some
+// inteiro do report. Qual dos dois vence não importa: os dois precisam chegar.
+function topReddit(items: RedditItem[]): RedditItem[] {
+  const votos = (i: RedditItem) => i.upVotes ?? 0;
+  return [
+    ...topByEngagement(items.filter((i) => i.fonte === "meme"), votos, 5),
+    ...topByEngagement(items.filter((i) => i.fonte !== "meme"), votos, 10),
+  ];
+}
+
+function mediana(nums: number[]): number {
+  if (!nums.length) return 0;
+  const s = [...nums].sort((a, b) => a - b);
+  const meio = Math.floor(s.length / 2);
+  return s.length % 2
+    ? s[meio]
+    : Math.round((s[meio - 1] + s[meio]) / 2);
+}
+
+// Concentração das durações em volta da mediana. Se 70%+ dos vídeos ficam a ±25%
+// da mediana, o áudio está ditando o formato (todos cortam no mesmo tempo). Hit
+// usado como música de fundo não tem essa disciplina: dura o que o autor quiser.
+function duracaoConsistente(duracoes: number[], med: number): boolean {
+  if (duracoes.length < 2 || med <= 0) return false;
+  const dentro = duracoes.filter((d) => Math.abs(d - med) <= med * 0.25).length;
+  return dentro / duracoes.length >= 0.7;
+}
+
+// Hashtag de alcance, não de assunto: aparece em qualquer vídeo e por isso não
+// diz nada sobre coerência temática do cluster.
+const HASHTAGS_GENERICAS = new Set([
+  "fyp",
+  "fy",
+  "foryou",
+  "foryoupage",
+  "parati",
+  "paratii",
+  "viral",
+  "viralvideo",
+  "trend",
+  "trending",
+  "tiktok",
+  "brasil",
+  "br",
+  "explore",
+  "capcut",
+]);
+
+// Repetição de som/hashtag entre criadores distintos é o ponto de partida, não a
+// conclusão: ela não separa áudio-MOLDE (dita o formato) de áudio-PAPEL-DE-PAREDE
+// (hit tocando atrás de conteúdo sem relação), e no Brasil o segundo é o caso mais
+// comum. Por isso cada candidato sai daqui qualificado por duração, vocabulário,
+// engajamento mediano e transbordo — as mesmas dimensões do lib/radar/scoreHype.ts,
+// onde comportamento pesa e imprensa é só âncora.
+// Roda sobre a coleta INTEIRA, não sobre o recorte enviado ao modelo: a repetição
+// só aparece com a amostra completa. Quem garante que os vídeos destes exemplos
+// cheguem ao modelo é o trimForModel, que recebe estas URLs de volta.
+export function detectarClusters(
+  itens: TikTokItem[],
+  corpusExterno: { fonte: string; texto: string }[] = []
+): ClusterTrend[] {
+  const grupos = new Map<
+    string,
+    {
+      tipo: ClusterTrend["tipo"];
+      chave: string;
+      videos: number;
+      criadores: Set<string>;
+      exemplos: string[];
+      duracoes: number[];
+      engajamentos: number[];
+      contagemHashtags: Map<string, number>;
+    }
+  >();
+
+  const registrar = (
+    tipo: ClusterTrend["tipo"],
+    id: string | undefined,
+    rotulo: string | undefined,
+    item: TikTokItem
+  ) => {
+    if (!id || !rotulo) return;
+    const mapKey = `${tipo}:${id}`;
+    const grupo = grupos.get(mapKey) ?? {
+      tipo,
+      chave: rotulo,
+      videos: 0,
+      criadores: new Set<string>(),
+      exemplos: [],
+      duracoes: [],
+      engajamentos: [],
+      contagemHashtags: new Map<string, number>(),
+    };
+    grupo.videos += 1;
+    if (item.authorNickName) grupo.criadores.add(item.authorNickName);
+    if (item.webVideoUrl && grupo.exemplos.length < 3) {
+      grupo.exemplos.push(item.webVideoUrl);
+    }
+    if (typeof item.duration === "number" && item.duration > 0) {
+      grupo.duracoes.push(item.duration);
+    }
+    grupo.engajamentos.push((item.diggCount ?? 0) + (item.playCount ?? 0));
+    for (const tag of item.hashtags ?? []) {
+      const t = tag.toLowerCase();
+      if (HASHTAGS_GENERICAS.has(t)) continue;
+      // Num cluster de hashtag, a própria chave está em 100% dos vídeos por
+      // definição e não é evidência de coerência.
+      if (tipo === "hashtag" && t === id) continue;
+      grupo.contagemHashtags.set(t, (grupo.contagemHashtags.get(t) ?? 0) + 1);
+    }
+    grupos.set(mapKey, grupo);
+  };
+
+  for (const item of itens) {
+    // A exigência de 2+ criadores distintos (abaixo) já descarta som exclusivo de
+    // um criador, então NÃO filtramos musicOriginal aqui: trend de formato
+    // costuma nascer justamente de um som original que viralizou e foi reusado.
+    // Filtrar cortaria o caso mais forte. O rótulo ganha o autor porque vários
+    // sons originais distintos compartilham o mesmo nome genérico.
+    const rotuloAudio = item.musicOriginal
+      ? `${item.musicName} (som original de ${item.musicAuthor ?? "autor desconhecido"})`
+      : item.musicName;
+    registrar("audio", item.musicId, rotuloAudio, item);
+    for (const tag of item.hashtags ?? []) {
+      // #fyp e companhia não podem VIRAR cluster: estão em quase todo vídeo, logo
+      // sempre reúnem o máximo de criadores e ocupariam as 12 vagas do topo
+      // empurrando candidato real pra fora. Marcam alcance, não assunto.
+      if (HASHTAGS_GENERICAS.has(tag.toLowerCase())) continue;
+      registrar("hashtag", tag.toLowerCase(), tag, item);
+    }
+  }
+
+  return Array.from(grupos.values())
+    .filter((g) => g.criadores.size >= 2)
+    .map((g) => {
+      const duracao_mediana = mediana(g.duracoes);
+      const duracao_consistente = duracaoConsistente(g.duracoes, duracao_mediana);
+      const engajamento_mediano = mediana(g.engajamentos);
+      const hashtags_comuns = Array.from(g.contagemHashtags.entries())
+        .filter(([, n]) => n >= 2)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([t]) => t);
+      const transbordo = fontesQueMencionam(g.chave, corpusExterno);
+      const criadores = g.criadores.size;
+
+      // Pesos: replicabilidade (criadores) é o núcleo, duração consistente é o
+      // que separa molde de papel de parede, e transbordo é âncora de peso baixo
+      // — mesma hierarquia do scoreHype (comportamento manda, imprensa ancora).
+      const forca = Math.min(
+        100,
+        Math.round(
+          Math.min(criadores * 8, 40) +
+            (duracao_consistente ? 20 : 0) +
+            Math.min(hashtags_comuns.length * 7, 15) +
+            Math.min(engajamento_mediano / 200, 15) +
+            Math.min(transbordo.length * 5, 10)
+        )
+      );
+
+      return {
+        tipo: g.tipo,
+        chave: g.chave,
+        videos: g.videos,
+        criadores,
+        exemplos: g.exemplos,
+        duracao_mediana,
+        duracao_consistente,
+        engajamento_mediano,
+        hashtags_comuns,
+        transbordo,
+        forca,
+      };
+    })
+    .sort((a, b) => b.forca - a.forca)
+    .slice(0, 12);
+}
+
+// Texto de todas as fontes MENOS o TikTok, pra medir transbordo. Sai do rawData
+// completo (não do recorte enviado ao modelo): quanto mais texto, melhor a chance
+// de detectar que o assunto vazou do TikTok pra imprensa/fórum.
+function corpusExterno(rawData: RawData): { fonte: string; texto: string }[] {
+  return [
+    ...rawData.news.map((n) => ({
+      fonte: "news",
+      texto: `${n.title ?? ""} ${n.snippet ?? ""}`,
+    })),
+    ...rawData.reddit.map((r) => ({ fonte: "reddit", texto: r.title ?? "" })),
+    ...rawData.twitter.map((t) => ({ fonte: "twitter", texto: t.text ?? "" })),
+    ...rawData.instagram.map((i) => ({
+      fonte: "instagram",
+      texto: i.caption ?? "",
+    })),
+  ];
+}
+
+// Transbordo: a chave do cluster aparece fora do TikTok? Exige 4+ caracteres e
+// limite de palavra pra "br" ou "fy" não casarem com meio texto. Serve mais pra
+// cluster de hashtag — nome de áudio raramente vira pauta —, e é justamente por
+// isso que pesa pouco no score.
+function fontesQueMencionam(
+  chave: string,
+  corpus: { fonte: string; texto: string }[]
+): string[] {
+  const termo = chave.trim().toLowerCase();
+  if (termo.length < 4) return [];
+  const padrao = new RegExp(
+    `\\b${termo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+    "i"
+  );
+  const fontes = new Set<string>();
+  for (const { fonte, texto } of corpus) {
+    if (padrao.test(texto)) fontes.add(fonte);
+  }
+  return Array.from(fontes);
+}
+
+// O corte do TikTok é por engajamento, mas cluster não é feito de vídeo popular
+// e sim de vídeo repetido: os dois critérios não coincidem. Com 20 por keyword a
+// coleta passa de 100 vídeos e o topo por engajamento quase nunca contém os
+// vídeos que sustentam um cluster, então o modelo receberia "6 criadores no
+// mesmo áudio" sem nenhum desses vídeos em mãos, sem como tirar autor, coverUrl
+// ou descrever a trend. Estes entram além da cota, senão a evidência fica órfã.
+// O acréscimo é limitado por construção: 12 clusters × 3 exemplos = no máximo 36
+// URLs, então o payload de TikTok fica em 51 itens no pior caso.
+export function topTikTok(items: TikTokItem[], urlsClusters: Set<string>): TikTokItem[] {
+  const topo = topByEngagement(
+    items,
+    (i) => (i.diggCount ?? 0) + (i.playCount ?? 0),
+    15
+  );
+  const jaIncluso = new Set(topo.map((i) => i.webVideoUrl));
+  const sustentamCluster = items.filter(
+    (i) => i.webVideoUrl && urlsClusters.has(i.webVideoUrl) && !jaIncluso.has(i.webVideoUrl)
+  );
+  return [...topo, ...sustentamCluster];
+}
+
+function trimForModel(rawData: RawData, urlsClusters: Set<string>): RawData {
   return {
-    instagram: topByEngagement(rawData.instagram, (i) => i.likesCount ?? 0, 15),
-    tiktok: topByEngagement(rawData.tiktok, (i) => (i.diggCount ?? 0) + (i.playCount ?? 0), 15),
+    instagram: topInstagram(rawData.instagram),
+    tiktok: topTikTok(rawData.tiktok, urlsClusters),
     twitter: topByEngagement(rawData.twitter, (i) => (i.likeCount ?? 0) + (i.replyCount ?? 0), 20),
     news: rawData.news.slice(0, 10),
-    reddit: topByEngagement(rawData.reddit, (i) => i.upVotes ?? 0, 10),
+    reddit: topReddit(rawData.reddit),
   };
 }
 
@@ -249,21 +578,38 @@ export async function generateReport(
   briefing: Record<string, unknown>,
   onProgress?: OnProgress,
   marcaKnowledge?: MarcaKnowledge
-): Promise<{ report: TrendReport } | { error: string }> {
+): Promise<
+  ({ report: TrendReport } | { error: string }) & { custos: CustoColetado[] }
+> {
+  // Acumuladores de custo. Vão em TODOS os caminhos de retorno, inclusive nos
+  // de erro: report que falhou no meio já gastou scrape e já gastou token, e
+  // esse dinheiro saiu do cartão do mesmo jeito. Não registrar o custo do
+  // fracasso é a maneira mais fácil de o painel financeiro mentir pra baixo.
+  const custos: CustoColetado[] = [];
+  const apifyLog: ApifyRunLog = [];
+
   const terms = mergeMarcaTerms(
-    await deriveSearchTerms(briefingYaml, briefing),
+    await deriveSearchTerms(briefingYaml, briefing, custos),
     marcaKnowledge
   );
   const sourcesDone: SourceName[] = [];
 
   await onProgress?.({ phase: "collecting", sources_done: [] });
 
-  const rawData = await collectAll(terms, (source) => {
-    sourcesDone.push(source);
-    // Best-effort: se o update no Supabase falhar, não deve derrubar a
-    // coleta de dados em si — só a barra de progresso fica desatualizada.
-    void onProgress?.({ phase: "collecting", sources_done: [...sourcesDone] });
-  });
+  const rawData = await collectAll(
+    terms,
+    (source) => {
+      sourcesDone.push(source);
+      // Best-effort: se o update no Supabase falhar, não deve derrubar a
+      // coleta de dados em si — só a barra de progresso fica desatualizada.
+      void onProgress?.({ phase: "collecting", sources_done: [...sourcesDone] });
+    },
+    apifyLog
+  );
+
+  const diag = diagnosticarColeta(apifyLog);
+  console.log(`[REPORT][APIFY] ${diag.resumo}`);
+  custos.push(...custosDaApify(apifyLog));
 
   const totalColetado =
     rawData.instagram.length +
@@ -275,21 +621,54 @@ export async function generateReport(
   // Se nenhuma fonte trouxe dado real (falha/timeout dos scrapers Apify),
   // não deixamos o modelo gerar um report inteiro inventado sem lastro.
   if (totalColetado === 0) {
+    // "Sem saldo na Apify" e "falha temporária" pedem reações OPOSTAS: uma é
+    // recarregar a conta, a outra é esperar. Até aqui as duas produziam a
+    // mesma frase — e "tente novamente em alguns minutos" é uma instrução
+    // falsa quando o problema é a fatura, porque tentar de novo nunca resolve.
     return {
-      error:
-        "Nenhum dado real foi coletado das redes (Instagram, TikTok, Twitter, News, Reddit). Tente novamente em alguns minutos — provável falha temporária nos scrapers.",
+      custos,
+      error: diag.semSaldo
+        ? "A coleta não rodou: a Apify recusou os scrapers por motivo de conta/pagamento (saldo ou limite de uso do plano). Tentar de novo não resolve — é preciso regularizar o plano da Apify."
+        : "Nenhum dado real foi coletado das redes (Instagram, TikTok, Twitter, News, Reddit). Tente novamente em alguns minutos — provável falha temporária nos scrapers.",
     };
   }
 
+  // Ordem importa: os clusters saem da coleta inteira (a repetição só aparece na
+  // amostra completa) e só então o trim monta o payload, garantindo que os
+  // vídeos citados como exemplo estejam entre os que o modelo recebe.
+  const clusters = detectarClusters(rawData.tiktok, corpusExterno(rawData));
+  const enviados = trimForModel(
+    rawData,
+    new Set(clusters.flatMap((c) => c.exemplos))
+  );
+
+  // A transcrição entra AQUI, depois do trim, e não na coleta: são até 51
+  // vídeos em vez dos ~200 coletados. O clustering não usa transcrição (ele
+  // agrupa por som e hashtag, que já rodou acima) — quem precisa da fala é o
+  // modelo, e o modelo só vê o que sobreviveu ao trim.
+  const diagLegendas = await enriquecerComLegendas(enviados.tiktok);
+  console.log(`[REPORT][LEGENDA] ${diagLegendas.resumo}`);
+  if (diagLegendas.comLink > 0 && diagLegendas.baixadas === 0) {
+    // Ofereceram legenda em todos e não veio nenhuma: não é vídeo mudo, é o
+    // download quebrado (URL expirada, CDN bloqueando, formato mudou). O
+    // report ainda sai, com a relevância de antes — mas em silêncio isso seria
+    // uma regressão invisível, exatamente o tipo de falha que já nos custou
+    // caro no débito de crédito.
+    console.error(
+      `[REPORT][LEGENDA] ${diagLegendas.comLink} video(s) tinham legenda e NENHUMA foi baixada — ` +
+        `a relevância volta a ser julgada só pela caption. Conferir o CDN/formato em lib/legendas.ts.`
+    );
+  }
+
   const userMessage = `BRIEFING (YAML):\n${briefingYaml}\n\nDADOS COLETADOS AGORA (JSON):\n${JSON.stringify(
-    trimForModel(rawData)
-  )}`;
+    enviados
+  )}\n\nCANDIDATOS A TREND NO TIKTOK (JSON):\n${JSON.stringify(clusters)}`;
 
   await onProgress?.({ phase: "model", sources_done: sourcesDone });
 
   const response = await anthropic.messages
     .stream({
-      model: "claude-sonnet-4-6",
+      model: MODELO_REPORT,
       max_tokens: 8000,
       system: [
         {
@@ -306,9 +685,13 @@ export async function generateReport(
     })
     .finalMessage();
 
+  // Antes de qualquer validação do conteúdo: os tokens já foram cobrados,
+  // inclusive os da resposta que vamos descartar logo abaixo.
+  registrarLlm(custos, MODELO_REPORT, response);
+
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
-    return { error: "Resposta vazia do modelo." };
+    return { custos, error: "Resposta vazia do modelo." };
   }
 
   // Se a geração bateu no teto de tokens, o JSON quase certamente saiu cortado
@@ -316,6 +699,7 @@ export async function generateReport(
   if (response.stop_reason === "max_tokens") {
     console.error("Geração truncada (stop_reason=max_tokens): JSON provavelmente incompleto.");
     return {
+      custos,
       error:
         "O relatório ficou grande demais e foi cortado antes de terminar. Tente gerar de novo.",
     };
@@ -334,7 +718,7 @@ export async function generateReport(
       "\n--- Início da resposta bruta ---\n",
       rawJson.slice(0, 800)
     );
-    return { error: "Falha ao interpretar JSON retornado pelo modelo." };
+    return { custos, error: "Falha ao interpretar JSON retornado pelo modelo." };
   }
 
   // Contagem real de itens coletados por rede — calculada aqui (não pelo
@@ -347,5 +731,5 @@ export async function generateReport(
     reddit: rawData.reddit.length,
   };
 
-  return { report };
+  return { report, custos };
 }
