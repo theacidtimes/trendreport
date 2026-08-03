@@ -15,12 +15,18 @@ export async function dominiosDaAgenda(pais?: string): Promise<string[]> {
   const { data } = await supabase.from('pulso_cultural').select('dominio, pais').eq('ativo', true)
   const linhas = (data ?? []) as { dominio: string; pais: string | null }[]
   // Filtrado pelo país da marca porque um domínio sem linha NAQUELE calendário é
-  // uma opção falsa. MEDIDO na derivação real (02/08/2026): a Harts (AU) assinou
-  // `economia, entretenimento, musica` e pediu 2 vagas — e o acervo é 100% BR,
-  // então `selectAgenda` devolveria ZERO linhas. Sem este filtro a marca sai da
-  // tela parecendo configurada, com custo reservado, e nunca raspa nada.
-  // Oferecer só o que existe faz a derivação concluir "não assino" — que é a
-  // resposta verdadeira, e a que aparece no log como `nao_assina`.
+  // uma opção falsa. MEDIDO na derivação real (02/08/2026): uma marca declarada
+  // `AU` assinou `economia, entretenimento, musica` e pediu 2 vagas — e o acervo
+  // é 100% BR, então `selectAgenda` devolveria ZERO linhas. Sem este filtro a
+  // marca sai da tela parecendo configurada, com custo reservado, e nunca raspa
+  // nada. Oferecer só o que existe faz a derivação concluir "não assino" — que é
+  // a resposta verdadeira, e a que aparece no log como `nao_assina`.
+  //
+  // Nota sobre AQUELA marca (03/08/2026): era a Harts, e o `AU` estava ERRADO —
+  // Hart's Natural / Australia Vibes é brasileira (RS), a australianidade é
+  // estética. O filtro fez o certo pelo motivo certo; o dado é que mentia. Vale
+  // como aviso: `pais` errado e acervo faltando produzem o MESMO zero, e só o
+  // diagnóstico (`sem_linha`, que conta o acervo dos dois lados) separa os dois.
   const doPais = pais
     ? linhas.filter(r => !r.pais || r.pais.toUpperCase() === pais.toUpperCase())
     : linhas
