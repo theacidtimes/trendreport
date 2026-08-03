@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coins, Palette, ScrollText, UserCog, Users } from "lucide-react";
+import { CalendarHeart, Coins, Palette, ScrollText, UserCog, Users } from "lucide-react";
 
 // A aba "Auditoria" (app_admins/ACID: gestao dos admins globais + trilha) so
 // aparece pra quem e app_admin. As demais servem tambem ao admin do tenant, que
@@ -13,6 +13,7 @@ export default function AdminTabs({ isAppAdmin }: { isAppAdmin: boolean }) {
     { href: "/dashboard/admin/clientes", label: "Clientes", icon: Users },
     { href: "/dashboard/admin/usuarios", label: "Usuários", icon: UserCog },
     { href: "/dashboard/admin/creditos", label: "Créditos", icon: Coins },
+    { href: "/dashboard/admin/agenda", label: "Agenda", icon: CalendarHeart },
     { href: "/dashboard/admin/marca", label: "Marca", icon: Palette },
     ...(isAppAdmin
       ? [

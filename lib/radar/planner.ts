@@ -65,7 +65,11 @@ function anchorLanes(marca: Marca): ScrapeLane[] {
 // Uma marca so entra no motor novo (fan-out + agenda) quando declara assinatura ou
 // dial. Sem isso, roda IDENTICA ao comportamento legado — additive, opt-in, sem mudar
 // custo de quem ainda nao foi migrado.
-function optedIn(marca: Marca): boolean {
+// Exportado para a tela da agenda: ela precisa avisar quantas marcas ignoram a
+// agenda INTEIRA, e reimplementar a condição lá criaria duas definições de
+// "migrada" que divergem no primeiro campo novo — com a tela dando o veredito
+// errado sobre o motor.
+export function optedIn(marca: Marca): boolean {
   const k = marca.yaml_conhecimento
   return (k.dominios_culturais?.length ?? 0) > 0 || k.peso_cultural != null
 }

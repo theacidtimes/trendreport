@@ -279,6 +279,15 @@ export interface MarcaKnowledge {
   // numa marca B2B é indistinguível de campo esquecido, e ninguém ousa mexer num
   // número que não sabe de onde veio. É o que torna o derivado auditável e editável.
   justificativa_cultural?: string
+  // Alguém olhou a marca, discordou da derivação e decidiu na mão. Só a
+  // reavaliação em lote lê este campo, e o que ela faz é PULAR a marca.
+  //
+  // Existe porque a alternativa era inferir: "tem justificativa_cultural logo é
+  // derivado". Inferência funciona hoje e passa a mentir no dia em que a
+  // justificativa for escrita por outro caminho — e a mentira custa a escolha
+  // manual de alguém, sobrescrita em lote, sem aviso. Flag explícita não tem
+  // esse futuro.
+  perfil_cultural_manual?: boolean
 }
 
 // Entrada da AGENDA CULTURAL compartilhada (tabela pulso_cultural). Brand-agnóstica:

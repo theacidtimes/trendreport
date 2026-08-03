@@ -24,6 +24,10 @@ async function comPerfilDerivado(dna: MarcaKnowledge): Promise<MarcaKnowledge> {
     dominios_culturais: perfil.dominios_culturais,
     peso_cultural: perfil.peso_cultural,
     justificativa_cultural: perfil.justificativa,
+    // Derivou, logo não é manual. Sem esta linha uma marca que já foi manual e
+    // voltou a ser derivada continuaria marcada, e a reavaliação em lote a
+    // pularia para sempre — invisível, porque a tela mostraria o perfil certo.
+    perfil_cultural_manual: false,
   };
 }
 
@@ -75,6 +79,7 @@ export async function createMarca(data: {
   pais?: string;
   dominios_culturais?: string[];
   peso_cultural?: number;
+  perfil_cultural_manual?: boolean;
   intervalo_horas: number;
 }): Promise<void> {
   const nome = data.nome.trim();
@@ -105,6 +110,7 @@ export async function createMarca(data: {
     : mesclarDNA(base, {
         dominios_culturais: data.dominios_culturais,
         peso_cultural: data.peso_cultural,
+        perfil_cultural_manual: data.perfil_cultural_manual,
       });
 
   const { error } = await supabase.from("marcas").insert({
@@ -136,6 +142,7 @@ export async function updateMarca(
     pais?: string;
     dominios_culturais?: string[];
     peso_cultural?: number;
+    perfil_cultural_manual?: boolean;
     intervalo_horas: number;
   }
 ): Promise<void> {
@@ -169,6 +176,7 @@ export async function updateMarca(
     pais: data.pais?.trim().toUpperCase(),
     dominios_culturais: data.dominios_culturais,
     peso_cultural: data.peso_cultural,
+    perfil_cultural_manual: data.perfil_cultural_manual,
   };
 
   // MESCLA sobre o gravado: campo que a tela não manda (`undefined`) fica como

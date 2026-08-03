@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, Plus, X } from "lucide-react";
 import { createMarca, updateMarca } from "@/app/dashboard/radar/actions";
 import type { Marca } from "@/lib/types";
+import { PAISES } from "@/lib/paises";
 
 const FIELD =
   "w-full rounded-xl bg-surface border border-border px-3.5 py-2.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-lime/50 transition-colors";
@@ -22,11 +23,6 @@ function toLines(v: string): string[] {
 // script assere que os dois números são o mesmo.
 const CAP_VAGAS = 6;
 
-// Países com calendário próprio na agenda. Curto de propósito: cada país aqui
-// implica linhas de `pulso_cultural` naquele calendário, e hoje só BR tem acervo
-// — os outros existem para a marca sair com agenda VAZIA e visível em vez de
-// cair no calendário brasileiro por omissão.
-const PAISES = ["BR", "AU", "US", "PT", "ES", "MX", "AR"];
 
 export default function MarcaDialog({
   marca,
@@ -47,7 +43,7 @@ export default function MarcaDialog({
   // derivação é um chute bom, não uma autoridade: quem olhou a marca e discordou
   // precisa poder decidir — e precisa que a decisão SOBREVIVA ao próximo save,
   // que é o que a mesclagem no updateMarca garante.
-  const [manual, setManual] = useState(false);
+  const [manual, setManual] = useState(dna?.perfil_cultural_manual ?? false);
   const vagasAtuais = Math.round(
     Math.max(0, Math.min(1, dna?.peso_cultural ?? 0)) * CAP_VAGAS
   );
@@ -103,6 +99,11 @@ export default function MarcaDialog({
       linkedin_ativo: fd.get("linkedin_ativo") === "on",
       pais: String(fd.get("pais") || "BR"),
       intervalo_horas: Number(fd.get("intervalo_horas")) || 24,
+      // Vai SEMPRE, inclusive `false`: desmarcar a caixa é a forma de devolver a
+      // marca para a derivação, e um campo ausente não desmarca nada — a
+      // mesclagem preservaria o `true` antigo e a marca ficaria congelada na
+      // escolha manual para sempre.
+      perfil_cultural_manual: manual,
       // Só vai no payload no modo manual. Ausente (`undefined`) é o sinal que o
       // `precisaDerivar` lê como "ninguém opinou, pode derivar"; mandar os
       // valores atuais aqui congelaria a derivação para sempre no primeiro save.
