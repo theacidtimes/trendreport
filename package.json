@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "generate:report": "tsx scripts/generate-report.ts",
-    "radar": "tsx scripts/radar.ts"
+    "radar": "tsx scripts/radar.ts",
+    "manutencao": "tsx scripts/manutencao.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",

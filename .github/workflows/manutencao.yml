@@ -1,0 +1,45 @@
+name: Manutenção — Varredura Diária
+
+on:
+  schedule:
+    # 09:00 BRT (12:00 UTC). Cedo o bastante pra você ver o e-mail antes do dia
+    # começar de verdade, tarde o bastante pra já ter varrido a madrugada inteira
+    # do radar-cron.
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+# A varredura só LÊ o banco, mas duas rodando junto mandariam dois e-mails do
+# mesmo problema.
+concurrency:
+  group: manutencao
+  cancel-in-progress: false
+
+jobs:
+  varredura:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Pra ler o histórico de execuções dos outros workflows via API e descobrir
+      # POR QUE quebrou, não só o que quebrou.
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run manutencao
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Só é usada quando a checagem SQL já encontrou algo — em dia limpo o
+          # job termina sem gastar token.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM: ${{ secrets.RESEND_FROM }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
