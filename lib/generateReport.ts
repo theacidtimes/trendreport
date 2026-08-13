@@ -7,6 +7,7 @@ import {
   type SourceName,
 } from "./apify";
 import { custoAnthropic, type RegistroCusto } from "./custos";
+import { persistirImagensDoReport } from "./imagens";
 import { enriquecerComLegendas } from "./legendas";
 import {
   SYSTEM_PROMPT,
@@ -730,6 +731,12 @@ export async function generateReport(
     news: rawData.news.length,
     reddit: rawData.reddit.length,
   };
+
+  // Última etapa antes de devolver: trocar as imagens do CDN por cópias nossas.
+  // Tem que ser aqui, com o report ainda quente — a assinatura da cover do
+  // TikTok vence em horas, então qualquer tentativa posterior já pega 403.
+  // Nunca lança: imagem que não sobe mantém a URL original (ver lib/imagens.ts).
+  await persistirImagensDoReport(report);
 
   return { report, custos };
 }

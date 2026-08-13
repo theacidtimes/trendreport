@@ -271,7 +271,7 @@ tendencias[].imagem_url, post_url e autor:
 Nunca invente uma URL ou autor. Mapeie exatamente assim:
 - Instagram → imagem_url = displayUrl, post_url = url, autor = ownerUsername, plataforma = "instagram"
 - TikTok → imagem_url = coverUrl, post_url = webVideoUrl, autor = authorNickName, plataforma = "tiktok"
-- News → post_url = link, imagem_url = null, autor = source, plataforma = "news"
+- News → post_url = link, imagem_url = imagem (quando o item tiver esse campo; caso contrário null), autor = source, plataforma = "news"
 - Twitter/trend → imagem_url = null, post_url = null (exceto se houver link explícito), autor = null, plataforma = "twitter"
 - Reddit → post_url = url, imagem_url = imageUrl (quando o item tiver esse campo; caso contrário null), autor = communityName, plataforma = "reddit"
 Se não houver dado real correspondente, deixe imagem_url, post_url e autor como null.
@@ -326,6 +326,7 @@ glossario[] (pastilhas de vocabulário do momento):
 Um painel de pastilhas — como um glossário — dos termos, sentimentos, adjetivos e temas que MAIS apareceram nos dados coletados. É um retrato do vocabulário cultural do momento, extraído do que foi captado.
 - termo: 1 a 3 palavras, em português (ou o termo real como apareceu, ex. gíria/hashtag). Extraído do que efetivamente surgiu nos dados.
 - categoria: uma de "sentimento" (emoção dominante: nostalgia, ansiedade, euforia), "adjetivo" (qualificador recorrente: brutal, saudoso, épico), "vocabulario" (gíria/jargão/termo de nicho: "finish him", speedrun, lan house), "tema" (assunto recorrente: lançamento, rivalidade, anos 2000).
+- peso: inteiro de 1 a 5 medindo o quanto o termo REALMENTE recorreu nos dados coletados. 5 = dominou, apareceu à exaustão em várias plataformas; 4 = muito recorrente; 3 = recorrente; 2 = apareceu algumas vezes; 1 = apareceu pouco, mas é significativo. O peso vira o tamanho da pastilha na tela, então ele precisa refletir frequência observada — não o quanto o termo é interessante. Não distribua os pesos de forma uniforme só para variar: se poucos termos dominaram, poucos levam 4 ou 5.
 - Gere de 10 a 16 pastilhas, distribuídas entre as categorias. Só inclua um termo se ele realmente aparece ou é diretamente sustentado pelos dados coletados — não invente vocabulário.
 
 radar[].sinais:
@@ -427,7 +428,8 @@ O JSON raiz deve ter exatamente oito chaves: meta, tendencias, memes, oportunida
   "glossario": [
     {
       "termo": string,
-      "categoria": "sentimento" | "adjetivo" | "vocabulario" | "tema"
+      "categoria": "sentimento" | "adjetivo" | "vocabulario" | "tema",
+      "peso": 1 | 2 | 3 | 4 | 5
     }
   ]
 }`;

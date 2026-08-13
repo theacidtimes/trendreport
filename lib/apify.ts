@@ -791,7 +791,15 @@ const NEWS_MAX_AGE_DAYS = 45;
 // `datePublished` ou na meta `article:published_time`. Buscamos a página e lemos
 // essa data pra descartar o que a fonte disfarçou de novo. Timeout curto; se a
 // página não expõe data confiável, mantemos (não dá pra afirmar que é velha).
-async function realPublishedAt(url: string): Promise<Date | null> {
+// A imagem sai do MESMO fetch da data: o GoogleNewsAPI não devolve thumbnail
+// (conferido no output schema do actor), então sem isto todo card de news nasce
+// sem imagem — eram 12 dos 16 cards órfãos do acervo. Como a página do artigo já
+// está sendo baixada aqui pra conferir a data, ler a og:image não custa nenhuma
+// requisição a mais.
+async function metadadosDoArtigo(
+  url: string
+): Promise<{ publicadoEm: Date | null; imagem: string | null }> {
+  const vazio = { publicadoEm: null, imagem: null };
   try {
     const res = await fetch(url, {
       redirect: "follow",
@@ -800,15 +808,47 @@ async function realPublishedAt(url: string): Promise<Date | null> {
       },
       signal: AbortSignal.timeout(6000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) return vazio;
     const html = await res.text();
-    const m =
-      html.match(/"datePublished"\s*:\s*"([^"]{10,40})"/i) ??
-      html.match(/property="article:published_time"\s+content="([^"]{10,40})"/i) ??
-      html.match(/content="([^"]{10,40})"\s+property="article:published_time"/i);
-    if (!m) return null;
-    const d = new Date(m[1]);
-    return isNaN(d.getTime()) ? null : d;
+    return extrairMetadados(html, res.url || url);
+  } catch {
+    return vazio;
+  }
+}
+
+// Separado da chamada de rede pra poder ser testado contra HTML real: a parte
+// que quebra em silêncio aqui é o regex — se a meta tag do veículo tiver os
+// atributos em outra ordem, a extração devolve null sem erro nenhum e o card
+// volta a nascer sem imagem, exatamente o bug que este código conserta.
+export function extrairMetadados(
+  html: string,
+  baseUrl: string
+): { publicadoEm: Date | null; imagem: string | null } {
+  const m =
+    html.match(/"datePublished"\s*:\s*"([^"]{10,40})"/i) ??
+    html.match(/property="article:published_time"\s+content="([^"]{10,40})"/i) ??
+    html.match(/content="([^"]{10,40})"\s+property="article:published_time"/i);
+  const d = m ? new Date(m[1]) : null;
+
+  // Os dois primeiros cobrem og:image com os atributos em qualquer ordem —
+  // veículo que gera a tag como content-antes-de-property é comum o bastante
+  // pra não dar pra assumir uma só. twitter:image é o último recurso.
+  const img =
+    html.match(/property="og:image"\s+content="([^"]{10,600})"/i) ??
+    html.match(/content="([^"]{10,600})"\s+property="og:image"/i) ??
+    html.match(/name="twitter:image"\s+content="([^"]{10,600})"/i);
+
+  return {
+    publicadoEm: d && !isNaN(d.getTime()) ? d : null,
+    // og:image relativa existe e viraria link quebrado no report; resolvemos
+    // contra a URL do artigo (após redirects) em vez de descartar.
+    imagem: img ? absolutizar(img[1], baseUrl) : null,
+  };
+}
+
+function absolutizar(src: string, base: string): string | null {
+  try {
+    return new URL(src.replace(/&amp;/g, "&"), base).toString();
   } catch {
     return null;
   }
@@ -856,9 +896,9 @@ export async function fetchNews(
   const cutoff = Date.now() - NEWS_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
   const checked = await Promise.all(
     merged.map(async (item) => {
-      const pub = await realPublishedAt(item.link!);
-      if (pub && pub.getTime() < cutoff) return null;
-      return item;
+      const { publicadoEm, imagem } = await metadadosDoArtigo(item.link!);
+      if (publicadoEm && publicadoEm.getTime() < cutoff) return null;
+      return imagem ? { ...item, imagem } : item;
     })
   );
   return checked.filter((x): x is NewsItem => x !== null);

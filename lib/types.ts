@@ -74,6 +74,11 @@ export interface InsightCriativo {
 export interface GlossarioTermo {
   termo: string;
   categoria: "sentimento" | "adjetivo" | "vocabulario" | "tema";
+  // Recorrência do termo nos dados coletados, de 1 (apareceu pouco) a 5
+  // (dominou). Só serve para dimensionar a pastilha na nuvem — quanto maior o
+  // peso, maior o termo na tela. Opcional porque reports gerados antes deste
+  // campo não o têm; o painel trata a ausência como peso médio.
+  peso?: number;
 }
 
 export interface FontesDados {
@@ -195,6 +200,9 @@ export interface NewsItem {
   source?: string;
   snippet?: string;
   date?: string;
+  // og:image lida da página do artigo (o actor de news não devolve thumbnail).
+  // Ausente quando a matéria não expõe a meta tag.
+  imagem?: string;
 }
 
 export interface RedditItem {
