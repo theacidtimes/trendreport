@@ -22,8 +22,10 @@ const MODELO_DIAGNOSTICO = "claude-sonnet-4-6";
 // o schedule sozinho depois de falhas seguidas.
 const RADAR_PARADO_HORAS = 2;
 
-// Report leva minutos pra gerar. Passou de 1h em "pending" e o dispatch não
-// chegou no outro lado: a linha nasceu mas o GitHub Actions nunca pegou.
+// Com a fila, "pending" é estado NORMAL pelos primeiros minutos — é a linha
+// esperando o worker (report-queue.yml, a cada 5min) passar. Uma hora parada já
+// é outra coisa: worker morto, secret quebrado, ou geração falhando em loop sem
+// conseguir registrar o motivo.
 const REPORT_TRAVADO_MIN = 60;
 
 export type Severidade = "erro" | "aviso";
@@ -69,9 +71,9 @@ export async function coletarAchados(janelaHoras: number): Promise<Achado[]> {
     });
   }
 
-  // 2. Reports travados em "pending". Diferente do caso acima: aqui o insert
-  // funcionou e o erro não foi nem registrado — o dispatch sumiu no caminho.
-  // Sem esta checagem eles ficariam invisíveis pra sempre.
+  // 2. Reports travados em "pending" — a fila parou de andar. Diferente do caso
+  // acima, aqui não há erro registrado em lugar nenhum: a linha simplesmente
+  // não sai do lugar. Sem esta checagem, ficaria invisível pra sempre.
   const travadoAntesDe = new Date(
     Date.now() - REPORT_TRAVADO_MIN * 60_000
   ).toISOString();

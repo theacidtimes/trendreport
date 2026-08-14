@@ -1,0 +1,39 @@
+name: Fila de Reports — Worker
+
+on:
+  schedule:
+    # A cada 5min (menor intervalo que o GitHub aceita em schedule). É o atraso
+    # máximo entre o usuário clicar em "gerar" e a geração começar — sobre um
+    # pipeline que leva vários minutos, é ruído.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+# Uma passada por vez. Isso é o que impede dois runs de pegarem o MESMO report
+# pendente e gerarem (e cobrarem) duas vezes — sem precisar de status novo no
+# banco, que exigiria migration.
+concurrency:
+  group: report-queue
+  cancel-in-progress: false
+
+jobs:
+  processar:
+    runs-on: ubuntu-latest
+    # Folga sobre os 15min do generate-report original, já que uma passada pode
+    # encadear até 3 reports.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run fila
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}

@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import * as yaml from "js-yaml";
 import { createClient } from "@/lib/supabase/server";
 
-const GITHUB_REPO = "theacidtimes/trendreport";
-
 export async function POST(req: Request) {
   try {
     const { briefing: briefingYaml, marcaId } = (await req.json()) as {
@@ -88,8 +86,14 @@ export async function POST(req: Request) {
 
     // A geração de verdade (scraping + Claude) roda fora do Vercel, via
     // GitHub Actions — o plano atual limita funções serverless a 60s, bem
-    // menos que os minutos que o pipeline real leva. Aqui só criamos o job
-    // pendente e disparamos o workflow; a rota responde na hora.
+    // menos que os minutos que o pipeline real leva.
+    //
+    // Esta linha em "pending" É o enfileiramento: o worker report-queue.yml
+    // varre a cada 5min e gera o que encontrar. A rota não fala mais com a API
+    // do GitHub. Antes ela disparava um repository_dispatch com um PAT, e esse
+    // token expirou três vezes em quatro dias — cada expiração derrubava TODA
+    // geração com 401 e ainda deixava a linha órfã no banco. Sem token no
+    // caminho, essa classe de falha deixa de existir.
     const { data: saved, error: saveError } = await supabase
       .from("reports")
       .insert({
@@ -115,52 +119,6 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Falha ao criar report no Supabase.", detail },
         { status: 500 }
-      );
-    }
-
-    const dispatchToken = process.env.GITHUB_DISPATCH_TOKEN;
-    if (!dispatchToken) {
-      await supabase
-        .from("reports")
-        .update({
-          status: "error",
-          error_message: "GITHUB_DISPATCH_TOKEN não configurado.",
-        })
-        .eq("slug", saved.slug);
-      return NextResponse.json(
-        { error: "Geração assíncrona não configurada (GITHUB_DISPATCH_TOKEN ausente)." },
-        { status: 500 }
-      );
-    }
-
-    const dispatchRes = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/dispatches`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${dispatchToken}`,
-          Accept: "application/vnd.github+json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          event_type: "generate-report",
-          client_payload: { slug: saved.slug, briefing_yaml: briefingYaml },
-        }),
-      }
-    );
-
-    if (!dispatchRes.ok) {
-      const detail = await dispatchRes.text();
-      await supabase
-        .from("reports")
-        .update({
-          status: "error",
-          error_message: `Falha ao disparar geração: ${dispatchRes.status} ${detail}`,
-        })
-        .eq("slug", saved.slug);
-      return NextResponse.json(
-        { error: "Falha ao disparar geração assíncrona.", detail },
-        { status: 502 }
       );
     }
 
