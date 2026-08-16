@@ -1,12 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
-import { sendEmail } from "../email/send";
 
-// Varredura de manutenção: roda no cron, olha o estado do sistema e SÓ incomoda
-// quando acha algo. O desenho tem uma regra central de custo — a detecção é 100%
-// SQL (de graça) e o Claude só é chamado depois que já existe achado. Em dia
-// normal o job termina sem gastar um token e sem mandar e-mail; silêncio é o
-// sinal de que está tudo certo.
+// Varredura de manutenção: olha o estado do sistema e só fala quando acha algo.
+// Roda SOB DEMANDA (npm run manutencao, ou "Run workflow" no Actions), não em
+// cron — a manutenção aqui é manual por decisão, então o valor está em ter o
+// diagnóstico pronto na hora que alguém for olhar, não em vigiar sozinho.
+// A detecção é 100% SQL (de graça) e o Claude só é chamado depois que já existe
+// achado: rodar num dia limpo não custa token nenhum.
 //
 // O gatilho pra isso existir foram os 6 reports órfãos da Julia (10/08/2026):
 // GITHUB_DISPATCH_TOKEN expirado devolvia 401, cada tentativa deixava uma linha
@@ -251,11 +251,12 @@ export async function diagnosticar(achados: Achado[]): Promise<string> {
 A varredura automática de manutenção encontrou os problemas abaixo nas últimas horas.
 
 Contexto da arquitetura:
-- /api/generate cria a linha em "reports" com status "pending" e SÓ DEPOIS dispara
-  um repository_dispatch no GitHub. Se o dispatch falhar, sobra linha órfã.
+- /api/generate só grava a linha em "reports" com status "pending". O worker
+  report-queue.yml varre a cada 5min e gera o que encontrar (fila puxada, sem
+  token do GitHub no caminho).
 - O radar roda no workflow radar-cron a cada 15min e grava em "radar_runs".
-- Secrets usados: GITHUB_DISPATCH_TOKEN, ANTHROPIC_API_KEY, APIFY_TOKEN,
-  VOYAGE_API_KEY, SUPABASE_SERVICE_ROLE_KEY.
+- Secrets usados: ANTHROPIC_API_KEY, APIFY_TOKEN, VOYAGE_API_KEY,
+  SUPABASE_SERVICE_ROLE_KEY.
 
 ACHADOS (JSON):
 ${JSON.stringify(achados, null, 2)}
@@ -267,8 +268,8 @@ Escreva um diagnóstico curto e direto, em português do Brasil, com:
 4. Se for seguro ignorar, diga isso claramente.
 
 Não invente causas que os dados não sustentam — se não der pra saber, diga o que
-precisa ser verificado manualmente. Responda em HTML simples (só <p>, <ul>, <li>,
-<strong>, <code>), sem <html> ou <body>, sem markdown, sem preâmbulo.`;
+precisa ser verificado manualmente. Responda em texto puro, sem markdown e sem
+HTML — a saída é lida no log do GitHub Actions, não em navegador.`;
 
   const res = await anthropic.messages.create({
     model: MODELO_DIAGNOSTICO,
@@ -279,62 +280,34 @@ precisa ser verificado manualmente. Responda em HTML simples (só <p>, <ul>, <li
   const bloco = res.content.find((c) => c.type === "text");
   return bloco && bloco.type === "text"
     ? bloco.text
-    : "<p>Não foi possível gerar o diagnóstico.</p>";
+    : "Não foi possível gerar o diagnóstico.";
 }
 
-// ── e-mail ────────────────────────────────────────────────
+// ── saída ─────────────────────────────────────────────────
 
-function montarHtml(achados: Achado[], diagnostico: string): string {
-  const erros = achados.filter((a) => a.severidade === "erro").length;
-  const avisos = achados.length - erros;
-
-  const lista = achados
-    .map(
-      (a) =>
-        `<li><strong>${a.severidade === "erro" ? "🔴" : "🟡"} ${a.fonte}</strong> — ${a.resumo}</li>`
-    )
-    .join("");
-
-  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;color:#1a1a1a;line-height:1.6">
-  <h2 style="margin:0 0 4px">Manutenção TrendReport</h2>
-  <p style="margin:0 0 20px;color:#666;font-size:14px">
-    ${erros} erro(s)${avisos ? ` e ${avisos} aviso(s)` : ""} —
-    ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
-  </p>
-
-  <h3 style="margin:0 0 8px;font-size:15px">O que foi encontrado</h3>
-  <ul style="margin:0 0 24px;padding-left:20px">${lista}</ul>
-
-  <h3 style="margin:0 0 8px;font-size:15px">Diagnóstico</h3>
-  <div style="background:#f6f6f6;border-radius:8px;padding:16px">${diagnostico}</div>
-
-  <p style="margin:24px 0 0;color:#999;font-size:12px">
-    Enviado automaticamente por <code>manutencao.yml</code>. Nenhum e-mail é
-    disparado quando a varredura não encontra nada.
-  </p>
-</div>`;
-}
-
-export async function rodarVarredura(janelaHoras: number, destinatario: string) {
+// A varredura é MANUAL: roda sob demanda (npm run manutencao, ou o botão "Run
+// workflow" no Actions) e escreve o resultado no log. Não há envio de e-mail —
+// a tentativa anterior dependia do Resend e a credencial quebrou duas vezes em
+// três dias, deixando o job vermelho por causa do MENSAGEIRO, não do sistema
+// vigiado. Diagnóstico que ninguém lê é pior que diagnóstico nenhum: dá a
+// sensação de cobertura sem a cobertura.
+export async function rodarVarredura(janelaHoras: number) {
   const achados = await coletarAchados(janelaHoras);
 
   if (!achados.length) {
-    console.log("[MANUTENCAO] Nada encontrado. Nenhum e-mail enviado.");
-    return { achados: 0, enviado: false };
+    console.log("[MANUTENCAO] Nada encontrado.");
+    return { achados: 0 };
   }
 
-  console.log(`[MANUTENCAO] ${achados.length} achado(s):`);
-  for (const a of achados) console.log(`  - [${a.severidade}] ${a.fonte}: ${a.resumo}`);
-
-  const diagnostico = await diagnosticar(achados);
   const erros = achados.filter((a) => a.severidade === "erro").length;
 
-  await sendEmail({
-    to: destinatario,
-    subject: `[TrendReport] ${erros ? `${erros} erro(s)` : "avisos"} na manutenção diária`,
-    html: montarHtml(achados, diagnostico),
-  });
+  console.log(`\n[MANUTENCAO] ${achados.length} achado(s), ${erros} erro(s):\n`);
+  for (const a of achados) {
+    console.log(`  ${a.severidade === "erro" ? "[ERRO] " : "[AVISO]"} ${a.fonte}: ${a.resumo}`);
+  }
 
-  console.log(`[MANUTENCAO] Relatório enviado para ${destinatario}.`);
-  return { achados: achados.length, enviado: true };
+  const diagnostico = await diagnosticar(achados);
+  console.log(`\n──────── DIAGNÓSTICO ────────\n\n${diagnostico}\n`);
+
+  return { achados: achados.length, erros };
 }

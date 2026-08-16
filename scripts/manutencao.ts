@@ -14,27 +14,20 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_URL) {
   process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.SUPABASE_URL;
 }
 
-// Janela um pouco maior que o intervalo do cron (24h): sobreposição de 2h evita
-// que um problema que aconteceu entre duas execuções escape por diferença de
-// minutos no agendamento do GitHub, que não é pontual.
+// Janela padrão de 26h. Como a varredura virou manual, ajuste via env quando
+// quiser olhar mais pra trás: MANUTENCAO_JANELA_HORAS=168 npm run manutencao
+// varre a semana inteira.
 const JANELA_HORAS = Number(process.env.MANUTENCAO_JANELA_HORAS ?? 26);
-const DESTINATARIO = process.env.MANUTENCAO_EMAIL ?? "bruno.zampoli@theacidtimes.com";
 
-// --dry-run: varre e imprime, sem chamar Claude nem mandar e-mail. É como se
-// testa a checagem sem gastar token nem poluir a caixa de entrada.
+// --dry-run: varre e imprime os achados crus, sem chamar o Claude. Zero custo,
+// útil quando você só quer saber SE tem algo, não o diagnóstico.
 const dryRun = process.argv.includes("--dry-run");
 
 async function main() {
   const required = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    ...(dryRun
-      ? {}
-      : {
-          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-          RESEND_API_KEY: process.env.RESEND_API_KEY,
-          RESEND_FROM: process.env.RESEND_FROM,
-        }),
+    ...(dryRun ? {} : { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY }),
   };
   const missing = Object.entries(required)
     .filter(([, v]) => !v)
@@ -63,7 +56,7 @@ async function main() {
     return;
   }
 
-  await rodarVarredura(JANELA_HORAS, DESTINATARIO);
+  await rodarVarredura(JANELA_HORAS);
 }
 
 main().catch((err) => {

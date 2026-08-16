@@ -1,15 +1,15 @@
-name: Manutenção — Varredura Diária
+name: Manutenção — Varredura Sob Demanda
 
+# Sem schedule: a manutenção é MANUAL por decisão. Rode por "Run workflow" aqui
+# no Actions quando quiser um raio-x do sistema, ou localmente com
+# `npm run manutencao`. O resultado sai no log do job.
+#
+# Havia um cron diário com envio de e-mail via Resend. Foi removido: a chave
+# quebrou duas vezes em três dias e o job ficava vermelho por causa do
+# mensageiro, não do sistema vigiado — alarme que só falava de si mesmo.
 on:
-  schedule:
-    # 09:00 BRT (12:00 UTC). Cedo o bastante pra você ver o e-mail antes do dia
-    # começar de verdade, tarde o bastante pra já ter varrido a madrugada inteira
-    # do radar-cron.
-    - cron: '0 12 * * *'
   workflow_dispatch:
 
-# A varredura só LÊ o banco, mas duas rodando junto mandariam dois e-mails do
-# mesmo problema.
 concurrency:
   group: manutencao
   cancel-in-progress: false
@@ -37,9 +37,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          # Só é usada quando a checagem SQL já encontrou algo — em dia limpo o
-          # job termina sem gastar token.
+          # Só é usada quando a checagem SQL já encontrou algo — rodar num dia
+          # limpo não gasta token.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          RESEND_FROM: ${{ secrets.RESEND_FROM }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
