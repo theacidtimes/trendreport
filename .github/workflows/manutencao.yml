@@ -9,6 +9,11 @@ name: Manutenção — Varredura Sob Demanda
 # mensageiro, não do sistema vigiado — alarme que só falava de si mesmo.
 on:
   workflow_dispatch:
+    inputs:
+      janela_horas:
+        description: 'Quantas horas olhar pra trás (168 = última semana)'
+        required: false
+        default: '26'
 
 concurrency:
   group: manutencao
@@ -35,6 +40,7 @@ jobs:
 
       - run: npm run manutencao
         env:
+          MANUTENCAO_JANELA_HORAS: ${{ inputs.janela_horas }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           # Só é usada quando a checagem SQL já encontrou algo — rodar num dia
