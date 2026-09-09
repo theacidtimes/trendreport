@@ -1079,68 +1079,324 @@ export function montarPostsReddit(
     });
 }
 
-async function coletarSubs(
-  subs: string[],
-  fonte: "meme" | "geral",
-  posts: number,
-  comentariosPorPost: number,
+// ── Reddit em cache ──────────────────────────────────────────────────────────
+//
+// Desde 08/09 o actor de Reddit leva de 7 a 12 minutos por run: o Reddit passou
+// a devolver 403 na maioria das requisições e o actor insiste, trocando de
+// sessão e esperando entre tentativas (medido nas SDK_CRAWLER_STATISTICS dos
+// runs XnG5yP3SrDVYPOOXi e 0orVU7edeObFxUVw0). O run TERMINA e entrega 80+
+// itens — só que muito depois de o report ter desistido. Cada report pagava um
+// run cujo resultado ninguém lia.
+//
+// A saída vem de uma propriedade desta fonte: os subreddits são FIXOS, não
+// dependem do briefing. O dataset de um run serve pra qualquer report das horas
+// seguintes, de qualquer cliente. Então o report não espera o Reddit: lê o
+// dataset do run bem-sucedido mais recente (a Apify guarda por 7 dias) e, se
+// ele já está velho, dispara um run novo em segundo plano pro próximo report.
+// Só espera de verdade quando não existe nada em cache.
+//
+// A lane de um run é reconhecida pelo INPUT gravado no key-value store dele
+// (startUrls): é o único jeito de distinguir o run "geral" do run "meme" sem
+// manter estado nosso — e sem estado nosso é o ponto: nenhuma tabela nova.
+
+type LaneReddit = {
+  fonte: "meme" | "geral";
+  subs: string[];
+  posts: number;
+  comentariosPorPost: number;
+};
+
+const LANES_REDDIT: LaneReddit[] = [
+  {
+    fonte: "geral",
+    subs: REDDIT_SUBS_GERAL,
+    posts: REDDIT_POSTS_POR_SUB,
+    comentariosPorPost: REDDIT_COMENTARIOS_POR_POST,
+  },
+  // Sem comentários e com mais posts: em sub de meme o valor está na imagem e
+  // no título (é a piada inteira), enquanto a caixa de comentários é reação
+  // solta. Como comentário é item cobrado, cortá-los aqui paga mais post.
+  { fonte: "meme", subs: REDDIT_SUBS_MEME, posts: 6, comentariosPorPost: 0 },
+];
+
+const REDDIT_ACTOR = "trudax~reddit-scraper-lite";
+
+// Idade máxima de um dataset pra servir de cache. O report olha 48h à frente;
+// post "hot" de meio dia atrás ainda é o mesmo assunto.
+const REDDIT_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+// Só dispara run novo em segundo plano se o mais recente da lane (qualquer
+// status) tem mais que isto. Dois reports em sequência não pagam dois runs.
+const REDDIT_REFRESH_AFTER_MS = 2 * 60 * 60 * 1000;
+// Run ainda em RUNNING iniciado há menos que isto conta como "já vem aí": em
+// vez de disparar outro, o report espera por ele dentro do orçamento normal.
+const REDDIT_EM_VOO_MAX_MS = 25 * 60 * 1000;
+
+function urlSub(sub: string): string {
+  return `https://www.reddit.com/r/${sub}/`;
+}
+
+function inputReddit(lane: LaneReddit): Record<string, unknown> {
+  return {
+    startUrls: lane.subs.map((sub) => ({ url: urlSub(sub) })),
+    sort: "hot",
+    time: "day",
+    includeMediaLinks: true,
+    skipComments: lane.comentariosPorPost === 0,
+    maxComments: lane.comentariosPorPost,
+    // A metadata da comunidade (membros, ativos por semana) vira ITEM no
+    // dataset e consome a mesma cota dos posts — 5 subs gastavam 5 das 15
+    // vagas com registros que o filtro de `dataType === "post"` joga fora logo
+    // em seguida. Útil pra validar handle na mão, inútil dentro do report.
+    skipCommunity: true,
+    // NUNCA remover. O default do actor é `true`, e o Reddit BR tem comunidade
+    // adulta com mais gente ativa por semana do que qualquer sub de meme
+    // (Delicias_do_Brasil: ~160k). Report é peça que vai pra cliente: conteúdo
+    // NSFW aqui não é ruído, é incidente.
+    includeNSFW: false,
+    maxItems: lane.subs.length * lane.posts * (1 + lane.comentariosPorPost),
+    maxPostCount: lane.posts,
+  };
+}
+
+/**
+ * Descobre de qual lane é um run pelo `startUrls` do INPUT dele. Comparação
+ * por conjunto, sem ordem, e tolerante a barra final — o suficiente pra não
+ * confundir um run nosso com um run do mesmo actor feito na mão no console.
+ * Exportada pra teste: se isto errar, o report lê o dataset da lane errada e
+ * ninguém vê erro nenhum, só meme onde devia ter discussão.
+ */
+export function identificarLaneReddit(
+  input: unknown
+): LaneReddit["fonte"] | null {
+  const startUrls = (input as { startUrls?: unknown } | null)?.startUrls;
+  if (!Array.isArray(startUrls)) return null;
+  const urls = new Set(
+    startUrls
+      .map((u) => (typeof u === "string" ? u : (u as { url?: string })?.url))
+      .filter((u): u is string => typeof u === "string")
+      .map((u) => u.trim().toLowerCase().replace(/\/+$/, ""))
+  );
+  for (const lane of LANES_REDDIT) {
+    const esperado = lane.subs.map((s) => urlSub(s).toLowerCase().replace(/\/+$/, ""));
+    if (
+      esperado.length === urls.size &&
+      esperado.every((u) => urls.has(u))
+    ) {
+      return lane.fonte;
+    }
+  }
+  return null;
+}
+
+type RunRedditRecente = {
+  id: string;
+  status: string;
+  startedAt: string;
+  idadeMs: number;
+  datasetId: string | null;
+  lane: LaneReddit["fonte"] | null;
+};
+
+// Lista os runs recentes do actor e rotula cada um com a lane. Um GET pra
+// lista e um GET por run (o INPUT) — só pros que cabem na janela de cache,
+// então normalmente meia dúzia. Qualquer erro aqui vira "sem cache", nunca
+// derruba a coleta.
+async function listarRunsReddit(token: string): Promise<RunRedditRecente[]> {
+  const res = await fetch(
+    `${APIFY_BASE}/acts/${REDDIT_ACTOR}/runs?token=${token}&desc=1&limit=20`
+  );
+  if (!res.ok) throw new Error(`lista de runs: HTTP ${res.status}`);
+  const itens = ((await res.json())?.data?.items ?? []) as {
+    id?: string;
+    status?: string;
+    startedAt?: string;
+    defaultDatasetId?: string;
+    defaultKeyValueStoreId?: string;
+  }[];
+
+  const agora = Date.now();
+  const candidatos = itens.filter((r) => {
+    const t = r.startedAt ? new Date(r.startedAt).getTime() : NaN;
+    return r.id && !Number.isNaN(t) && agora - t <= REDDIT_CACHE_MAX_AGE_MS;
+  });
+
+  return Promise.all(
+    candidatos.map(async (r) => {
+      let lane: LaneReddit["fonte"] | null = null;
+      if (r.defaultKeyValueStoreId) {
+        try {
+          const inp = await fetch(
+            `${APIFY_BASE}/key-value-stores/${r.defaultKeyValueStoreId}/records/INPUT?token=${token}`
+          );
+          if (inp.ok) lane = identificarLaneReddit(await inp.json());
+        } catch {
+          // INPUT ilegível = run de lane desconhecida; segue sem ele.
+        }
+      }
+      return {
+        id: r.id!,
+        status: r.status ?? "DESCONHECIDO",
+        startedAt: r.startedAt!,
+        idadeMs: agora - new Date(r.startedAt!).getTime(),
+        datasetId: r.defaultDatasetId ?? null,
+        lane,
+      };
+    })
+  );
+}
+
+async function lerDatasetReddit(
+  token: string,
+  datasetId: string
+): Promise<RawRedditItem[]> {
+  const res = await fetch(`${APIFY_BASE}/datasets/${datasetId}/items?token=${token}`);
+  if (!res.ok) throw new Error(`dataset ${datasetId}: HTTP ${res.status}`);
+  return (await res.json()) as RawRedditItem[];
+}
+
+// Dispara e NÃO espera. O custo deste run não entra no log da coleta (que só
+// aceita valor terminal) — ele cai no backfill-custos como todo run que a
+// coleta abandona. É o preço de ter Reddit no próximo report sem segurar este.
+async function dispararRedditEmSegundoPlano(token: string, lane: LaneReddit) {
+  try {
+    const res = await fetch(`${APIFY_BASE}/acts/${REDDIT_ACTOR}/runs?token=${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(inputReddit(lane)),
+    });
+    const id = res.ok ? ((await res.json())?.data?.id ?? "?") : null;
+    console.log(
+      id
+        ? `[APIFY][reddit] lane ${lane.fonte}: run ${id} disparado em segundo plano (cache pro proximo report)`
+        : `[APIFY][reddit] lane ${lane.fonte}: NAO conseguiu disparar run em segundo plano (HTTP ${res.status})`
+    );
+  } catch (e) {
+    console.error(
+      `[APIFY][reddit] lane ${lane.fonte}: erro ao disparar em segundo plano:`,
+      e instanceof Error ? e.message : String(e)
+    );
+  }
+}
+
+// Espera um run que JÁ está rodando, dentro do orçamento da lane. Mesmo poll
+// bloqueante (waitForFinish) do runActor, sem disparar nada novo: é o caso em
+// que outro report acabou de pagar esse run e ele deve estar quase pronto.
+async function aguardarRunReddit(
+  token: string,
+  runId: string
+): Promise<RawRedditItem[] | null> {
+  const limite = Date.now() + REDDIT_ORCAMENTO_MS;
+  while (Date.now() < limite) {
+    const res = await fetch(
+      `${APIFY_BASE}/actor-runs/${runId}?token=${token}&waitForFinish=${WAIT_FOR_FINISH_MAX}`
+    );
+    if (!res.ok) return null;
+    const estado = interpretarRun(((await res.json())?.data ?? {}) as RunApify);
+    if (estado.terminal) {
+      return estado.ok && estado.datasetId
+        ? lerDatasetReddit(token, estado.datasetId)
+        : null;
+    }
+  }
+  return null;
+}
+
+async function coletarLaneReddit(
+  lane: LaneReddit,
+  recentes: RunRedditRecente[],
   log?: ApifyRunLog
 ): Promise<RedditItem[]> {
-  try {
-    const input = {
-      startUrls: subs.map((sub) => ({
-        url: `https://www.reddit.com/r/${sub}/`,
-      })),
-      sort: "hot",
-      time: "day",
-      includeMediaLinks: true,
-      skipComments: comentariosPorPost === 0,
-      maxComments: comentariosPorPost,
-      // A metadata da comunidade (membros, ativos por semana) vira ITEM no
-      // dataset e consome a mesma cota dos posts — 5 subs gastavam 5 das 15
-      // vagas com registros que o filtro de `dataType === "post"` joga fora logo
-      // em seguida. Útil pra validar handle na mão, inútil dentro do report.
-      skipCommunity: true,
-      // NUNCA remover. O default do actor é `true`, e o Reddit BR tem comunidade
-      // adulta com mais gente ativa por semana do que qualquer sub de meme
-      // (Delicias_do_Brasil: ~160k). Report é peça que vai pra cliente: conteúdo
-      // NSFW aqui não é ruído, é incidente.
-      includeNSFW: false,
-      maxItems: subs.length * posts * (1 + comentariosPorPost),
-      maxPostCount: posts,
-    };
-    const raw = await runActor<RawRedditItem>(
-      "trudax~reddit-scraper-lite",
-      input,
-      { fonte: "reddit", log, orcamentoMs: REDDIT_ORCAMENTO_MS }
-    );
+  const token = process.env.APIFY_TOKEN ?? "";
+  const daLane = recentes.filter((r) => r.lane === lane.fonte);
+  const min = (ms: number) => Math.round(ms / 60_000);
 
-    return montarPostsReddit(raw, fonte);
+  // 1) Cache: o SUCCEEDED mais recente da lane (a lista já vem em ordem
+  //    decrescente de início).
+  const cache = daLane.find((r) => r.status === "SUCCEEDED" && r.datasetId);
+  if (cache) {
+    try {
+      const raw = await lerDatasetReddit(token, cache.datasetId!);
+      console.log(
+        `[APIFY][reddit] lane ${lane.fonte}: cache do run ${cache.id} ` +
+          `(${min(cache.idadeMs)} min atras, ${raw.length} itens)`
+      );
+      // Renova pro próximo report se o mais recente da lane (rodando ou não)
+      // já passou do prazo. Run em voo recente conta como renovação em curso.
+      const maisRecente = daLane[0];
+      if (maisRecente.idadeMs > REDDIT_REFRESH_AFTER_MS) {
+        void dispararRedditEmSegundoPlano(token, lane);
+      }
+      return montarPostsReddit(raw, lane.fonte);
+    } catch (e) {
+      console.error(
+        `[APIFY][reddit] lane ${lane.fonte}: cache ilegivel, vai raspar:`,
+        e instanceof Error ? e.message : String(e)
+      );
+    }
+  }
+
+  // 2) Sem cache, mas outro report acabou de disparar: espera por ele em vez
+  //    de pagar um segundo run igual.
+  const emVoo = daLane.find(
+    (r) =>
+      (r.status === "RUNNING" || r.status === "READY") &&
+      r.idadeMs <= REDDIT_EM_VOO_MAX_MS
+  );
+  if (emVoo) {
+    console.log(
+      `[APIFY][reddit] lane ${lane.fonte}: sem cache; esperando run em voo ${emVoo.id} ` +
+        `(iniciado ha ${min(emVoo.idadeMs)} min) por ate ${REDDIT_ORCAMENTO_MS / 1000}s`
+    );
+    try {
+      const raw = await aguardarRunReddit(token, emVoo.id);
+      if (raw) return montarPostsReddit(raw, lane.fonte);
+      console.error(
+        `[APIFY][reddit] lane ${lane.fonte}: run em voo ${emVoo.id} nao terminou a tempo — ` +
+          `fica de cache pro proximo report`
+      );
+      return [];
+    } catch (e) {
+      return laneVazia("reddit", e);
+    }
+  }
+
+  // 3) Nada em cache nem em voo: raspa agora, com o orçamento da lane. Se o
+  //    actor estourar, o run continua lá e vira o cache do próximo report.
+  try {
+    const raw = await runActor<RawRedditItem>(REDDIT_ACTOR, inputReddit(lane), {
+      fonte: "reddit",
+      log,
+      orcamentoMs: REDDIT_ORCAMENTO_MS,
+    });
+    return montarPostsReddit(raw, lane.fonte);
   } catch (e) {
     return laneVazia("reddit", e);
   }
 }
 
 export async function fetchReddit(log?: ApifyRunLog): Promise<RedditItem[]> {
-  // Duas execuções em vez de uma lista só: como o teto do actor é de dataset
-  // inteiro, juntar as duas lanes faria a geral (5 subs, muito mais volume)
-  // engolir a cota da de meme (2 subs). Rodando separado cada lane tem teto
-  // próprio e o preço não muda — o actor cobra por resultado, e o número de
-  // resultados é o mesmo. Em paralelo pra não somar latência.
-  const [geral, meme] = await Promise.all([
-    coletarSubs(
-      REDDIT_SUBS_GERAL,
-      "geral",
-      REDDIT_POSTS_POR_SUB,
-      REDDIT_COMENTARIOS_POR_POST,
-      log
-    ),
-    // Sem comentários e com mais posts: em sub de meme o valor está na imagem e
-    // no título (é a piada inteira), enquanto a caixa de comentários é reação
-    // solta. Como comentário é item cobrado, cortá-los aqui paga mais post.
-    coletarSubs(REDDIT_SUBS_MEME, "meme", 6, 0, log),
-  ]);
-  return [...geral, ...meme];
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return laneVazia("reddit", new Error("APIFY_TOKEN não configurado"));
+
+  // Uma listagem serve às duas lanes. Falhou a listagem = sem cache, e cada
+  // lane cai no caminho de raspar agora (comportamento anterior).
+  let recentes: RunRedditRecente[] = [];
+  try {
+    recentes = await listarRunsReddit(token);
+  } catch (e) {
+    console.error(
+      "[APIFY][reddit] nao conseguiu listar runs recentes (segue sem cache):",
+      e instanceof Error ? e.message : String(e)
+    );
+  }
+
+  // Duas lanes em vez de uma lista só: como o teto do actor é de dataset
+  // inteiro, juntar as duas faria a geral (5 subs, muito mais volume) engolir
+  // a cota da de meme (2 subs). Em paralelo pra não somar latência.
+  const resultados = await Promise.all(
+    LANES_REDDIT.map((lane) => coletarLaneReddit(lane, recentes, log))
+  );
+  return resultados.flat();
 }
 
 export type SourceName = "instagram" | "tiktok" | "twitter" | "news" | "reddit";
