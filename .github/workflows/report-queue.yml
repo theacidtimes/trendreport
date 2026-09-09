@@ -2,25 +2,37 @@ name: Fila de Reports — Worker
 
 on:
   schedule:
-    # A cada 5min (menor intervalo que o GitHub aceita em schedule). É o atraso
-    # máximo entre o usuário clicar em "gerar" e a geração começar — sobre um
-    # pipeline que leva vários minutos, é ruído.
+    # Rede de segurança, NÃO o gatilho principal. Medido de 01 a 09/09: o
+    # GitHub disparou este schedule a cada 2 a 4 horas, não a cada 5 minutos
+    # (atraso conhecido em schedule de repositório com pouca atividade). Quem
+    # mantém o worker acordado é o auto-disparo no fim do job, abaixo; o
+    # schedule só religa a corrente se ela cair (API do GitHub fora, run
+    # cancelado na mão, workflow reabilitado).
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
-# Uma passada por vez. Isso é o que impede dois runs de pegarem o MESMO report
-# pendente e gerarem (e cobrarem) duas vezes — sem precisar de status novo no
-# banco, que exigiria migration.
+# Um worker por vez. É o que impede dois runs de pegarem o MESMO report
+# pendente e gerarem (e cobrarem) duas vezes. O run disparado no fim deste
+# fica "pendente" no grupo e assume assim que este encerra — sem intervalo
+# descoberto.
 concurrency:
   group: report-queue
   cancel-in-progress: false
 
+# O token padrão do job pode disparar workflow_dispatch (é uma das duas
+# exceções da regra "evento do GITHUB_TOKEN não cria run"). Nenhum PAT no
+# caminho — esse foi o motivo de a fila puxada existir.
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   processar:
     runs-on: ubuntu-latest
-    # Folga sobre os 15min do generate-report original, já que uma passada pode
-    # encadear até 3 reports.
-    timeout-minutes: 25
+    # Janela de vigília (4min) + até 3 reports pegos no último segundo dela
+    # (~10min cada, medido). Se estourar, o report em curso volta a "pending"
+    # e é pego pelo próximo run; o passo de auto-disparo roda mesmo assim.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -37,3 +49,15 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          FILA_JANELA_SEGUNDOS: '240'
+          FILA_INTERVALO_SEGUNDOS: '15'
+
+      # Corrente: o próximo worker nasce quando este termina, com sucesso ou
+      # não. Para PARAR a corrente, desabilite o workflow na aba Actions
+      # (isso bloqueia schedule e dispatch de uma vez); cancelar um run só
+      # abre um buraco até o schedule religar.
+      - name: Dispara o próximo worker
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run report-queue.yml --ref "${GITHUB_REF_NAME:-main}"

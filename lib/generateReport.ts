@@ -6,6 +6,7 @@ import {
   type SearchTerms,
   type SourceName,
 } from "./apify";
+import { filtrarBrandSafety, filtrarTikTokPorTranscricao } from "./brandSafety";
 import { custoAnthropic, type RegistroCusto } from "./custos";
 import { persistirImagensDoReport } from "./imagens";
 import { enriquecerComLegendas } from "./legendas";
@@ -597,7 +598,7 @@ export async function generateReport(
 
   await onProgress?.({ phase: "collecting", sources_done: [] });
 
-  const rawData = await collectAll(
+  const coletaBruta = await collectAll(
     terms,
     (source) => {
       sourcesDone.push(source);
@@ -611,6 +612,16 @@ export async function generateReport(
   const diag = diagnosticarColeta(apifyLog);
   console.log(`[REPORT][APIFY] ${diag.resumo}`);
   custos.push(...custosDaApify(apifyLog));
+
+  // Brand safety ANTES de qualquer outra coisa: política e crime violento não
+  // podem nem ser evidência de transbordo, nem contar em `fontes`. O corte no
+  // dado é o que garante; a regra no prompt é só a segunda camada.
+  // (Caso real: tweet de 2023 do Lula "assinando o Vivo Fibra sem ler" virou
+  // meme no report 29d7497a. Ver lib/brandSafety.ts.)
+  const safety = filtrarBrandSafety(coletaBruta);
+  const rawData = safety.dados;
+  console.log(`[REPORT][SAFETY] ${safety.diag.resumo}`);
+  for (const ex of safety.diag.exemplos) console.log(`[REPORT][SAFETY]   - ${ex}`);
 
   const totalColetado =
     rawData.instagram.length +
@@ -649,6 +660,15 @@ export async function generateReport(
   // modelo, e o modelo só vê o que sobreviveu ao trim.
   const diagLegendas = await enriquecerComLegendas(enviados.tiktok);
   console.log(`[REPORT][LEGENDA] ${diagLegendas.resumo}`);
+  // A fala só existe agora. Vídeo de caption inocente e conteúdo político
+  // passou pelo primeiro filtro; aqui ele cai pela transcrição.
+  const segundaPassada = filtrarTikTokPorTranscricao(enviados.tiktok);
+  enviados.tiktok = segundaPassada.itens;
+  if (segundaPassada.removidos > 0) {
+    console.log(
+      `[REPORT][SAFETY] ${segundaPassada.removidos} video(s) de TikTok removido(s) pela transcricao`
+    );
+  }
   if (diagLegendas.comLink > 0 && diagLegendas.baixadas === 0) {
     // Ofereceram legenda em todos e não veio nenhuma: não é vídeo mudo, é o
     // download quebrado (URL expirada, CDN bloqueando, formato mudou). O
@@ -670,7 +690,11 @@ export async function generateReport(
   const response = await anthropic.messages
     .stream({
       model: MODELO_REPORT,
-      max_tokens: 8000,
+      // O JSON completo de um report fica entre 5 e 7 mil tokens; 8000 era
+      // margem de nada e cortou o report 4b9ec88a da Vivo no meio (stop_reason
+      // max_tokens) depois de 9 minutos de pipeline. Como a chamada é em
+      // streaming, teto alto não custa nada a mais: só se paga o que sai.
+      max_tokens: 16000,
       system: [
         {
           type: "text",

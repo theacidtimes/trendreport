@@ -108,7 +108,16 @@ export type ApifyRunInfo = {
 
 export type ApifyRunLog = ApifyRunInfo[];
 
-type ContextoColeta = { fonte: SourceName; log?: ApifyRunLog };
+type ContextoColeta = {
+  fonte: SourceName;
+  log?: ApifyRunLog;
+  // Orçamento de espera deste run, quando menor que o padrão. Existe por causa
+  // do Reddit: o actor passou a estourar os 300s em toda geração (3 de 3 nos
+  // logs de 08/09) e, como a coleta é um Promise.all, ele sozinho segurava o
+  // report inteiro por 5min pra devolver nada. O TikTok, a lane mais lenta que
+  // de fato entrega, fecha em ~2,5min — é esse o teto que faz sentido.
+  orcamentoMs?: number;
+};
 
 /**
  * Lê o objeto `run` da Apify. Puro de propósito: é a peça que decide se
@@ -216,7 +225,8 @@ async function runActor<T>(
   // 2) Poll até estado terminal. Cada volta bloqueia no servidor da Apify via
   //    waitForFinish em vez de dormir aqui — menos requisição e resposta assim
   //    que o run acaba, em vez de esperar o próximo tick.
-  const limite = Date.now() + RUN_TIMEOUT_MS;
+  const orcamentoMs = ctx?.orcamentoMs ?? RUN_TIMEOUT_MS;
+  const limite = Date.now() + orcamentoMs;
   let errosDePoll = 0;
   let ultimoErroPoll = "";
   while (!estado.terminal && runId && Date.now() < limite) {
@@ -260,7 +270,7 @@ async function runActor<T>(
         motivo: desistiuPorErro ? "http" : "timeout",
         detalhe: desistiuPorErro
           ? `poll falhou ${errosDePoll}x (ultimo: ${ultimoErroPoll})`
-          : `passou de ${RUN_TIMEOUT_MS / 1000}s ainda em ${estado.status}`,
+          : `passou de ${orcamentoMs / 1000}s ainda em ${estado.status}`,
       },
     });
     console.error(
@@ -268,7 +278,7 @@ async function runActor<T>(
         `abandonado ainda em ${estado.status} ` +
         (desistiuPorErro
           ? `apos ${errosDePoll} erros consecutivos de poll (${ultimoErroPoll}). `
-          : `apos ${RUN_TIMEOUT_MS / 1000}s. `) +
+          : `apos ${orcamentoMs / 1000}s. `) +
         `O run NAO foi abortado (termina sozinho) e o custo entra depois pelo ` +
         `backfill — ver scripts/backfill-custos.ts.`
     );
@@ -705,6 +715,14 @@ interface RawTweet {
   possiblySensitive?: boolean;
 }
 
+// Mesma janela das outras lanes: tendência de 2 semanas atrás já não é
+// acionável nas próximas 48h, que é o horizonte do report.
+const TWITTER_MAX_AGE_DAYS = 14;
+
+function dataISO(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
 export async function fetchTwitter(
   keywords: string[],
   log?: ApifyRunLog
@@ -723,6 +741,12 @@ export async function fetchTwitter(
         maxItems: 20,
         sort: "Top",
         tweetLanguage: "pt",
+        // "Top" sem janela devolve o tweet mais curtido DE SEMPRE com aquele
+        // termo. Foi assim que um tweet de janeiro de 2023 (Lula "assinando o
+        // Vivo Fibra sem ler", 129 mil likes) chegou como meme em report de
+        // setembro de 2026. `start` é parâmetro do actor (conferido no
+        // inputSchema, formato YYYY-MM-DD) e corta na origem.
+        start: dataISO(Date.now() - TWITTER_MAX_AGE_DAYS * 86_400_000),
       },
       { fonte: "twitter", log }
     );
@@ -983,6 +1007,11 @@ function imagemDoPost(urls?: string[]): string | undefined {
 // data garantido na origem. Meme velho é o pior caso possível pra memes[].
 const REDDIT_MAX_AGE_DAYS = 7;
 
+// Teto de espera do Reddit. Menor que o padrão de 300s de propósito — ver o
+// campo orcamentoMs em ContextoColeta. Se o Reddit responder, responde bem
+// antes disso; se não, é ele travado e não vale segurar o report.
+const REDDIT_ORCAMENTO_MS = 150_000;
+
 function isRecentReddit(createdAt?: string): boolean {
   if (!createdAt) return true;
   const posted = new Date(createdAt).getTime();
@@ -1083,7 +1112,7 @@ async function coletarSubs(
     const raw = await runActor<RawRedditItem>(
       "trudax~reddit-scraper-lite",
       input,
-      { fonte: "reddit", log }
+      { fonte: "reddit", log, orcamentoMs: REDDIT_ORCAMENTO_MS }
     );
 
     return montarPostsReddit(raw, fonte);

@@ -42,9 +42,15 @@ export default function BriefingForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Marca cadastrada (DNA oficial) vs. report avulso (só briefing). Vazio = avulso.
+  // Marca cadastrada (DNA oficial) vs. report avulso (só briefing).
+  // "" = ninguém escolheu ainda (bloqueia o envio quando há marcas cadastradas);
+  // AVULSO = a pessoa decidiu conscientemente gerar sem DNA. Antes "" era o
+  // avulso por padrão, e foi assim que dois reports da Vivo saíram sem o DNA da
+  // marca (e sem o "evitar tom político" que mora nele) sem ninguém perceber.
+  const AVULSO = "avulso";
   const [marcas, setMarcas] = useState<MarcaOption[]>([]);
   const [marcaId, setMarcaId] = useState("");
+  const marcaPendente = marcas.length > 0 && marcaId === "";
 
   useEffect(() => {
     const supabase = createClient();
@@ -53,8 +59,19 @@ export default function BriefingForm({
       .select("id, nome")
       .order("nome", { ascending: true })
       .then(({ data }) => {
-        if (data) setMarcas(data as MarcaOption[]);
+        if (!data) return;
+        const lista = data as MarcaOption[];
+        setMarcas(lista);
+        // Tenant com uma marca só: ela já vem escolhida. Report avulso vira
+        // exceção consciente (a pessoa troca pra "avulso"), não o default por
+        // esquecimento — foi assim que dois reports da Vivo saíram sem o DNA
+        // (e sem o "evitar tom político" que está nele).
+        if (lista.length === 1) {
+          setMarcaId((atual) => atual || lista[0].id);
+          setCliente((atual) => atual || lista[0].nome);
+        }
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Ao escolher uma marca cadastrada, o cliente passa a ser o nome dela (o DNA é
@@ -63,6 +80,9 @@ export default function BriefingForm({
     setMarcaId(id);
     const marca = marcas.find((m) => m.id === id);
     if (marca) setCliente(marca.nome);
+    // Avulso: libera o campo Cliente e apaga o nome herdado de uma marca que a
+    // pessoa acabou de desmarcar, senão o report sai "avulso" com nome de marca.
+    if (id === AVULSO) setCliente("");
   }
 
   function setLoadingState(next: boolean) {
@@ -119,12 +139,20 @@ export default function BriefingForm({
     e.preventDefault();
     setError("");
 
-    if (!cliente.trim()) {
-      setError("Preencha o nome do cliente.");
-      return;
-    }
-    if (!contexto.trim()) {
-      setError("Descreva o contexto antes de gerar.");
+    // Uma mensagem só com TUDO que falta, em vez de descobrir um campo por
+    // tentativa. Marca conta como obrigatória quando o tenant tem marca
+    // cadastrada: sem ela o report perde o DNA inteiro.
+    const faltando: string[] = [];
+    if (marcaPendente) faltando.push("Marca");
+    if (!cliente.trim()) faltando.push("Cliente");
+    if (!contexto.trim()) faltando.push("Contexto");
+    if (faltando.length) {
+      setError(
+        `Faltam campos obrigatórios: ${faltando.join(", ")}.` +
+          (marcaPendente
+            ? " Escolha a marca cadastrada (ou marque \"Report avulso\" de propósito)."
+            : "")
+      );
       return;
     }
 
@@ -150,7 +178,10 @@ export default function BriefingForm({
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ briefing, marcaId: marcaId || null }),
+        body: JSON.stringify({
+          briefing,
+          marcaId: marcaId && marcaId !== AVULSO ? marcaId : null,
+        }),
       });
 
       const resData = await res.json();
@@ -205,18 +236,35 @@ export default function BriefingForm({
               value={marcaId}
               onChange={(e) => handleMarcaChange(e.target.value)}
               disabled={loading}
-              className={`${fieldClass} [color-scheme:dark] cursor-pointer`}
+              className={`${fieldClass} [color-scheme:dark] cursor-pointer ${
+                marcaPendente ? "border-amber-400/60" : ""
+              }`}
             >
-              <option value="">Report avulso (só o briefing)</option>
+              <option value="" disabled>
+                Selecione a marca
+              </option>
               {marcas.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.nome}
                 </option>
               ))}
+              <option value={AVULSO}>Report avulso (sem DNA, só o briefing)</option>
             </select>
-            <span className="text-muted/70 text-[12px]">
-              Com marca, radar e report bebem do mesmo DNA. O briefing segue valendo pro contexto da edição.
-            </span>
+            {marcaPendente ? (
+              <span className="text-amber-300 text-[12px] flex items-center gap-1.5">
+                <TriangleAlert className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+                Campo obrigatório: sem marca, o report sai sem o DNA cadastrado (tom, produto e o que evitar).
+              </span>
+            ) : marcaId === AVULSO ? (
+              <span className="text-amber-300 text-[12px] flex items-center gap-1.5">
+                <TriangleAlert className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+                Report avulso: o modelo só vai saber o que estiver no briefing. Nenhum DNA de marca é aplicado.
+              </span>
+            ) : (
+              <span className="text-muted/70 text-[12px]">
+                Com marca, radar e report bebem do mesmo DNA. O briefing segue valendo pro contexto da edição.
+              </span>
+            )}
           </div>
         )}
 
@@ -230,7 +278,7 @@ export default function BriefingForm({
               value={cliente}
               onChange={(e) => setCliente(e.target.value)}
               placeholder="Vivo Fibra"
-              disabled={loading || marcaId !== ""}
+              disabled={loading || (marcaId !== "" && marcaId !== AVULSO)}
               className={fieldClass}
             />
           </div>

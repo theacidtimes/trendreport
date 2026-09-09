@@ -16,14 +16,26 @@ import WebSocket from "ws";
 // Retry sai de graça: report que ficou pendente porque o job morreu no meio é
 // simplesmente pego de novo na próxima passada. Antes isso virava órfão eterno.
 
-// Teto por passada. Cada report leva minutos; com o timeout de 25min do job,
-// três é o que cabe com folga. O resto espera o próximo tique (5min), não se
-// perde.
+// Teto por consulta à fila. Cada report leva minutos; três de uma vez é o que
+// cabe sem estourar o timeout do job. O resto é pego na volta seguinte do laço.
 const MAX_POR_PASSADA = 3;
 
 // Carência antes de pegar um report recém-criado. Evita corrida com a própria
 // rota que acabou de inserir a linha e ainda está respondendo ao navegador.
 const CARENCIA_SEGUNDOS = 20;
+
+// JANELA DE VIGÍLIA. O worker não faz uma passada e sai: fica olhando a fila
+// por este tempo antes de encerrar. Motivo, medido nos runs de 01 a 09/09: o
+// `cron: */5` do GitHub estava disparando a cada 2 a 4 HORAS (não é bug nosso,
+// é o GitHub atrasando schedule de repositório com pouca atividade). O report
+// 4b9ec88a da Vivo, criado 17:54, só começou a gerar 20:07 — e a interface
+// mostra "gerando" o tempo todo. Com a janela, o run que está vivo pega o
+// report em até INTERVALO segundos, e o próprio workflow se re-dispara ao
+// terminar (ver report-queue.yml), então sempre há um worker acordado.
+const JANELA_SEGUNDOS = Number(process.env.FILA_JANELA_SEGUNDOS ?? 240);
+const INTERVALO_SEGUNDOS = Number(process.env.FILA_INTERVALO_SEGUNDOS ?? 15);
+
+const dormir = (s: number) => new Promise((r) => setTimeout(r, s * 1000));
 
 if (!(globalThis as { WebSocket?: unknown }).WebSocket) {
   (globalThis as { WebSocket?: unknown }).WebSocket = WebSocket as unknown;
@@ -42,28 +54,63 @@ async function main() {
     realtime: { transport: WebSocket as never },
   });
 
-  const ate = new Date(Date.now() - CARENCIA_SEGUNDOS * 1000).toISOString();
+  const fim = Date.now() + JANELA_SEGUNDOS * 1000;
+  let gerados = 0;
+  let falhas = 0;
+  let voltas = 0;
 
-  // Mais antigo primeiro: quem esperou mais, gera antes.
-  const { data: fila, error } = await supabase
-    .from("reports")
-    .select("slug, cliente, briefing, created_at")
-    .eq("status", "pending")
-    .lt("created_at", ate)
-    .order("created_at", { ascending: true })
-    .limit(MAX_POR_PASSADA);
+  console.log(
+    `[FILA] Vigiando a fila por ${JANELA_SEGUNDOS}s (consulta a cada ${INTERVALO_SEGUNDOS}s).`
+  );
 
-  if (error) {
-    throw new Error(`Falha ao ler a fila de reports: ${error.message}`);
-  }
+  // O laço não interrompe um report no meio: se a janela vence enquanto um
+  // report gera, ele termina e só então o worker sai. O timeout do job tem
+  // folga pra isso.
+  do {
+    voltas++;
+    const ate = new Date(Date.now() - CARENCIA_SEGUNDOS * 1000).toISOString();
 
-  if (!fila?.length) {
-    console.log("[FILA] Nenhum report pendente.");
-    return;
-  }
+    // Mais antigo primeiro: quem esperou mais, gera antes.
+    const { data: fila, error } = await supabase
+      .from("reports")
+      .select("slug, cliente, briefing, created_at")
+      .eq("status", "pending")
+      .lt("created_at", ate)
+      .order("created_at", { ascending: true })
+      .limit(MAX_POR_PASSADA);
 
-  console.log(`[FILA] ${fila.length} report(s) pendente(s) nesta passada.`);
+    if (error) {
+      throw new Error(`Falha ao ler a fila de reports: ${error.message}`);
+    }
 
+    if (!fila?.length) {
+      if (Date.now() < fim) await dormir(INTERVALO_SEGUNDOS);
+      continue;
+    }
+
+    console.log(`[FILA] ${fila.length} report(s) pendente(s) (volta ${voltas}).`);
+    const resultado = processarLote(fila);
+    gerados += resultado.ok;
+    falhas += resultado.falhas;
+  } while (Date.now() < fim);
+
+  console.log(
+    `\n[FILA] Janela encerrada: ${gerados} ok, ${falhas} com falha, ${voltas} consulta(s).`
+  );
+
+  // Job vermelho quando algo falhou — a varredura de manutenção lê execuções
+  // falhas do Actions e te avisa. Silêncio só quando foi tudo bem.
+  if (falhas) process.exitCode = 1;
+}
+
+type ItemFila = {
+  slug: string;
+  cliente: string | null;
+  briefing: unknown;
+  created_at: string;
+};
+
+function processarLote(fila: ItemFila[]): { ok: number; falhas: number } {
   let falhas = 0;
 
   for (const item of fila) {
@@ -99,13 +146,7 @@ async function main() {
     }
   }
 
-  console.log(
-    `\n[FILA] Passada encerrada: ${fila.length - falhas} ok, ${falhas} com falha.`
-  );
-
-  // Job vermelho quando algo falhou — a varredura de manutenção lê execuções
-  // falhas do Actions e te avisa. Silêncio só quando foi tudo bem.
-  if (falhas) process.exitCode = 1;
+  return { ok: fila.length - falhas, falhas };
 }
 
 main().catch((err) => {

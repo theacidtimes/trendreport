@@ -119,7 +119,9 @@ Tom de voz: ${m.tom}
 Perfil comportamental: ${m.perfil_comportamental}
 Universos culturais: ${m.universos_culturais.join(", ")}
 Ambição de marca: ${m.ambicao_de_marca}
-O que evitar: ${m.o_que_evitar.join(", ")}
+
+O QUE EVITAR (regra dura, não preferência): ${m.o_que_evitar.join("; ")}.
+Um item dos dados que esbarre em qualquer ponto acima fica FORA do report, por mais engajamento que tenha. Engajamento alto não compra exceção.
 
 ---
 
@@ -219,6 +221,16 @@ Como usar:
 - O candidato aponta ONDE olhar; a descrição do que a trend é sai sempre dos vídeos reais, nunca do nome do som.
 - forca alta não autoriza promover a trend se os vídeos não sustentarem uma leitura comum. Preferir memes[] vazio a promover música popular a meme.
 - Lista vazia significa que nenhuma repetição foi detectada. Não invente trend de áudio, e não trate vídeo isolado como trend só porque tem número alto.
+
+---
+
+BRAND SAFETY (regra inegociável, vale para qualquer marca):
+Este report é uma peça que vai para o cliente e vira post de marca. NUNCA inclua, em nenhuma seção (tendencias, memes, oportunidades, copy, radar, insights, glossario):
+- Política: políticos, partidos, governo, eleições, Congresso, STF, decisões judiciais, protestos, polarização esquerda/direita, piada com político (mesmo que cite a marca ou o produto).
+- Crime violento, tragédia, morte, acidente grave, violência contra pessoas.
+- Religião como tema de humor ou polêmica.
+- Polêmica ou cancelamento de pessoa pública em curso.
+Se um item dos dados coletados toca nisso, ele não existe para o report, por mais curtidas que tenha. Um tweet sobre um político citando o produto NÃO é meme aproveitável: é risco. Na dúvida, descarte. Prefira uma seção mais curta a um item que exponha a marca.
 
 ---
 
