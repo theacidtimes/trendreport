@@ -2,12 +2,17 @@ name: Trend Radar — Varredura Contínua
 
 on:
   schedule:
-    # A cada 15min. A varredura só DISPARA as marcas que "venceram" o próprio
-    # intervalo_horas (cadência por cliente) — então esta frequência é só o
-    # tique do relógio; quem decide se dispara é o intervalo de cada marca.
-    # Ticks curtos importam porque a coleta agora é assíncrona: cada tick também
-    # FINALIZA os scrapes que ficaram prontos desde o anterior, então */15
-    # reduz a latência entre "run da Apify terminou" e "drops salvos".
+    # Rede de segurança, NÃO o gatilho principal. Medido de 12 a 17/09: o
+    # GitHub disparou este schedule a cada 2 a 5 horas, não a cada 15 minutos
+    # (atraso conhecido em schedule de repositório com pouca atividade — a
+    # fila de reports mediu o mesmo). Quem mantém o radar acordado é a janela
+    # de vigília do script + o auto-disparo no fim do job, abaixo; o schedule
+    # só religa a corrente se ela cair (API fora, run cancelado na mão,
+    # workflow reabilitado).
+    #
+    # A varredura só DISPARA as marcas que "venceram" o próprio intervalo_horas
+    # (cadência por cliente); cada tick também FINALIZA os scrapes que ficaram
+    # prontos, então tick curto = drops salvos minutos depois da Apify terminar.
     - cron: '*/15 * * * *'
   workflow_dispatch:
 
@@ -17,12 +22,20 @@ concurrency:
   group: radar-cron
   cancel-in-progress: false
 
+# O token padrão do job pode disparar workflow_dispatch (uma das duas exceções
+# da regra "evento do GITHUB_TOKEN não cria run"). Nenhum PAT no caminho.
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   run-radar:
     runs-on: ubuntu-latest
     # A varredura roda AQUI no runner (não mais via curl pra Vercel), então não
     # há mais o teto de 300s da serverless function — o limite é este timeout.
-    timeout-minutes: 30
+    # Janela de vigília (20min) + um finalize que comece no último segundo dela
+    # e use o FINALIZE_BUDGET_MS inteiro (25min) + npm ci.
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
 
@@ -40,3 +53,15 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
           VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          RADAR_JANELA_SEGUNDOS: '1200'
+          RADAR_INTERVALO_SEGUNDOS: '120'
+
+      # Corrente: o próximo run nasce quando este termina, com sucesso ou não.
+      # Para PARAR a corrente, desabilite o workflow na aba Actions (bloqueia
+      # schedule e dispatch de uma vez); cancelar um run só abre um buraco até
+      # o schedule religar.
+      - name: Dispara o próximo run
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run radar-cron.yml --ref "${GITHUB_REF_NAME:-main}"

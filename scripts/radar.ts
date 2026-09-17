@@ -34,10 +34,34 @@ async function main() {
     );
   }
 
-  console.log("[RADAR] Iniciando varredura no runner. Node =", process.version);
-  await runAllActiveRadars();
-  console.log("[RADAR] Varredura concluída.");
+  // JANELA DE VIGÍLIA. Um tick e sair dependia do `cron: */15` do GitHub, que
+  // na prática disparou a cada 2 a 5 HORAS (medido de 12 a 17/09: 00:43, 05:24,
+  // 10:09, 14:57 — atraso conhecido de schedule em repositório com pouca
+  // atividade, o mesmo que a fila de reports mediu). Efeito: a marca vencia às
+  // 03h e só disparava às 05h; a Apify terminava em 5min e os drops só eram
+  // salvos no tick seguinte, horas depois. Agora o run fica acordado por
+  // JANELA segundos dando ticks a cada INTERVALO, e o workflow se re-dispara ao
+  // terminar (ver radar-cron.yml) — sempre há um runner olhando.
+  const janela = Number(process.env.RADAR_JANELA_SEGUNDOS ?? 0);
+  const intervalo = Number(process.env.RADAR_INTERVALO_SEGUNDOS ?? 120);
+  const fim = Date.now() + janela * 1000;
+  let ticks = 0;
+
+  console.log(
+    `[RADAR] Iniciando no runner. Node = ${process.version}. Janela ${janela}s, tick a cada ${intervalo}s.`
+  );
+  // O laço não interrompe um tick no meio: se a janela vence durante um
+  // finalize longo, ele termina (dentro do próprio FINALIZE_BUDGET_MS) e só
+  // então o worker sai. O timeout-minutes do job tem folga pra isso.
+  do {
+    ticks++;
+    await runAllActiveRadars();
+    if (Date.now() < fim) await dormir(intervalo);
+  } while (Date.now() < fim);
+  console.log(`[RADAR] Janela encerrada após ${ticks} tick(s).`);
 }
+
+const dormir = (s: number) => new Promise((r) => setTimeout(r, s * 1000));
 
 main().catch((err) => {
   console.error(
