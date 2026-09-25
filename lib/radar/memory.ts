@@ -7,6 +7,20 @@ const DEDUP_THRESHOLD = 0.92   // só corta sinais quase-idênticos
 const RETRIEVE_COUNT = 8
 const RETRIEVE_MIN_SIMILARITY = 0.5
 
+// Tetos por chamada ao banco. O statement_timeout do PostgREST é 8s e tanto a
+// busca quanto a gravação crescem com o lote: 230 queries de dedup numa marca
+// pequena levaram 12s (o iterative scan do HNSW varre até achar vizinhos da
+// marca) e ~230 inserts estouravam o tempo atualizando o índice — desde 16/09
+// nenhum sinal entrava na memória. Lotes pequenos ficam na casa de 1-4s.
+const DEDUP_CHUNK = 15
+const INSERT_CHUNK = 25
+
+function chunks<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
+}
+
 export interface RetrievedSignal {
   fonte: string
   conteudo: string
@@ -63,22 +77,24 @@ export async function processMemory(
 
   // 2. dedup vs. histórico do cliente (não re-surfacear o mesmo trend)
   //
-  // Uma chamada em lote no lugar de N idas ao PostgREST (uma por sinal). O
   // match_radar_signals_batch preserva o padrão ANN por query (LATERAL top-1),
-  // então o resultado é idêntico ao laço serial antigo — provado com 65 queries
-  // reais, 0 divergências. Fail-open: se o RPC falhar (data nulo), tratamos tudo
-  // como novidade, exatamente como o laço anterior fazia com dup indefinido.
-  const { data: batch } = await supabase.rpc('match_radar_signals_batch', {
-    p_marca_id: marcaId,
-    p_queries: unique.map(u => u.emb),
-    p_min_similarity: DEDUP_THRESHOLD
-  })
-  const matched = new Set<number>(
-    (batch ?? [])
-      .filter((r: { has_match: boolean }) => r.has_match)
-      // query_idx vem 1-based (WITH ORDINALITY) — normaliza pro índice do array
-      .map((r: { query_idx: number }) => r.query_idx - 1)
-  )
+  // em lotes de DEDUP_CHUNK pra caber no statement_timeout. Fail-open: lote que
+  // falhar é tratado como novidade, mas agora com log — antes o erro sumia.
+  const matched = new Set<number>()
+  let offset = 0
+  for (const lote of chunks(unique, DEDUP_CHUNK)) {
+    const { data: batch, error } = await supabase.rpc('match_radar_signals_batch', {
+      p_marca_id: marcaId,
+      p_queries: lote.map(u => u.emb),
+      p_min_similarity: DEDUP_THRESHOLD
+    })
+    if (error) console.error('[MEMORY] Falha no dedup vs. histórico (lote tratado como novo):', error.message)
+    for (const r of (batch ?? []) as { query_idx: number; has_match: boolean }[]) {
+      // query_idx vem 1-based (WITH ORDINALITY) e relativo ao lote
+      if (r.has_match) matched.add(offset + r.query_idx - 1)
+    }
+    offset += lote.length
+  }
   const fresh = unique.filter((_, i) => !matched.has(i))
 
   // 3. recuperar memória histórica ANTES de persistir (evita auto-match)
@@ -107,8 +123,13 @@ export async function processMemory(
       },
       embedding: emb
     }))
-    const { error } = await supabase.from('radar_raw_data').insert(rows)
-    if (error) console.error('[MEMORY] Erro ao persistir sinais:', error)
+    let gravados = 0
+    for (const lote of chunks(rows, INSERT_CHUNK)) {
+      const { error } = await supabase.from('radar_raw_data').insert(lote)
+      if (error) console.error('[MEMORY] Erro ao persistir lote de sinais:', error.message)
+      else gravados += lote.length
+    }
+    console.log(`[MEMORY] ${gravados}/${rows.length} sinais novos gravados na memória`)
   }
 
   // 5. FORK pra Fabric Lake (Fase 5): so roda com FABRIC_LAKE_INGEST ligada.
