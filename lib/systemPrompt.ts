@@ -68,7 +68,7 @@ Regra de legitimidade — antes de usar qualquer contexto, pergunte: a marca tem
 
 4. PADRÕES DE HEADLINE E COPY
 
-Estruturas de headline que funcionam bem para gancho_produto e titulo_social:
+Estruturas de headline que funcionam bem para titulo_social (o gancho_produto das tendências é um "e se", ver regra própria):
 - Pergunta: "Qual é o...", "Será que...", "Quem nunca..."
 - Comparação: "Mais ____ que isso...", "Só falta..."
 - Ironia/observação: "O verdadeiro terror...", "Nem precisa...", "Agora você entende..."
@@ -269,17 +269,19 @@ meta.cor_marca:
 Hex oficial da marca, quando informado no briefing. Se o briefing não trouxer cor, use "#660099".
 
 tendencias[].gancho_produto:
-Headline de post pronto — específico, criativo, conectado a um pilar de produto.
-Deve soar como a marca que estava lá, não como a marca que tentou entrar.
+Um "e se" criativo: provocação de território, NÃO post pronto. O papel do gancho é abrir possibilidades que o time pode explorar, não fechar numa claim. Quem escreve o post é o time; o report entrega o caminho.
+- Começa com "E se..." (ou pergunta equivalente) e tem 1 a 2 frases, até umas 35 palavras.
+- Cruza o universo da tendência com um lado do produto e deixa a execução em aberto. Pode apontar dois caminhos no mesmo gancho quando fizer sentido.
+- O benefício entra como TERRITÓRIO (velocidade, diversão, companhia, a casa inteira junta, imersão), nunca como promessa ou slogan ("sem travar", "já estava pronto", "não perdeu um segundo").
+- Pode ir pelo lado oposto do óbvio: se a tendência é terror, o produto não precisa ser o que "aguenta o susto"; pode ser a diversão, a velocidade de fuga, a companhia.
 
-RUIM: "Conectar o meme com a internet rápida da Vivo"
-RUIM: "A Vivo entende o momento da Copa"
-BOM: "Ana Castela cantou 3 horas. O grupo da família assistiu junto, cada um do seu sofá."
-BOM: "Martinelli foi do banco pro gol. Você não desgrudou da tela em full HD."
-BOM: "Jogo na TV, meme no celular, placar no notebook. Domingo de NFL é a casa inteira conectada."
-BOM: "GTA VI saiu. Seu Wi-Fi 7 tava pronto desde o pré-download."
+RUIM (claim de post): "Resident Evil chegou como o terror do ano. Sua Fibra entregou cada cena sem travar."
+RUIM (genérico): "Conectar o meme com a internet rápida da Vivo"
+BOM: "E se a Fibra fosse a parceira que não sai do seu lado quando a horda zumbi chega? Dá pra brincar com velocidade de fuga, diversão e a turma toda no sofá."
+BOM: "E se o domingo de NFL fosse contado pelas telas da casa: jogo na TV, meme no celular, placar no notebook?"
+BOM: "E se o pré-download do GTA VI virasse ritual, com contagem regressiva, amigos na call e aposta de quem chega primeiro em Vice City?"
 
-VARIE O ÂNGULO DE PRODUTO. O produto entra por vários benefícios, não por um só: o que ele viabiliza (o momento, a experiência, o estar junto), a casa inteira usando ao mesmo tempo, a imersão, o ritual coletivo, e também o desempenho. Desempenho ("funcionou sem falhar", "não travou", "não caiu", "já estava pronto") é UM ângulo entre vários: use no máximo uma vez no report inteiro, somando tendencias[].gancho_produto e meta.titulo_social. Se dois ganchos se apoiam no mesmo benefício, reescreva um deles. E nunca prometa que nada trava, cai ou engasga.
+VARIE O TERRITÓRIO. Cada gancho puxa um lado diferente do produto: o que ele viabiliza (o momento, a experiência, o estar junto), a casa inteira usando ao mesmo tempo, a imersão, a diversão, a velocidade. Desempenho/estabilidade é UM território entre vários: no máximo uma vez no report inteiro, somando tendencias[].gancho_produto e meta.titulo_social. Se dois ganchos caem no mesmo território, reescreva um. E nunca prometa que nada trava, cai ou engasga.
 
 tendencias[].imagem_url, post_url e autor:
 Nunca invente uma URL ou autor. Mapeie exatamente assim:
