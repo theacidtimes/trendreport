@@ -6,7 +6,11 @@ import {
   type SearchTerms,
   type SourceName,
 } from "./apify";
-import { filtrarBrandSafety, filtrarTikTokPorTranscricao } from "./brandSafety";
+import {
+  filtrarBrandSafety,
+  filtrarTikTokPorTranscricao,
+  sinalizarLinguagem,
+} from "./brandSafety";
 import { custoAnthropic, type RegistroCusto } from "./custos";
 import { persistirImagensDoReport } from "./imagens";
 import { enriquecerComLegendas } from "./legendas";
@@ -755,6 +759,17 @@ export async function generateReport(
     news: rawData.news.length,
     reddit: rawData.reddit.length,
   };
+
+  // Palavrão no post de origem não corta o card (é o tom real da conversa),
+  // mas o card sai marcado pro revisor ver antes de publicar. Compara com
+  // `enviados` porque é onde está a transcrição do TikTok. Ver lib/brandSafety.ts.
+  const sinalizados = sinalizarLinguagem(
+    [...(report.tendencias ?? []), ...(report.memes ?? [])],
+    enviados
+  );
+  if (sinalizados > 0) {
+    console.log(`[REPORT][SAFETY] ${sinalizados} card(s) marcado(s) com linguagem explicita`);
+  }
 
   // Última etapa antes de devolver: trocar as imagens do CDN por cópias nossas.
   // Tem que ser aqui, com o report ainda quente — a assinatura da cover do

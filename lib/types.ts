@@ -30,6 +30,9 @@ export interface Tendencia {
   post_url?: string;
   autor?: string | null;
   plataforma?: "instagram" | "twitter" | "tiktok" | "news" | "reddit";
+  // Palavrão encontrado no post de origem (ver sinalizarLinguagem). Só aparece
+  // no editor, pro revisor decidir; não vai pra visão do cliente.
+  linguagem_explicita?: string | null;
 }
 
 export interface Meme {
@@ -41,6 +44,9 @@ export interface Meme {
   post_url?: string;
   autor?: string | null;
   plataforma?: "instagram" | "twitter" | "tiktok" | "news" | "reddit";
+  // Palavrão encontrado no post de origem (ver sinalizarLinguagem). Só aparece
+  // no editor, pro revisor decidir; não vai pra visão do cliente.
+  linguagem_explicita?: string | null;
 }
 
 export interface RadarSinal {
@@ -320,6 +326,12 @@ export interface PulsoCultural {
   // é agosto no BR e setembro na AU. Sem esta coluna, uma marca estrangeira que
   // assina `massa` recebe o calendário brasileiro inteiro, calada.
   pais?: string | null
+  // Linha PRÓPRIA de uma marca: a data ou o pulso que só aquele cliente vive
+  // (Dia do Corretor para a Bradesco, lançamento da Vivo). null = linha de
+  // domínio, que vale para quem assina. Não é `tenant_id`: o tenant é a AGÊNCIA
+  // — as marcas da Caramelo moram todas no mesmo — e escopo por tenant daria o
+  // Dia do Corretor à Vivo.
+  marca_id?: string | null
 }
 
 export interface Marca {

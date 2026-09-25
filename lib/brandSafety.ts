@@ -272,3 +272,119 @@ export function filtrarTikTokPorTranscricao(itens: TikTokItem[]): {
   const filtrados = itens.filter((i) => !termoSensivel(i.transcricao));
   return { itens: filtrados, removidos: antes - filtrados.length };
 }
+
+// ── Linguagem explícita: SINALIZA, não corta ─────────────────────────────────
+//
+// Caso real (report a16c6cbf, Vivo, 25/09/2026): o meme "internet lenta vs.
+// cabo coaxial" linkava um tweet com três palavrões. A ideia do card era boa
+// pra Vivo Fibra; o problema era a referência, que ninguém via sem abrir o
+// link. Diferente de política, palavrão aqui NÃO sai da coleta: ele é o tom
+// real da conversa, e humor de internet brasileira sem palavrão é uma amostra
+// falsa. Então o item chega ao modelo normalmente e, se virar card, o card sai
+// marcado pra quem revisa decidir (manter, trocar a referência ou tirar o link).
+//
+// Mesma mecânica do filtro acima: palavra inteira, sem acento. Termos ambíguos
+// ("rola", "pica", "cacete", "desgraça") ficam de fora de propósito — erra pra
+// menos, porque alarme em todo card faz o revisor parar de olhar.
+const TERMOS_PALAVRAO = [
+  "porra",
+  "caralho",
+  "krl",
+  "crl",
+  "merda",
+  "bosta",
+  "puta",
+  "puto",
+  "putaria",
+  "pqp",
+  "fdp",
+  "foda",
+  "foda-se",
+  "fodase",
+  "foder",
+  "fuder",
+  "fodido",
+  "fudido",
+  "fodeu",
+  "fudeu",
+  "cu",
+  "cuzao",
+  "buceta",
+  "piroca",
+  "arrombado",
+  "arrombada",
+  "vagabunda",
+  "vadia",
+  "viado",
+  "vsf",
+  "vtnc",
+  "tnc",
+  "fuck",
+  "fucking",
+  "shit",
+  "bitch",
+  "motherfucker",
+];
+
+const REGEX_PALAVRAO = new RegExp(
+  "(?<![\\w-])(?:" +
+    TERMOS_PALAVRAO.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") +
+    ")(?![\\w-])"
+);
+
+/** Devolve o primeiro palavrão encontrado no texto, ou null. */
+export function palavrao(texto: string | undefined | null): string | null {
+  if (!texto) return null;
+  const m = normalizar(texto).match(REGEX_PALAVRAO);
+  return m ? m[0] : null;
+}
+
+// Mesma URL chega em formas diferentes (twitter.com vs x.com, com ou sem
+// query/barra final, www ou não). Sem normalizar, o card não acha o item.
+function chaveUrl(url: string): string {
+  return url
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^(www\.|mobile\.)/, "")
+    .replace(/^twitter\.com\//, "x.com/")
+    .replace(/[?#].*$/, "")
+    .replace(/\/+$/, "");
+}
+
+type CardComOrigem = {
+  post_url?: string;
+  linguagem_explicita?: string | null;
+};
+
+/**
+ * Marca `linguagem_explicita` (com o termo encontrado) nos cards cujo post de
+ * origem tem palavrão. Olha o texto do item coletado (legenda, tweet, título,
+ * transcrição do TikTok), não o texto que o modelo escreveu no card — o risco
+ * é o que o cliente vê ao abrir o link. Muta os cards; devolve quantos marcou.
+ */
+export function sinalizarLinguagem(
+  cards: CardComOrigem[],
+  dados: RawData
+): number {
+  const textoPorUrl = new Map<string, string>();
+  const add = (url: string | undefined, texto: string) => {
+    if (url) textoPorUrl.set(chaveUrl(url), texto);
+  };
+  for (const i of dados.instagram) add(i.url, i.caption ?? "");
+  for (const i of dados.tiktok) add(i.webVideoUrl, textoTikTok(i));
+  for (const i of dados.twitter) add(i.url, i.text ?? "");
+  for (const i of dados.news) add(i.link, [i.title, i.snippet].filter(Boolean).join(" "));
+  for (const i of dados.reddit) add(i.url, i.title ?? "");
+
+  let marcados = 0;
+  for (const card of cards) {
+    if (!card.post_url) continue;
+    const termo = palavrao(textoPorUrl.get(chaveUrl(card.post_url)));
+    if (termo) {
+      card.linguagem_explicita = termo;
+      marcados++;
+    }
+  }
+  return marcados;
+}

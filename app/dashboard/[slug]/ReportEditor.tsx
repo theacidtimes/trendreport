@@ -359,6 +359,14 @@ export default function ReportEditor({
                   <span className="text-muted text-xs font-medium">
                     #{String(i + 1).padStart(2, "0")}
                   </span>
+                  <AlertaLinguagem
+                    termo={t.linguagem_explicita}
+                    onDispensar={() =>
+                      mutate((d) => {
+                        d.tendencias[i].linguagem_explicita = null;
+                      })
+                    }
+                  />
                   <button
                     onClick={() =>
                       mutate((d) => d.tendencias.splice(i, 1))
@@ -493,6 +501,14 @@ export default function ReportEditor({
                     <span className="text-muted text-xs font-medium">
                       #{String(i + 1).padStart(2, "0")}
                     </span>
+                    <AlertaLinguagem
+                      termo={m.linguagem_explicita}
+                      onDispensar={() =>
+                        mutate((d) => {
+                          if (d.memes?.[i]) d.memes[i].linguagem_explicita = null;
+                        })
+                      }
+                    />
                     <button
                       onClick={() => mutate((d) => d.memes?.splice(i, 1))}
                       aria-label="Remover meme"
@@ -810,5 +826,34 @@ export default function ReportEditor({
         </div>
       </div>
     </div>
+  );
+}
+
+// Aviso de palavrão no post de origem (ver sinalizarLinguagem em
+// lib/brandSafety.ts). O card não é cortado: quem revisa decide se mantém,
+// troca a referência ou tira o link, e dispensa o aviso depois de olhar.
+function AlertaLinguagem({
+  termo,
+  onDispensar,
+}: {
+  termo?: string | null;
+  onDispensar: () => void;
+}) {
+  if (!termo) return null;
+  return (
+    <span
+      title={`O post de origem tem palavrão ("${termo}"). Confira o link antes de publicar.`}
+      className="mr-auto flex items-center gap-1.5 text-[11px] font-medium text-amber-300 bg-amber-400/10 border border-amber-400/30 rounded-full pl-2 pr-1 py-0.5"
+    >
+      <TriangleAlert className="w-3 h-3" strokeWidth={2.5} />
+      Linguagem explícita no post
+      <button
+        onClick={onDispensar}
+        aria-label="Dispensar aviso de linguagem"
+        className="rounded-full p-0.5 hover:bg-amber-400/20"
+      >
+        <X className="w-3 h-3" strokeWidth={2.5} />
+      </button>
+    </span>
   );
 }
