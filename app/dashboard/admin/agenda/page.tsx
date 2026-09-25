@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Marca, PulsoCultural } from "@/lib/types";
 import { estadoDaLinha } from "@/lib/radar/agendaLinha";
 import { optedIn } from "@/lib/radar/planner";
-import AgendaBoard, { type DominioResumo, type TenantOpcao } from "./AgendaBoard";
+import AgendaBoard, { type DominioResumo, type MarcaOpcao, type TenantOpcao } from "./AgendaBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -68,11 +68,15 @@ export default async function AgendaPage() {
   // Curar linha para elas é trabalho que não chega a lugar nenhum, então o aviso
   // vem antes da lista, não depois.
   const semPerfil = marcas.filter((m) => !optedIn(m)).map((m) => m.nome);
+  const marcaOpcoes: MarcaOpcao[] = marcas
+    .map((m) => ({ id: m.id, nome: m.nome }))
+    .sort((a, b) => a.nome.localeCompare(b.nome));
 
   return (
     <AgendaBoard
       dominios={dominios}
       tenants={tenants}
+      marcas={marcaOpcoes}
       semPerfil={semPerfil}
       totalMarcas={marcas.length}
     />

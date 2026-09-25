@@ -25,6 +25,15 @@ export async function salvarLinha(entrada: EntradaLinha): Promise<void> {
   if (!v.ok) throw new Error(v.erro);
 
   const supabase = createClient();
+  // Linha própria herda o tenant da marca. Escolher os dois separados na tela
+  // permitiria marca de um tenant com escopo de outro — combinação que a RLS
+  // aceita e que selectAgenda nunca usaria do jeito que a tela mostra.
+  if (v.linha.marca_id) {
+    const { data: m, error } = await supabase
+      .from("marcas").select("tenant_id").eq("id", v.linha.marca_id).single();
+    if (error || !m) throw new Error("Marca não encontrada.");
+    v.linha.tenant_id = m.tenant_id;
+  }
   if (entrada.id) {
     const { error } = await supabase
       .from("pulso_cultural")

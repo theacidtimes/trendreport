@@ -12,7 +12,11 @@ import { createClient } from '@/lib/supabase/server'
  */
 export async function dominiosDaAgenda(pais?: string): Promise<string[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('pulso_cultural').select('dominio, pais').eq('ativo', true)
+  // Só linha de domínio (marca_id null). Linha própria entra na agenda da marca
+  // sem assinatura; se contasse aqui, o domínio em que ela foi arquivada viraria
+  // opção na derivação de TODA marca, sem nenhuma linha que case para elas.
+  const { data } = await supabase
+    .from('pulso_cultural').select('dominio, pais').eq('ativo', true).is('marca_id', null)
   const linhas = (data ?? []) as { dominio: string; pais: string | null }[]
   // Filtrado pelo país da marca porque um domínio sem linha NAQUELE calendário é
   // uma opção falsa. MEDIDO na derivação real (02/08/2026): uma marca declarada

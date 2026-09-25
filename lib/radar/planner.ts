@@ -124,7 +124,7 @@ export function diagnosticarAgenda(
   const vagas = Math.round(clamp01(k.peso_cultural ?? PESO_CULTURAL_DEFAULT) * CAP_AGENDA_CLUSTERS)
   const porque = k.justificativa_cultural ? ` — "${k.justificativa_cultural}"` : ''
 
-  if (!dominios.length) {
+  if (!dominios.length && !agenda.some(a => a.ativo && ehPropria(a, marca))) {
     return { ...vazio, estado: 'nao_assina', resumo: `${nome}: sem agenda por decisão${porque}` }
   }
   if (vagas === 0) {
@@ -170,19 +170,31 @@ export function paisDaMarca(marca: Marca): string {
   return typeof p === 'string' && p.trim() ? p.trim().toUpperCase() : 'BR'
 }
 
-// Seleciona a agenda vigente pra ESTA marca: rows globais (tenant_id null) ou do
-// proprio tenant, no(s) dominio(s) assinado(s), no calendario do pais da marca,
-// dentro da janela, ativas.
+// Linha própria desta marca (marca_id = marca.id).
+export function ehPropria(a: PulsoCultural, marca: Marca): boolean {
+  return a.marca_id != null && a.marca_id === marca.id
+}
+
+// Seleciona a agenda vigente pra ESTA marca, por dois caminhos:
+//  - linha de DOMÍNIO (marca_id null): global ou do próprio tenant, num domínio
+//    que a marca assina;
+//  - linha PRÓPRIA (marca_id = esta marca): entra sem depender de assinatura. O
+//    calendário do próprio cliente é relevante por definição — exigir que ela
+//    também caia num domínio assinado faria a data sumir no dia em que a
+//    re-derivação trocasse os domínios, sem erro nenhum.
+// Linha própria de OUTRA marca nunca entra. Em ambos os caminhos valem país e janela.
 // Filtra QUEM pode entrar; quem decide a ORDEM e o corte e distribuirVagas.
 export function selectAgenda(marca: Marca, agenda: PulsoCultural[], now: Date): PulsoCultural[] {
   const dominios = new Set(marca.yaml_conhecimento.dominios_culturais ?? [])
-  if (!dominios.size) return []
   const pais = paisDaMarca(marca)
   const today = now.toISOString().slice(0, 10)
   return agenda
     .filter(a => a.ativo)
-    .filter(a => a.tenant_id === null || a.tenant_id === marca.tenant_id)
-    .filter(a => dominios.has(a.dominio))
+    .filter(a => ehPropria(a, marca) || (
+      a.marca_id == null &&
+      (a.tenant_id === null || a.tenant_id === marca.tenant_id) &&
+      dominios.has(a.dominio)
+    ))
     // Linha sem país é universal e vale pra todo mundo; linha com país só entra no
     // calendário dela. O erro que isto impede é sutil e caro: a marca australiana
     // NÃO fica sem agenda por engano — ela cai no Dia dos Pais brasileiro (agosto),
@@ -209,8 +221,13 @@ export function ehDatada(a: PulsoCultural): boolean {
 // ordem que o Postgres devolvesse — quatro linhas peso 3 disputando três vagas
 // davam cara ou coroa a cada varredura. Config previsível vale mais que rodízio
 // acidental; se um dia quisermos rodízio, que seja decisão explícita.
+// Antes do título, linha própria ganha da de domínio no mesmo peso: aqui só
+// chegam as próprias DESTA marca (selectAgenda já barrou as de outras), e a data
+// do cliente é mais específica que a do acervo.
 function porPeso(x: PulsoCultural, y: PulsoCultural): number {
-  return y.peso - x.peso || String(x.titulo).localeCompare(String(y.titulo))
+  return y.peso - x.peso ||
+    Number(y.marca_id != null) - Number(x.marca_id != null) ||
+    String(x.titulo).localeCompare(String(y.titulo))
 }
 
 /**

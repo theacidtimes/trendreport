@@ -13,6 +13,7 @@ const FIELD =
 const LABEL = "text-muted text-xs uppercase tracking-[0.12em] font-medium";
 
 export type TenantOpcao = { id: string; nome: string };
+export type MarcaOpcao = { id: string; nome: string };
 
 // Rótulo do peso. O número sozinho não diz nada; o que ele faz é ordenar dentro
 // do próprio grupo em `distribuirVagas`, e é isso que a frase precisa explicar.
@@ -26,12 +27,14 @@ export default function LinhaDialog({
   linha,
   dominiosExistentes,
   tenants,
+  marcas,
   aberto,
   onFechar,
 }: {
   linha?: PulsoCultural;
   dominiosExistentes: string[];
   tenants: TenantOpcao[];
+  marcas: MarcaOpcao[];
   aberto: boolean;
   onFechar: () => void;
 }) {
@@ -40,6 +43,9 @@ export default function LinhaDialog({
   const [erro, setErro] = useState<string | null>(null);
 
   const [dominio, setDominio] = useState(linha?.dominio ?? "");
+  // Linha própria ignora assinatura e herda o tenant da marca (salvarLinha), então
+  // o seletor de escopo por tenant some quando uma marca é escolhida.
+  const [marcaId, setMarcaId] = useState(linha?.marca_id ?? "");
   // Datada vs perene é uma ESCOLHA, não duas datas opcionais. Deixar os campos
   // soltos convida ao meio-termo silencioso: só `janela_fim` preenchido já conta
   // como datada em `ehDatada`, e a linha passa a disputar as vagas por outra
@@ -95,7 +101,8 @@ export default function LinhaDialog({
         peso: Number(fd.get("peso")),
         ativo: fd.get("ativo") === "on",
         pais: String(fd.get("pais") || "") || null,
-        tenant_id: String(fd.get("tenant_id") || "") || null,
+        tenant_id: marcaId ? null : String(fd.get("tenant_id") || "") || null,
+        marca_id: marcaId || null,
       });
       onFechar();
       router.refresh();
@@ -301,20 +308,41 @@ export default function LinhaDialog({
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className={LABEL}>Escopo</span>
+            <span className={LABEL}>Marca</span>
             <select
-              name="tenant_id"
-              defaultValue={linha?.tenant_id ?? ""}
+              value={marcaId}
+              onChange={(e) => setMarcaId(e.target.value)}
               className={FIELD}
             >
-              <option value="">Global — todos os clientes</option>
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  Só {t.nome}
+              <option value="">Todas que assinam o domínio</option>
+              {marcas.map((m) => (
+                <option key={m.id} value={m.id}>
+                  Só {m.nome}
                 </option>
               ))}
             </select>
+            <span className="text-muted/60 text-[11px]">
+              Data ou pulso de um cliente só. Entra na agenda dele mesmo sem assinar o domínio.
+            </span>
           </label>
+
+          {!marcaId && (
+            <label className="flex flex-col gap-1.5">
+              <span className={LABEL}>Escopo</span>
+              <select
+                name="tenant_id"
+                defaultValue={linha?.tenant_id ?? ""}
+                className={FIELD}
+              >
+                <option value="">Global — todos os clientes</option>
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    Só {t.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         <label className="flex items-center gap-2.5 cursor-pointer">

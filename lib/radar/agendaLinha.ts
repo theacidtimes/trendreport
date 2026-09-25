@@ -21,6 +21,7 @@ export type EntradaLinha = {
   ativo: boolean
   pais?: string | null
   tenant_id?: string | null
+  marca_id?: string | null
 }
 
 export type LinhaNormalizada = {
@@ -33,6 +34,7 @@ export type LinhaNormalizada = {
   ativo: boolean
   pais: string | null
   tenant_id: string | null
+  marca_id: string | null
 }
 
 export type Validacao =
@@ -144,6 +146,7 @@ export function normalizarLinha(e: EntradaLinha): Validacao {
       ativo: Boolean(e.ativo),
       pais,
       tenant_id: limpar(e.tenant_id),
+      marca_id: limpar(e.marca_id),
     },
   }
 }

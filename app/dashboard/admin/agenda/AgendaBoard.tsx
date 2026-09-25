@@ -13,10 +13,10 @@ import {
 } from "lucide-react";
 import type { PulsoCultural } from "@/lib/types";
 import type { EstadoLinha } from "@/lib/radar/agendaLinha";
-import LinhaDialog, { type TenantOpcao } from "./LinhaDialog";
+import LinhaDialog, { type MarcaOpcao, type TenantOpcao } from "./LinhaDialog";
 import { alternarLinha, excluirLinha, reavaliarPerfis, type MudancaPerfil } from "./actions";
 
-export type { TenantOpcao };
+export type { MarcaOpcao, TenantOpcao };
 
 export type DominioResumo = {
   dominio: string;
@@ -44,11 +44,13 @@ function Aviso({ children }: { children: React.ReactNode }) {
 export default function AgendaBoard({
   dominios,
   tenants,
+  marcas,
   semPerfil,
   totalMarcas,
 }: {
   dominios: DominioResumo[];
   tenants: TenantOpcao[];
+  marcas: MarcaOpcao[];
   semPerfil: string[];
   totalMarcas: number;
 }) {
@@ -255,7 +257,11 @@ export default function AgendaBoard({
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className="text-white text-sm font-medium truncate">
                           {linha.titulo}
-                          {linha.tenant_id && (
+                          {linha.marca_id ? (
+                            <span className="ml-2 text-lime text-[11px] font-normal">
+                              só {marcas.find((m) => m.id === linha.marca_id)?.nome ?? "marca removida"}
+                            </span>
+                          ) : linha.tenant_id && (
                             <span className="ml-2 text-purple-300 text-[11px] font-normal">
                               escopo restrito
                             </span>
@@ -333,6 +339,7 @@ export default function AgendaBoard({
         linha={dialog?.linha}
         dominiosExistentes={nomes}
         tenants={tenants}
+        marcas={marcas}
         aberto={dialog !== null}
         onFechar={() => setDialog(null)}
       />

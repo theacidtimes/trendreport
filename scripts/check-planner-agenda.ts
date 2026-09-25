@@ -213,6 +213,34 @@ check(
   ).length === 0
 );
 
+// ── linha PRÓPRIA de marca (marca_id) ─────────────────────
+// O tenant é a agência: Vivo e Bradesco moram no MESMO tenant. Por isso o Dia do
+// Corretor precisa de marca_id — com tenant_id ele cairia na agenda da Vivo.
+// O domínio da linha própria é deliberadamente um que a Vivo NÃO assina
+// (`trabalho`): se o filtro de marca falhasse, o de domínio não salvaria o caso.
+const diaDoCorretor = { ...linha("Dia do Corretor", "trabalho", 3, ["2026-07-30", "2026-08-10"]), tenant_id: "t1", marca_id: "m-bradesco" };
+const dataDaVivo = { ...linha("Aniversario da Vivo", "trabalho", 2, ["2026-07-30", "2026-08-10"]), tenant_id: "t1", marca_id: "m1" };
+const comProprias = selectAgenda(marca, [...universo, diaDoCorretor, dataDaVivo], hoje);
+check("linha propria de OUTRA marca do mesmo tenant nao entra", !comProprias.includes(diaDoCorretor), nomes(comProprias));
+check("linha propria entra mesmo em dominio nao assinado", comProprias.includes(dataDaVivo), nomes(comProprias));
+check(
+  "linha propria entra mesmo sem dominio assinado nenhum",
+  selectAgenda(
+    { ...marca, yaml_conhecimento: { ...marca.yaml_conhecimento, dominios_culturais: [] } } as Marca,
+    [dataDaVivo],
+    hoje
+  ).length === 1
+);
+check(
+  "linha propria respeita a janela",
+  selectAgenda(marca, [dataDaVivo], new Date("2026-08-11T12:00:00Z")).length === 0
+);
+const globalMesmoPeso = linha("Aaa data global", "massa", 2, ["2026-07-30", "2026-08-10"]);
+check(
+  "no empate de peso a linha propria ganha da global (mesmo com titulo antes no alfabeto)",
+  distribuirVagas([globalMesmoPeso, dataDaVivo], 1)[0] === dataDaVivo
+);
+
 // ── planLanes ponta a ponta ───────────────────────────────
 // peso_cultural 0.67 → round(0.67 * 6) = 4 vagas de agenda.
 const lanes = planLanes(marca, universo, hoje);
