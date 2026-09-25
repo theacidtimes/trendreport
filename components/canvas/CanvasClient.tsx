@@ -11,7 +11,6 @@ import {
   Handle,
   Position,
   useReactFlow,
-  useNodesInitialized,
   useNodesState,
   useEdgesState,
   getNodesBounds,
@@ -71,6 +70,13 @@ const ACTIVE = "var(--purple)";
 const COL_X = [0, 250, 640];
 const H = { core: 76, theme: 110, drop: 100 };
 const STEP = { theme: 126, drop: 116 };
+
+// Constante de módulo de propósito: objeto novo a cada render faz o React Flow
+// reaplicar estas opções por cima de qualquer fitView pedido depois.
+const FIT_INICIAL = {
+  padding: { top: "110px", left: "40px", bottom: "40px", right: "40px" },
+  maxZoom: 1.1,
+} as const;
 
 const hiddenHandle = { opacity: 0, pointerEvents: "none" } as const;
 
@@ -194,7 +200,7 @@ function buildTree(
     id: "core",
     type: "core",
     position: { x: COL_X[0], y: top(0, H.core) },
-    data: { label: graph.marca.nome, temas: themes.length },
+    data: { label: graph.marca.nome, temas: themes.filter((t) => !t.avulso).length },
     selectable: false,
   });
 
@@ -465,7 +471,7 @@ function DropPanel({
   const status = STATUS[drop.status ?? ""];
   return (
     <aside
-      className="absolute top-0 right-0 z-20 h-full w-full sm:w-[420px] bg-surface-2 border-l flex flex-col shadow-elevated"
+      className="absolute top-0 right-0 z-20 h-full w-full sm:w-[480px] bg-surface-2 border-l flex flex-col shadow-elevated"
       style={{ borderColor: OUTLINE }}
     >
       <div className="flex items-start gap-3 px-5 py-4 border-b" style={{ borderColor: OUTLINE }}>
@@ -493,22 +499,38 @@ function DropPanel({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-5">
+      <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-6">
         {drop.descricao && (
           <section>
-            <h4 className="text-[12px] text-muted mb-1">O que está acontecendo</h4>
-            <p className="text-[14px] leading-relaxed text-white">{drop.descricao}</p>
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-2">
+              O que está acontecendo
+            </h4>
+            <Texto texto={drop.descricao} />
           </section>
         )}
         {drop.gancho && (
-          <section>
-            <h4 className="text-[12px] text-muted mb-1">Conexão com a marca</h4>
-            <p className="text-[14px] leading-relaxed text-white">{drop.gancho}</p>
+          // O bloco que o estrategista procura: destacado, não mais um parágrafo.
+          <section
+            className="rounded-r-xl border-l-[3px] px-4 py-3.5"
+            style={{
+              borderColor: "var(--lime)",
+              background: "color-mix(in srgb, var(--lime) 7%, var(--surface-2))",
+            }}
+          >
+            <h4
+              className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-2"
+              style={{ color: "var(--lime)" }}
+            >
+              Conexão com a marca
+            </h4>
+            <Texto texto={drop.gancho} />
           </section>
         )}
         {drop.fontes.length > 0 && (
           <section>
-            <h4 className="text-[12px] text-muted mb-2">Fontes</h4>
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-2">
+              Fontes
+            </h4>
             <ul className="flex flex-col gap-1.5">
               {drop.fontes.map((url, i) => (
                 <li key={i}>
@@ -529,6 +551,44 @@ function DropPanel({
         )}
       </div>
     </aside>
+  );
+}
+
+// Parágrafo longo do drop, com hierarquia pra leitura em diagonal: a primeira
+// frase é o lide (branco, negrito) e o resto vem num branco suavizado; citação
+// entre aspas é a voz das pessoas, então ganha itálico em branco pleno.
+function Texto({ texto }: { texto: string }) {
+  const m = texto.match(/^(.+?[.!?])\s+([\s\S]+)$/);
+  const lide = m ? m[1] : texto;
+  const resto = m ? m[2] : "";
+  return (
+    <div className="text-[15px] leading-[1.7]">
+      <p className="font-semibold text-white">
+        <Citacoes texto={lide} />
+      </p>
+      {resto && (
+        <p className="mt-2" style={{ color: "rgba(245, 243, 239, 0.82)" }}>
+          <Citacoes texto={resto} />
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Citacoes({ texto }: { texto: string }) {
+  const partes = texto.split(/('[^']{6,}'|"[^"]{6,}"|“[^”]{6,}”)/g);
+  return (
+    <>
+      {partes.map((p, i) =>
+        i % 2 === 1 ? (
+          <em key={i} className="text-white italic font-medium">
+            {p}
+          </em>
+        ) : (
+          p
+        )
+      )}
+    </>
   );
 }
 
@@ -562,36 +622,32 @@ function Arvore({
   const [nodes, setNodes, onNodesChange] = useNodesState(tree.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(tree.edges);
 
+  // Enquadra o caminho aberto (e não a árvore inteira): ao abrir um tema, o
+  // foco vai pro tema e seus drops; com o painel aberto, reserva a direita.
+  // O fitView do React Flow 12 fica na fila até a PRÓXIMA troca de nós, então
+  // precisa ser pedido antes do setNodes — depois, chega um clique atrasado.
+  // A carga inicial fica com o `fitView` nativo do <ReactFlow>.
+  const enquadrado = useRef(`${graph.marca.id}|${graph.meta.janelaDias}|null|null`);
   useEffect(() => {
+    const chave = `${graph.marca.id}|${graph.meta.janelaDias}|${themeId}|${dropId}`;
+    if (enquadrado.current !== chave) {
+      enquadrado.current = chave;
+      const ids = themeId
+        ? [themeId, ...tree.nodes.filter((n) => n.type === "drop").map((n) => n.id)]
+        : tree.nodes.map((n) => n.id);
+      fitView({
+        nodes: ids.map((id) => ({ id })),
+        padding: { top: "110px", left: "40px", bottom: "40px", right: dropId ? "540px" : "40px" },
+        maxZoom: 1.1,
+        duration: 350,
+      });
+    }
     setNodes(tree.nodes);
     setEdges(tree.edges);
-  }, [tree, setNodes, setEdges]);
+  }, [tree, graph, themeId, dropId, fitView, setNodes, setEdges]);
 
   const theme = graph.nodes.find((n) => n.id === themeId);
   const drop = theme?.drops.find((d) => d.id === dropId);
-
-  // Enquadra o caminho aberto (e não a árvore inteira): ao abrir um tema, o
-  // foco vai pro tema e seus drops; com o painel aberto, reserva a direita.
-  // Só enquadra quando o estado já tem os nós novos E o React Flow já os mediu;
-  // antes disso o fitView ignora os drops recém-abertos ou os mede com zero.
-  const medidos = useNodesInitialized();
-  const enquadrado = useRef<string | null>(null);
-  useEffect(() => {
-    const chave = `${graph.marca.id}|${graph.meta.janelaDias}|${themeId}|${dropId}`;
-    if (!medidos || enquadrado.current === chave) return;
-    const ids = themeId
-      ? [themeId, ...tree.nodes.filter((n) => n.type === "drop").map((n) => n.id)]
-      : tree.nodes.map((n) => n.id);
-    const presentes = new Set(nodes.map((n) => n.id));
-    if (!ids.every((id) => presentes.has(id))) return;
-    enquadrado.current = chave;
-    fitView({
-      nodes: ids.map((id) => ({ id })),
-      padding: { top: "110px", left: "40px", bottom: "40px", right: dropId ? "460px" : "40px" },
-      maxZoom: 1.1,
-      duration: 350,
-    });
-  }, [medidos, nodes, tree, graph, themeId, dropId, fitView]);
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     if (node.type === "theme") {
@@ -623,6 +679,8 @@ function Arvore({
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
+        fitView
+        fitViewOptions={FIT_INICIAL}
         minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
