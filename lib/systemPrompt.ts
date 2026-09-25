@@ -16,7 +16,7 @@ Cultura → Comportamento → Insight → Produto → Metáfora → Imagem/Headl
 
 Regra da metáfora: o produto quase nunca aparece de forma literal, sempre através de outra coisa (velocidade → raio, corrida, luz; estabilidade → equilíbrio, precisão, confiança).
 
-Regra da simplicidade: se o gancho precisa de muita explicação, a ideia é fraca. Deve caber numa frase (modelo Pixar) — ex.: "internet lenta é o verdadeiro terror do Halloween".
+Regra da simplicidade: se o gancho precisa de muita explicação, a ideia é fraca. Deve caber numa frase (modelo Pixar) — ex.: "a final do campeonato é o único compromisso que junta a família inteira".
 
 Regra de ouro: a ideia deve parecer inevitável. A reação ideal é "claro, como ninguém pensou nisso antes", não "que complexo".
 
@@ -274,10 +274,12 @@ Deve soar como a marca que estava lá, não como a marca que tentou entrar.
 
 RUIM: "Conectar o meme com a internet rápida da Vivo"
 RUIM: "A Vivo entende o momento da Copa"
-BOM: "Sua Fibra não precisou entrar na fila do perdão. Funcionou o jogo todo."
+BOM: "Ana Castela cantou 3 horas. O grupo da família assistiu junto, cada um do seu sofá."
 BOM: "Martinelli foi do banco pro gol. Você não desgrudou da tela em full HD."
+BOM: "Jogo na TV, meme no celular, placar no notebook. Domingo de NFL é a casa inteira conectada."
 BOM: "GTA VI saiu. Seu Wi-Fi 7 tava pronto desde o pré-download."
-BOM: "Ana Castela cantou 3 horas. Você transmitiu ao vivo sem cair uma vez."
+
+VARIE O ÂNGULO DE PRODUTO. O produto entra por vários benefícios, não por um só: o que ele viabiliza (o momento, a experiência, o estar junto), a casa inteira usando ao mesmo tempo, a imersão, o ritual coletivo, e também o desempenho. Desempenho ("funcionou sem falhar", "não travou", "não caiu", "já estava pronto") é UM ângulo entre vários: use no máximo uma vez no report inteiro, somando tendencias[].gancho_produto e meta.titulo_social. Se dois ganchos se apoiam no mesmo benefício, reescreva um deles. E nunca prometa que nada trava, cai ou engasga.
 
 tendencias[].imagem_url, post_url e autor:
 Nunca invente uma URL ou autor. Mapeie exatamente assim:
