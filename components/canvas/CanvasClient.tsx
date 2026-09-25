@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -68,9 +68,9 @@ const ACTIVE = "var(--purple)";
 
 // Colunas e passos verticais (px). Alturas estimadas só pra centralizar cada
 // coluna no pai; o React Flow mede o tamanho real na renderização.
-const COL_X = [0, 250, 620];
-const H = { core: 76, theme: 96, drop: 100 };
-const STEP = { theme: 112, drop: 116 };
+const COL_X = [0, 250, 640];
+const H = { core: 76, theme: 110, drop: 100 };
+const STEP = { theme: 126, drop: 116 };
 
 const hiddenHandle = { opacity: 0, pointerEvents: "none" } as const;
 
@@ -98,26 +98,40 @@ function CoreNode({ data }: NodeProps<Node<CoreData>>) {
 
 function ThemeNode({ data }: NodeProps<Node<ThemeData>>) {
   const { theme, active } = data;
-  const color = funnelColor(theme.funnel);
+  const color = theme.avulso ? "var(--muted)" : funnelColor(theme.funnel);
   return (
     <div
       className="rounded-xl px-4 py-3 flex flex-col gap-1.5 cursor-pointer transition-colors hover:bg-surface-3"
       style={{
-        width: 300,
+        width: 320,
         background: active ? "var(--surface-3)" : "var(--surface-2)",
-        border: active ? `2px solid ${ACTIVE}` : `1px solid ${OUTLINE}`,
+        border: active
+          ? `2px solid ${ACTIVE}`
+          : `1px ${theme.avulso ? "dashed" : "solid"} ${OUTLINE}`,
       }}
     >
       <Handle type="target" position={Position.Left} style={hiddenHandle} isConnectable={false} />
       <Handle type="source" position={Position.Right} style={hiddenHandle} isConnectable={false} />
-      <div className="flex items-center gap-2 text-[11px]">
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-        <span className="text-muted">{FUNNEL_LABEL[theme.funnel ?? ""] ?? "tema"}</span>
-        <span className="ml-auto tabular-nums text-muted">
-          {theme.size} {theme.size === 1 ? "drop" : "drops"}
+      <div className="flex items-center gap-2 text-[11px] text-muted">
+        {!theme.avulso && (
+          <>
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+            <span>{FUNNEL_LABEL[theme.funnel ?? ""] ?? "tema"}</span>
+          </>
+        )}
+        <span className={theme.avulso ? "" : "ml-auto"}>
+          <span className="tabular-nums font-medium text-white">{theme.size}</span>{" "}
+          {theme.size === 1 ? "drop" : "drops"}
+          {theme.ultimo && <> · último {fmtData(theme.ultimo)}</>}
         </span>
       </div>
-      <p className="text-[14px] leading-snug font-medium text-white">{theme.label}</p>
+      <p
+        className={`text-[14px] leading-snug font-medium line-clamp-2 ${
+          theme.avulso ? "text-muted" : "text-white"
+        }`}
+      >
+        {theme.label}
+      </p>
       <div className="flex items-center gap-1 text-[11px] text-muted">
         hype máx <span className="tabular-nums font-medium text-white">{theme.hypeMax}</span>
         <ChevronRight
@@ -276,7 +290,7 @@ function MarcaSwitcher({
                   key={m.id}
                   onClick={() => {
                     setOpen(false);
-                    if (!isActive) router.push(`/dashboard/mapa/${m.id}`);
+                    if (!isActive) router.push(`/dashboard/mapa/${m.id}${window.location.search}`);
                   }}
                   className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
                     isActive ? "text-white bg-surface-3" : "text-muted hover:text-white hover:bg-surface-3"
@@ -290,6 +304,37 @@ function MarcaSwitcher({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+const JANELAS: { dias: number | null; label: string }[] = [
+  { dias: 14, label: "14 dias" },
+  { dias: 30, label: "30 dias" },
+  { dias: 90, label: "90 dias" },
+  { dias: null, label: "tudo" },
+];
+
+function JanelaSwitcher({ atual }: { atual: number | null }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  return (
+    <div role="group" aria-label="Janela de tempo" className="flex items-center gap-0.5 border-l pl-2.5" style={{ borderColor: OUTLINE }}>
+      {JANELAS.map((j) => {
+        const on = j.dias === atual;
+        return (
+          <button
+            key={j.label}
+            aria-pressed={on}
+            onClick={() => router.push(`${pathname}?janela=${j.dias ?? "tudo"}`)}
+            className={`rounded-full px-2 py-0.5 text-[12px] transition-colors ${
+              on ? "bg-white text-black font-medium" : "text-muted hover:text-white"
+            }`}
+          >
+            {j.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -367,7 +412,7 @@ function Toolbar({
 
   const onExportJson = useCallback(() => {
     const blob = new Blob(
-      [JSON.stringify({ marca: graph.marca, nodes: graph.nodes, edges: graph.edges }, null, 2)],
+      [JSON.stringify({ marca: graph.marca, nodes: graph.nodes }, null, 2)],
       { type: "application/json" }
     );
     download(URL.createObjectURL(blob), `${graph.marca.nome}-mapa.json`);
@@ -387,6 +432,7 @@ function Toolbar({
           <span className="text-muted text-[12px]">
             {graph.meta.themes} temas · {graph.meta.drops} drops
           </span>
+          <JanelaSwitcher atual={graph.meta.janelaDias} />
           <span
             className="flex items-center gap-1 text-[12px]"
             style={{ color: graph.meta.semantic ? "var(--lime)" : "var(--muted)" }}
@@ -506,6 +552,12 @@ function Arvore({
   const [dropId, setDropId] = useState<string | null>(null);
   const { fitView } = useReactFlow();
 
+  // Trocar janela ou marca gera outro grafo: fecha o que estava aberto.
+  useEffect(() => {
+    setThemeId(null);
+    setDropId(null);
+  }, [graph]);
+
   const tree = useMemo(() => buildTree(graph, themeId, dropId), [graph, themeId, dropId]);
   const [nodes, setNodes, onNodesChange] = useNodesState(tree.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(tree.edges);
@@ -525,7 +577,7 @@ function Arvore({
   const medidos = useNodesInitialized();
   const enquadrado = useRef<string | null>(null);
   useEffect(() => {
-    const chave = `${themeId}|${dropId}`;
+    const chave = `${graph.marca.id}|${graph.meta.janelaDias}|${themeId}|${dropId}`;
     if (!medidos || enquadrado.current === chave) return;
     const ids = themeId
       ? [themeId, ...tree.nodes.filter((n) => n.type === "drop").map((n) => n.id)]
@@ -539,7 +591,7 @@ function Arvore({
       maxZoom: 1.1,
       duration: 350,
     });
-  }, [medidos, nodes, tree, themeId, dropId, fitView]);
+  }, [medidos, nodes, tree, graph, themeId, dropId, fitView]);
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     if (node.type === "theme") {
@@ -584,9 +636,13 @@ function Arvore({
           style={{ background: "#181818", border: "1px solid #6e6a66", borderRadius: 10 }}
         />
       </ReactFlow>
-      {graph.meta.themes === 0 && (
+      {tree.nodes.length <= 1 && (
         <div className="absolute inset-0 grid place-items-center pointer-events-none">
-          <p className="text-muted text-sm">Ainda não há drops para esta marca.</p>
+          <p className="text-muted text-sm">
+            {graph.meta.drops === 0
+              ? "Nenhum drop nesta janela. Tente um período maior."
+              : "Nenhum tema se repetiu nesta janela."}
+          </p>
         </div>
       )}
       {drop && theme && <DropPanel drop={drop} theme={theme} onClose={() => setDropId(null)} />}

@@ -19,8 +19,6 @@ export interface CanvasNode {
   id: string;
   type: "core" | "theme";
   label: string;
-  x: number;
-  y: number;
   // campos de tema (vazios no núcleo)
   size: number;
   funnel: "growth" | "base" | "mixed" | null;
@@ -28,32 +26,25 @@ export interface CanvasNode {
   hypeMax: number;
   keywords: string[];
   drops: CanvasDrop[];
-}
-
-export interface CanvasEdge {
-  id: string;
-  source: string;
-  target: string;
-  weight: number;
-  kind: "spine" | "web"; // spine = núcleo→tema; web = tema↔tema (correlação)
+  ultimo: string | null; // data do drop mais recente do tema
+  avulso: boolean; // true = balde dos drops que não se repetiram
 }
 
 export interface CanvasGraph {
   marca: { id: string; nome: string };
   nodes: CanvasNode[];
-  edges: CanvasEdge[];
-  meta: { semantic: boolean; themes: number; drops: number };
+  meta: { semantic: boolean; themes: number; drops: number; janelaDias: number | null };
 }
 
-// Granularidade dos temas: alvo de ~4 drops por tema, entre 3 e 12 temas.
-// Não force-agrupa: linkagem média (UPGMA) evita o "componente gigante" que
-// o single-linkage por percolação criava (um tema com 33, o resto solto).
-const TARGET_SIZE = 4;
-const K_MIN = 3;
+// Granularidade dos temas: alvo de ~8 drops por tema, entre 4 e 12 temas —
+// mais que isso vira uma coluna ilegível na árvore. Linkagem média (UPGMA)
+// evita o "componente gigante" do single-linkage. O teto por tema é alto de
+// propósito: tema grande é assunto que VOLTA, e é esse o sinal que interessa;
+// com teto 8 a Vivo virava 60+ temas de 1-3 drops.
+const TARGET_SIZE = 8;
+const K_MIN = 4;
 const K_MAX = 12;
-const MAX_THEME = 8; // nenhum tema domina: acima disso, divide em sub-temas
-const WEB_MIN = 0.42; // liga dois temas na teia acima disso (cosine dos centróides)
-const WEB_PER_NODE = 2; // cada tema mostra até N correlações mais fortes
+const MAX_THEME = 24;
 
 function cosine(a: number[], b: number[]): number {
   let dot = 0,
@@ -381,37 +372,26 @@ function labelClusters(
   });
 }
 
-// ─── Layout radial ────────────────────────────────────────────
-// Núcleo no centro; temas num anel ao redor, ordenados por tamanho.
-function layout(count: number): { x: number; y: number }[] {
-  const radius = Math.max(360, count * 62);
-  const pos: { x: number; y: number }[] = [];
-  for (let i = 0; i < count; i++) {
-    const angle = (2 * Math.PI * i) / Math.max(count, 1) - Math.PI / 2;
-    pos.push({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
-  }
-  return pos;
-}
-
 function coreNode(marca: { id: string; nome: string }): CanvasNode {
   return {
     id: "core",
     type: "core",
     label: marca.nome,
-    x: 0,
-    y: 0,
     size: 0,
     funnel: null,
     hypeAvg: 0,
     hypeMax: 0,
     keywords: [],
     drops: [],
+    ultimo: null,
+    avulso: false,
   };
 }
 
 export async function buildCanvasGraph(
   supabase: SupabaseClient,
-  marcaId: string
+  marcaId: string,
+  janelaDias: number | null = 30
 ): Promise<CanvasGraph | null> {
   const { data: marca } = await supabase
     .from("marcas")
@@ -427,6 +407,10 @@ export async function buildCanvasGraph(
       "id, insight_titulo, descricao_fato, gancho_produto, status_hype, indice_hype, categoria_funil, links_fontes, created_at"
     )
     .eq("marca_id", marcaId)
+    .gte(
+      "created_at",
+      janelaDias ? new Date(Date.now() - janelaDias * 86_400_000).toISOString() : "1970-01-01"
+    )
     .order("created_at", { ascending: false });
 
   const drops = (dropData ?? []) as TrendDrop[];
@@ -435,8 +419,7 @@ export async function buildCanvasGraph(
     return {
       marca: { id: marca.id, nome: marca.nome },
       nodes: [coreNode(marca)],
-      edges: [],
-      meta: { semantic: false, themes: 0, drops: 0 },
+      meta: { semantic: false, themes: 0, drops: 0, janelaDias },
     };
   }
 
@@ -484,132 +467,105 @@ export async function buildCanvasGraph(
     clusters = Array.from(groups.values()).sort((a, b) => b.length - a.length);
   }
 
-  const labels = labelClusters(clusters, drops, brandTokens);
-  const pos = layout(clusters.length);
+  // Drop que não se repetiu não é tema: vai pro balde "avulsos" no fim da
+  // coluna, em vez de ocupar um nó por drop.
+  const recorrentes = clusters.filter((c) => c.length >= 2);
+  const avulsos = clusters.filter((c) => c.length < 2).flat();
 
-  // centróides por cluster pra teia entre temas
-  const centroids: (number[] | null)[] = clusters.map((members) => {
-    if (!vectors) return null;
-    const dim = vectors[0].length;
-    const c = new Array(dim).fill(0);
-    for (const idx of members)
-      for (let k = 0; k < dim; k++) c[k] += vectors[idx][k];
-    for (let k = 0; k < dim; k++) c[k] /= members.length;
-    return c;
+  const labels = labelClusters(recorrentes, drops, brandTokens);
+
+  const themeNodes: CanvasNode[] = recorrentes.map((members, ci) => {
+    const node = themeNode(`theme-${ci}`, members, drops);
+    // Rótulo = título do drop mais central do tema (frase escrita, legível),
+    // no lugar da sopa de palavras-chave do c-TF-IDF. Sem vetor, cai nela.
+    const rep = vectors ? representante(members, vectors) : null;
+    node.label =
+      (rep !== null ? drops[rep].insight_titulo : labels[ci].label) ||
+      node.drops[0]?.titulo ||
+      "Tema";
+    node.keywords = labels[ci].keywords;
+    return node;
   });
 
-  const themeNodes: CanvasNode[] = clusters.map((members, ci) => {
-    let growth = 0;
-    let hypeSum = 0;
-    let hypeMax = 0;
-    const themeDrops: CanvasDrop[] = members.map((idx) => {
-      const d = drops[idx];
-      const h = d.indice_hype ?? 0;
-      if (d.categoria_funil === "growth") growth++;
-      hypeSum += h;
-      hypeMax = Math.max(hypeMax, h);
-      return {
-        id: d.id,
-        titulo: d.insight_titulo,
-        descricao: d.descricao_fato,
-        gancho: d.gancho_produto,
-        hype: h,
-        status: d.status_hype,
-        categoria: d.categoria_funil,
-        fontes: d.links_fontes ?? [],
-        criado: d.created_at,
-      };
-    });
-    themeDrops.sort((a, b) => b.hype - a.hype);
-
-    const total = members.length;
-    const share = growth / total;
-    const funnel: CanvasNode["funnel"] =
-      share >= 0.6 ? "growth" : share <= 0.4 ? "base" : "mixed";
-
-    const label =
-      labels[ci].label || themeDrops[0]?.titulo.slice(0, 40) || "Tema";
-
-    return {
-      id: `theme-${ci}`,
-      type: "theme" as const,
-      label,
-      x: pos[ci].x,
-      y: pos[ci].y,
-      size: total,
-      funnel,
-      hypeAvg: Math.round(hypeSum / total),
-      hypeMax,
-      keywords: labels[ci].keywords,
-      drops: themeDrops,
-    };
-  });
-
-  const nodes: CanvasNode[] = [coreNode(marca), ...themeNodes];
-
-  // espinha: núcleo → cada tema
-  const spine: CanvasEdge[] = themeNodes.map((t) => ({
-    id: `spine-${t.id}`,
-    source: "core",
-    target: t.id,
-    weight: 0.3,
-    kind: "spine" as const,
-  }));
-
-  // teia: cada tema liga aos vizinhos mais fortes acima do limiar (esparso, mas
-  // mostra correlações múltiplas — não só o vínculo #1)
-  const web: CanvasEdge[] = [];
-  const seen = new Set<string>();
-  if (vectors) {
-    for (let i = 0; i < clusters.length; i++) {
-      if (!centroids[i]) continue;
-      const neigh: { j: number; s: number }[] = [];
-      for (let j = 0; j < clusters.length; j++) {
-        if (i === j || !centroids[j]) continue;
-        const s = cosine(centroids[i]!, centroids[j]!);
-        if (s >= WEB_MIN) neigh.push({ j, s });
-      }
-      neigh.sort((a, b) => b.s - a.s);
-      for (const { j, s } of neigh.slice(0, WEB_PER_NODE)) {
-        const key = i < j ? `${i}-${j}` : `${j}-${i}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        web.push({
-          id: `web-${key}`,
-          source: `theme-${i}`,
-          target: `theme-${j}`,
-          weight: s,
-          kind: "web",
-        });
-      }
-    }
-  } else {
-    // fallback: liga temas que compartilham alguma fonte
-    for (let i = 0; i < clusters.length; i++) {
-      const iUrls = new Set(
-        clusters[i].flatMap((idx) => drops[idx].links_fontes ?? [])
-      );
-      for (let j = i + 1; j < clusters.length; j++) {
-        const shared = clusters[j].some((idx) =>
-          (drops[idx].links_fontes ?? []).some((u) => iUrls.has(u))
-        );
-        if (shared) {
-          web.push({
-            id: `web-${i}-${j}`,
-            source: `theme-${i}`,
-            target: `theme-${j}`,
-            weight: 0.5,
-            kind: "web",
-          });
-        }
-      }
-    }
+  if (avulsos.length > 0) {
+    const node = themeNode("theme-avulsos", avulsos, drops);
+    node.label = "Drops que ainda não se repetiram";
+    node.avulso = true;
+    themeNodes.push(node);
   }
 
   return {
     marca: { id: marca.id, nome: marca.nome },
-    nodes,
-    edges: [...spine, ...web],
-    meta: { semantic: !!vectors, themes: clusters.length, drops: drops.length },
+    nodes: [coreNode(marca), ...themeNodes],
+    meta: {
+      semantic: !!vectors,
+      themes: recorrentes.length,
+      drops: drops.length,
+      janelaDias,
+    },
   };
+}
+
+function themeNode(id: string, members: number[], drops: TrendDrop[]): CanvasNode {
+  let growth = 0;
+  let hypeSum = 0;
+  let hypeMax = 0;
+  let ultimo = "";
+  const themeDrops: CanvasDrop[] = members.map((idx) => {
+    const d = drops[idx];
+    const h = d.indice_hype ?? 0;
+    if (d.categoria_funil === "growth") growth++;
+    hypeSum += h;
+    hypeMax = Math.max(hypeMax, h);
+    if (d.created_at > ultimo) ultimo = d.created_at;
+    return {
+      id: d.id,
+      titulo: d.insight_titulo,
+      descricao: d.descricao_fato,
+      gancho: d.gancho_produto,
+      hype: h,
+      status: d.status_hype,
+      categoria: d.categoria_funil,
+      fontes: d.links_fontes ?? [],
+      criado: d.created_at,
+    };
+  });
+  // mais recente primeiro: a coluna de drops conta a história do tema
+  themeDrops.sort((a, b) => b.criado.localeCompare(a.criado));
+
+  const total = members.length;
+  const share = growth / total;
+  return {
+    id,
+    type: "theme",
+    label: "",
+    size: total,
+    funnel: share >= 0.6 ? "growth" : share <= 0.4 ? "base" : "mixed",
+    hypeAvg: Math.round(hypeSum / total),
+    hypeMax,
+    keywords: [],
+    drops: themeDrops,
+    ultimo: ultimo || null,
+    avulso: false,
+  };
+}
+
+// Drop mais próximo do centróide do tema: o que melhor o resume.
+function representante(members: number[], vectors: number[][]): number {
+  const dim = vectors[0].length;
+  const c = new Array(dim).fill(0);
+  for (const i of members) {
+    const u = normalize(vectors[i]);
+    for (let k = 0; k < dim; k++) c[k] += u[k];
+  }
+  let best = members[0];
+  let bestSim = -Infinity;
+  for (const i of members) {
+    const s = cosine(vectors[i], c);
+    if (s > bestSim) {
+      bestSim = s;
+      best = i;
+    }
+  }
+  return best;
 }
