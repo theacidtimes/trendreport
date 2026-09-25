@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
@@ -8,41 +8,46 @@ import {
   Background,
   BackgroundVariant,
   Controls,
-  MiniMap,
   Handle,
   Position,
   useReactFlow,
+  useNodesInitialized,
   useNodesState,
   useEdgesState,
-  useInternalNode,
-  getStraightPath,
   getNodesBounds,
   getViewportForBounds,
   type Node,
   type Edge,
   type NodeProps,
-  type EdgeProps,
-  type InternalNode,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toPng } from "html-to-image";
 import {
   Check,
   ChevronDown,
+  ChevronRight,
   Download,
   FileJson,
   Sparkles,
   X,
   ExternalLink,
 } from "lucide-react";
-import type { CanvasGraph, CanvasDrop } from "@/lib/canvas/buildGraph";
+import type { CanvasGraph, CanvasDrop, CanvasNode } from "@/lib/canvas/buildGraph";
+
+// ─── Árvore da esquerda pra direita ───────────────────────────
+// Marca → tema → drop, abrindo um nível por clique; o drop abre no painel.
+// Substitui a mandala: o anel mostrava tudo de uma vez e não dava por onde
+// começar. Aqui cada coluna responde uma pergunta e só o caminho aberto aparece.
+// Contraste é requisito: título em --white, texto de apoio em --muted (nunca
+// --muted-2, que fica abaixo de 4.5:1 no fundo escuro) e contorno em --muted-2
+// (≥3:1, o mínimo pra borda de componente).
 
 const FUNNEL_COLOR: Record<string, string> = {
   growth: "var(--lime)",
   base: "var(--purple)",
   mixed: "#c6a15b",
 };
-const funnelColor = (f: string | null) => FUNNEL_COLOR[f ?? ""] ?? "#8a8580";
+const funnelColor = (f: string | null) => FUNNEL_COLOR[f ?? ""] ?? "var(--muted)";
 
 const FUNNEL_LABEL: Record<string, string> = {
   growth: "growth",
@@ -50,111 +55,180 @@ const FUNNEL_LABEL: Record<string, string> = {
   mixed: "misto",
 };
 
-const STATUS_DOT: Record<string, string> = {
-  em_alta: "var(--lime)",
-  subindo: "var(--purple)",
-  estabilizando: "#a8a29e",
-  esfriando: "#6e6a66",
+// Status sempre com rótulo em texto: cor sozinha não carrega significado.
+const STATUS: Record<string, { label: string; color: string }> = {
+  em_alta: { label: "em alta", color: "var(--lime)" },
+  subindo: { label: "subindo", color: "var(--purple)" },
+  estabilizando: { label: "estabilizando", color: "var(--muted)" },
+  esfriando: { label: "esfriando", color: "var(--muted)" },
 };
 
-const hiddenHandle = { opacity: 0 } as const;
+const OUTLINE = "var(--muted-2)";
+const ACTIVE = "var(--purple)";
 
-type ThemeData = {
-  label: string;
-  size: number;
-  funnel: "growth" | "base" | "mixed" | null;
-  hypeAvg: number;
-  hypeMax: number;
-  keywords: string[];
-  drops: CanvasDrop[];
-};
+// Colunas e passos verticais (px). Alturas estimadas só pra centralizar cada
+// coluna no pai; o React Flow mede o tamanho real na renderização.
+const COL_X = [0, 250, 620];
+const H = { core: 76, theme: 96, drop: 100 };
+const STEP = { theme: 112, drop: 116 };
 
-function ThemeNode({ data, selected }: NodeProps<Node<ThemeData>>) {
-  const color = funnelColor(data.funnel);
-  // largura cresce com o volume de sinais (1 → 10+ = 156 → 250px)
-  const width = 156 + Math.round((Math.min(data.size, 10) / 10) * 94);
+const hiddenHandle = { opacity: 0, pointerEvents: "none" } as const;
+
+const fmtData = (iso: string) =>
+  new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+
+type CoreData = { label: string; temas: number };
+type ThemeData = { theme: CanvasNode; active: boolean };
+type DropData = { drop: CanvasDrop; active: boolean };
+
+function CoreNode({ data }: NodeProps<Node<CoreData>>) {
   return (
     <div
-      className="rounded-2xl px-4 py-3 flex flex-col gap-2 transition-shadow"
-      style={{
-        width,
-        background: "var(--surface)",
-        border: `1px solid ${color}${selected ? "" : "66"}`,
-        boxShadow: selected
-          ? `0 0 0 1px ${color}, 0 0 34px -8px ${color}aa`
-          : `0 0 0 1px ${color}22, 0 18px 40px -28px rgba(0,0,0,0.8)`,
-      }}
+      className="rounded-2xl px-4 py-3 text-center"
+      style={{ width: 170, background: "var(--surface-2)", border: `2px solid ${ACTIVE}` }}
     >
-      <Handle type="target" position={Position.Top} style={hiddenHandle} isConnectable={false} />
-      <Handle type="source" position={Position.Bottom} style={hiddenHandle} isConnectable={false} />
-      <div className="flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-        <span className="text-[10px] uppercase tracking-[0.14em] text-muted-2">
-          {FUNNEL_LABEL[data.funnel ?? ""] ?? "tema"}
-        </span>
-        <span className="ml-auto text-[11px] tabular-nums text-muted-2">
-          {data.size} {data.size === 1 ? "sinal" : "sinais"}
-        </span>
-      </div>
-      <p className="text-[13px] leading-snug font-medium text-white/95">
-        {data.label}
+      <Handle type="source" position={Position.Right} style={hiddenHandle} isConnectable={false} />
+      <p className="font-serif text-white font-medium text-lg leading-tight">{data.label}</p>
+      <p className="text-[12px] text-muted mt-1">
+        {data.temas} {data.temas === 1 ? "tema" : "temas"}
       </p>
-      <div className="flex items-center gap-1 text-[10px] tabular-nums" style={{ color }}>
-        <span className="uppercase tracking-[0.1em] text-muted-2">hype</span>
-        <span className="font-medium">{data.hypeMax}</span>
+    </div>
+  );
+}
+
+function ThemeNode({ data }: NodeProps<Node<ThemeData>>) {
+  const { theme, active } = data;
+  const color = funnelColor(theme.funnel);
+  return (
+    <div
+      className="rounded-xl px-4 py-3 flex flex-col gap-1.5 cursor-pointer transition-colors hover:bg-surface-3"
+      style={{
+        width: 300,
+        background: active ? "var(--surface-3)" : "var(--surface-2)",
+        border: active ? `2px solid ${ACTIVE}` : `1px solid ${OUTLINE}`,
+      }}
+    >
+      <Handle type="target" position={Position.Left} style={hiddenHandle} isConnectable={false} />
+      <Handle type="source" position={Position.Right} style={hiddenHandle} isConnectable={false} />
+      <div className="flex items-center gap-2 text-[11px]">
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+        <span className="text-muted">{FUNNEL_LABEL[theme.funnel ?? ""] ?? "tema"}</span>
+        <span className="ml-auto tabular-nums text-muted">
+          {theme.size} {theme.size === 1 ? "drop" : "drops"}
+        </span>
+      </div>
+      <p className="text-[14px] leading-snug font-medium text-white">{theme.label}</p>
+      <div className="flex items-center gap-1 text-[11px] text-muted">
+        hype máx <span className="tabular-nums font-medium text-white">{theme.hypeMax}</span>
+        <ChevronRight
+          className="w-3.5 h-3.5 ml-auto transition-transform"
+          style={{ color: active ? ACTIVE : "var(--muted)", transform: active ? "rotate(90deg)" : undefined }}
+        />
       </div>
     </div>
   );
 }
 
-function CoreNode({ data }: NodeProps<Node<{ label: string }>>) {
+function DropNode({ data }: NodeProps<Node<DropData>>) {
+  const { drop, active } = data;
+  const status = STATUS[drop.status ?? ""];
   return (
     <div
-      className="grid place-items-center rounded-full text-center px-4"
+      className="rounded-xl px-4 py-3 flex flex-col gap-1.5 cursor-pointer transition-colors hover:bg-surface-3"
       style={{
-        width: 132,
-        height: 132,
-        background: "radial-gradient(circle at 30% 30%, var(--purple-mid), #181818 70%)",
-        border: "1.5px solid color-mix(in srgb, var(--purple) 67%, transparent)",
-        boxShadow: "0 0 40px -10px color-mix(in srgb, var(--purple) 50%, transparent)",
+        width: 320,
+        background: active ? "var(--surface-3)" : "var(--surface-2)",
+        border: active ? `2px solid ${ACTIVE}` : `1px solid ${OUTLINE}`,
       }}
     >
-      <Handle type="target" position={Position.Top} style={hiddenHandle} isConnectable={false} />
-      <Handle type="source" position={Position.Bottom} style={hiddenHandle} isConnectable={false} />
-      <span className="font-serif text-white font-medium text-lg leading-tight">
-        {data.label}
-      </span>
+      <Handle type="target" position={Position.Left} style={hiddenHandle} isConnectable={false} />
+      <div className="flex items-center gap-2 text-[11px]">
+        {status && (
+          <>
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: status.color }} />
+            <span className="text-muted">{status.label}</span>
+          </>
+        )}
+        <span className="text-muted">· {fmtData(drop.criado)}</span>
+        <span className="ml-auto tabular-nums text-muted">
+          hype <span className="font-medium text-white">{drop.hype}</span>
+        </span>
+      </div>
+      <p className="text-[13px] leading-snug font-medium text-white line-clamp-2">{drop.titulo}</p>
     </div>
   );
 }
 
-const nodeTypes = { theme: ThemeNode, core: CoreNode };
+const nodeTypes = { core: CoreNode, theme: ThemeNode, drop: DropNode };
 
-function nodeCenter(node: InternalNode) {
+// Posiciona só o caminho aberto: todos os temas, e os drops do tema aberto
+// centralizados na altura dele.
+function buildTree(
+  graph: CanvasGraph,
+  themeId: string | null,
+  dropId: string | null
+): { nodes: Node[]; edges: Edge[] } {
+  const themes = graph.nodes.filter((n) => n.type === "theme");
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+
+  const top = (center: number, h: number) => center - h / 2;
+  const column = (count: number, step: number, center: number) =>
+    Array.from({ length: count }, (_, i) => center + (i - (count - 1) / 2) * step);
+
+  nodes.push({
+    id: "core",
+    type: "core",
+    position: { x: COL_X[0], y: top(0, H.core) },
+    data: { label: graph.marca.nome, temas: themes.length },
+    selectable: false,
+  });
+
+  const themeY = column(themes.length, STEP.theme, 0);
+  themes.forEach((t, i) => {
+    const active = t.id === themeId;
+    nodes.push({
+      id: t.id,
+      type: "theme",
+      position: { x: COL_X[1], y: top(themeY[i], H.theme) },
+      data: { theme: t, active },
+    });
+    edges.push(edge("core", t.id, active));
+  });
+
+  const openTheme = themes.findIndex((t) => t.id === themeId);
+  if (openTheme >= 0) {
+    const drops = themes[openTheme].drops;
+    const dropY = column(drops.length, STEP.drop, themeY[openTheme]);
+    drops.forEach((d, i) => {
+      const id = `drop-${d.id}`;
+      const active = d.id === dropId;
+      nodes.push({
+        id,
+        type: "drop",
+        position: { x: COL_X[2], y: top(dropY[i], H.drop) },
+        data: { drop: d, active },
+      });
+      edges.push(edge(themeId!, id, active));
+    });
+  }
+
+  return { nodes, edges };
+}
+
+function edge(source: string, target: string, active: boolean): Edge {
   return {
-    x: node.internals.positionAbsolute.x + (node.measured.width ?? 0) / 2,
-    y: node.internals.positionAbsolute.y + (node.measured.height ?? 0) / 2,
+    id: `${source}->${target}`,
+    source,
+    target,
+    type: "default",
+    focusable: false,
+    style: {
+      stroke: active ? ACTIVE : OUTLINE,
+      strokeWidth: active ? 2 : 1.25,
+    },
   };
 }
-
-function FloatingEdge({ id, source, target, style, markerEnd }: EdgeProps) {
-  const sourceNode = useInternalNode(source);
-  const targetNode = useInternalNode(target);
-  if (!sourceNode || !targetNode) return null;
-  const s = nodeCenter(sourceNode);
-  const t = nodeCenter(targetNode);
-  const [path] = getStraightPath({
-    sourceX: s.x,
-    sourceY: s.y,
-    targetX: t.x,
-    targetY: t.y,
-  });
-  return (
-    <path id={id} d={path} className="react-flow__edge-path" style={style} markerEnd={markerEnd} />
-  );
-}
-
-const edgeTypes = { floating: FloatingEdge };
 
 function download(dataUrl: string, name: string) {
   const a = document.createElement("a");
@@ -178,19 +252,23 @@ function MarcaSwitcher({
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-border bg-surface/80 backdrop-blur pl-4 pr-3 py-1.5 text-white hover:border-white/20 transition-colors"
+        className="flex items-center gap-2 rounded-full border bg-surface/90 backdrop-blur pl-4 pr-3 py-1.5 text-white hover:border-white/40 transition-colors"
+        style={{ borderColor: OUTLINE }}
       >
         <span className="font-serif text-sm leading-none">
           {active?.nome ?? "Selecionar cliente"}
         </span>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-muted-2 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`w-3.5 h-3.5 text-muted transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute top-full left-0 mt-2 z-20 min-w-[200px] max-h-[60vh] overflow-y-auto rounded-2xl border border-border bg-surface-2/95 backdrop-blur p-1.5 shadow-elevated">
+          <div
+            className="absolute top-full left-0 mt-2 z-20 min-w-[200px] max-h-[60vh] overflow-y-auto rounded-2xl border bg-surface-2 p-1.5 shadow-elevated"
+            style={{ borderColor: OUTLINE }}
+          >
             {marcas.map((m) => {
               const isActive = m.id === activeId;
               return (
@@ -201,9 +279,7 @@ function MarcaSwitcher({
                     if (!isActive) router.push(`/dashboard/mapa/${m.id}`);
                   }}
                   className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
-                    isActive
-                      ? "text-white bg-surface"
-                      : "text-muted hover:text-white hover:bg-surface/70"
+                    isActive ? "text-white bg-surface-3" : "text-muted hover:text-white hover:bg-surface-3"
                   }`}
                 >
                   <span className="font-serif leading-tight flex-1">{m.nome}</span>
@@ -218,12 +294,53 @@ function MarcaSwitcher({
   );
 }
 
+function Trilha({
+  graph,
+  theme,
+  drop,
+  onRoot,
+  onTheme,
+}: {
+  graph: CanvasGraph;
+  theme: CanvasNode | undefined;
+  drop: CanvasDrop | undefined;
+  onRoot: () => void;
+  onTheme: () => void;
+}) {
+  const passo = "hover:text-white transition-colors truncate";
+  return (
+    <nav
+      aria-label="Caminho aberto"
+      className="flex items-center gap-1.5 text-[12px] text-muted min-w-0"
+    >
+      <button onClick={onRoot} className={passo}>{graph.marca.nome}</button>
+      {!theme && graph.meta.themes > 0 && <span>· clique num tema para abrir</span>}
+      {theme && (
+        <>
+          <ChevronRight className="w-3 h-3 shrink-0" />
+          <button onClick={onTheme} className={`${passo} max-w-[220px] ${drop ? "" : "text-white"}`}>
+            {theme.label}
+          </button>
+        </>
+      )}
+      {drop && (
+        <>
+          <ChevronRight className="w-3 h-3 shrink-0" />
+          <span className="text-white truncate max-w-[260px]">{drop.titulo}</span>
+        </>
+      )}
+    </nav>
+  );
+}
+
 function Toolbar({
   graph,
   marcas,
+  children,
 }: {
   graph: CanvasGraph;
   marcas: { id: string; nome: string }[];
+  children: React.ReactNode;
 }) {
   const { getNodes } = useReactFlow();
 
@@ -256,108 +373,223 @@ function Toolbar({
     download(URL.createObjectURL(blob), `${graph.marca.nome}-mapa.json`);
   }, [graph]);
 
+  const iconBtn =
+    "w-9 h-9 rounded-full border bg-surface/90 backdrop-blur text-muted hover:text-white hover:border-white/40 transition-colors grid place-items-center shrink-0";
+
   return (
-    <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-      <MarcaSwitcher marcas={marcas} activeId={graph.marca.id} />
-      <div className="rounded-full border border-border bg-surface/80 backdrop-blur px-4 py-1.5 flex items-center gap-2.5">
-        <span className="text-muted-2 text-[11px]">
-          {graph.meta.themes} temas · {graph.meta.drops} sinais
-        </span>
-        <span
-          className="flex items-center gap-1 text-[11px]"
-          style={{ color: graph.meta.semantic ? "var(--lime)" : "#6e6a66" }}
+    <div className="absolute top-4 left-4 right-4 z-10 flex flex-col gap-2 pointer-events-none">
+      <div className="flex items-center gap-2 pointer-events-auto">
+        <MarcaSwitcher marcas={marcas} activeId={graph.marca.id} />
+        <div
+          className="rounded-full border bg-surface/90 backdrop-blur px-4 py-1.5 flex items-center gap-2.5"
+          style={{ borderColor: OUTLINE }}
         >
-          <Sparkles className="w-3 h-3" />
-          {graph.meta.semantic ? "semântico" : "estrutural"}
-        </span>
+          <span className="text-muted text-[12px]">
+            {graph.meta.themes} temas · {graph.meta.drops} drops
+          </span>
+          <span
+            className="flex items-center gap-1 text-[12px]"
+            style={{ color: graph.meta.semantic ? "var(--lime)" : "var(--muted)" }}
+          >
+            <Sparkles className="w-3 h-3" />
+            {graph.meta.semantic ? "semântico" : "estrutural"}
+          </span>
+        </div>
+        <button onClick={onExportPng} className={iconBtn} style={{ borderColor: OUTLINE }} aria-label="Exportar PNG">
+          <Download className="w-4 h-4" />
+        </button>
+        <button onClick={onExportJson} className={iconBtn} style={{ borderColor: OUTLINE }} aria-label="Exportar JSON">
+          <FileJson className="w-4 h-4" />
+        </button>
       </div>
-      <button
-        onClick={onExportPng}
-        className="w-9 h-9 rounded-full border border-border bg-surface/80 backdrop-blur text-muted hover:text-white hover:border-white/20 transition-colors grid place-items-center"
-        aria-label="Exportar PNG"
-      >
-        <Download className="w-4 h-4" />
-      </button>
-      <button
-        onClick={onExportJson}
-        className="w-9 h-9 rounded-full border border-border bg-surface/80 backdrop-blur text-muted hover:text-white hover:border-white/20 transition-colors grid place-items-center"
-        aria-label="Exportar JSON"
-      >
-        <FileJson className="w-4 h-4" />
-      </button>
+      <div className="pointer-events-auto pl-1">{children}</div>
     </div>
   );
 }
 
-function ThemePanel({
-  node,
+function DropPanel({
+  drop,
+  theme,
   onClose,
 }: {
-  node: Node<ThemeData>;
+  drop: CanvasDrop;
+  theme: CanvasNode;
   onClose: () => void;
 }) {
-  const { label, drops, funnel, size } = node.data;
-  const color = funnelColor(funnel);
+  const status = STATUS[drop.status ?? ""];
   return (
-    <div className="absolute top-0 right-0 z-20 h-full w-full sm:w-[400px] bg-surface/95 backdrop-blur border-l border-border flex flex-col shadow-elevated">
-      <div className="flex items-start gap-3 px-5 py-4 border-b border-border">
-        <span className="mt-1.5 w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+    <aside
+      className="absolute top-0 right-0 z-20 h-full w-full sm:w-[420px] bg-surface-2 border-l flex flex-col shadow-elevated"
+      style={{ borderColor: OUTLINE }}
+    >
+      <div className="flex items-start gap-3 px-5 py-4 border-b" style={{ borderColor: OUTLINE }}>
         <div className="flex-1 min-w-0">
-          <span className="text-[10px] uppercase tracking-[0.14em] text-muted-2">
-            {FUNNEL_LABEL[funnel ?? ""] ?? "tema"} · {size} {size === 1 ? "sinal" : "sinais"}
-          </span>
-          <h3 className="font-serif text-white text-lg leading-tight mt-0.5">{label}</h3>
+          <p className="text-[12px] text-muted truncate">{theme.label}</p>
+          <h3 className="font-serif text-white text-lg leading-tight mt-1">{drop.titulo}</h3>
+          <div className="flex items-center gap-2 mt-2 text-[12px] text-muted">
+            {status && (
+              <>
+                <span className="w-2 h-2 rounded-full" style={{ background: status.color }} />
+                {status.label} ·
+              </>
+            )}
+            <span>hype <span className="text-white font-medium tabular-nums">{drop.hype}</span></span>
+            <span>· {fmtData(drop.criado)}</span>
+            {drop.categoria && <span>· {drop.categoria}</span>}
+          </div>
         </div>
         <button
           onClick={onClose}
-          className="w-8 h-8 grid place-items-center rounded-full text-muted hover:text-white hover:bg-surface-2 transition-colors shrink-0"
+          className="w-8 h-8 grid place-items-center rounded-full text-muted hover:text-white hover:bg-surface-3 transition-colors shrink-0"
           aria-label="Fechar"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
-        {drops.map((d) => (
-          <article key={d.id} className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5">
-              <span
-                className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{ background: STATUS_DOT[d.status ?? ""] ?? "#6e6a66" }}
-              />
-              <span className="text-[10px] uppercase tracking-[0.12em] text-muted-2">
-                {d.categoria ?? "drop"}
-              </span>
-              <span className="ml-auto text-[11px] tabular-nums font-medium" style={{ color }}>
-                {d.hype}
-              </span>
-            </div>
-            <h4 className="text-[13px] leading-snug font-medium text-white/95">{d.titulo}</h4>
-            {d.descricao && (
-              <p className="text-[12px] leading-relaxed text-muted">{d.descricao}</p>
-            )}
-            {d.gancho && (
-              <p className="text-[12px] leading-relaxed text-muted-2 italic">{d.gancho}</p>
-            )}
-            {d.fontes.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-0.5">
-                {d.fontes.slice(0, 4).map((url, i) => (
+      <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-5">
+        {drop.descricao && (
+          <section>
+            <h4 className="text-[12px] text-muted mb-1">O que está acontecendo</h4>
+            <p className="text-[14px] leading-relaxed text-white">{drop.descricao}</p>
+          </section>
+        )}
+        {drop.gancho && (
+          <section>
+            <h4 className="text-[12px] text-muted mb-1">Conexão com a marca</h4>
+            <p className="text-[14px] leading-relaxed text-white">{drop.gancho}</p>
+          </section>
+        )}
+        {drop.fontes.length > 0 && (
+          <section>
+            <h4 className="text-[12px] text-muted mb-2">Fontes</h4>
+            <ul className="flex flex-col gap-1.5">
+              {drop.fontes.map((url, i) => (
+                <li key={i}>
                   <a
-                    key={i}
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-[10px] text-muted-2 hover:text-white border border-hairline rounded-full px-2 py-0.5 transition-colors"
+                    className="flex items-center gap-2 rounded-lg border px-3 py-2 text-[13px] text-white hover:bg-surface-3 transition-colors"
+                    style={{ borderColor: OUTLINE }}
                   >
-                    <ExternalLink className="w-2.5 h-2.5" />
-                    fonte {i + 1}
+                    <ExternalLink className="w-3.5 h-3.5 text-muted shrink-0" />
+                    <span className="truncate">{dominio(url)}</span>
                   </a>
-                ))}
-              </div>
-            )}
-          </article>
-        ))}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
+    </aside>
+  );
+}
+
+function dominio(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, "") + (u.pathname.length > 1 ? u.pathname : "");
+  } catch {
+    return url;
+  }
+}
+
+function Arvore({
+  graph,
+  marcas,
+}: {
+  graph: CanvasGraph;
+  marcas: { id: string; nome: string }[];
+}) {
+  const [themeId, setThemeId] = useState<string | null>(null);
+  const [dropId, setDropId] = useState<string | null>(null);
+  const { fitView } = useReactFlow();
+
+  const tree = useMemo(() => buildTree(graph, themeId, dropId), [graph, themeId, dropId]);
+  const [nodes, setNodes, onNodesChange] = useNodesState(tree.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(tree.edges);
+
+  useEffect(() => {
+    setNodes(tree.nodes);
+    setEdges(tree.edges);
+  }, [tree, setNodes, setEdges]);
+
+  const theme = graph.nodes.find((n) => n.id === themeId);
+  const drop = theme?.drops.find((d) => d.id === dropId);
+
+  // Enquadra o caminho aberto (e não a árvore inteira): ao abrir um tema, o
+  // foco vai pro tema e seus drops; com o painel aberto, reserva a direita.
+  // Só enquadra quando o estado já tem os nós novos E o React Flow já os mediu;
+  // antes disso o fitView ignora os drops recém-abertos ou os mede com zero.
+  const medidos = useNodesInitialized();
+  const enquadrado = useRef<string | null>(null);
+  useEffect(() => {
+    const chave = `${themeId}|${dropId}`;
+    if (!medidos || enquadrado.current === chave) return;
+    const ids = themeId
+      ? [themeId, ...tree.nodes.filter((n) => n.type === "drop").map((n) => n.id)]
+      : tree.nodes.map((n) => n.id);
+    const presentes = new Set(nodes.map((n) => n.id));
+    if (!ids.every((id) => presentes.has(id))) return;
+    enquadrado.current = chave;
+    fitView({
+      nodes: ids.map((id) => ({ id })),
+      padding: { top: "110px", left: "40px", bottom: "40px", right: dropId ? "460px" : "40px" },
+      maxZoom: 1.1,
+      duration: 350,
+    });
+  }, [medidos, nodes, tree, themeId, dropId, fitView]);
+
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    if (node.type === "theme") {
+      setThemeId((cur) => (cur === node.id ? null : node.id));
+      setDropId(null);
+    } else if (node.type === "drop") {
+      setDropId((node.data as DropData).drop.id);
+    }
+  }, []);
+
+  return (
+    <div className="relative w-full h-full">
+      <Toolbar graph={graph} marcas={marcas}>
+        <Trilha
+          graph={graph}
+          theme={theme}
+          drop={drop}
+          onRoot={() => {
+            setThemeId(null);
+            setDropId(null);
+          }}
+          onTheme={() => setDropId(null)}
+        />
+      </Toolbar>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={onNodeClick}
+        nodeTypes={nodeTypes}
+        minZoom={0.2}
+        maxZoom={2}
+        proOptions={{ hideAttribution: true }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        edgesFocusable={false}
+      >
+        <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="#2a2a2a" />
+        <Controls
+          showInteractive={false}
+          style={{ background: "#181818", border: "1px solid #6e6a66", borderRadius: 10 }}
+        />
+      </ReactFlow>
+      {graph.meta.themes === 0 && (
+        <div className="absolute inset-0 grid place-items-center pointer-events-none">
+          <p className="text-muted text-sm">Ainda não há drops para esta marca.</p>
+        </div>
+      )}
+      {drop && theme && <DropPanel drop={drop} theme={theme} onClose={() => setDropId(null)} />}
     </div>
   );
 }
@@ -369,102 +601,9 @@ export default function CanvasClient({
   graph: CanvasGraph;
   marcas: { id: string; nome: string }[];
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const initialNodes = useMemo<Node[]>(
-    () =>
-      graph.nodes.map((n) => ({
-        id: n.id,
-        type: n.type,
-        position: { x: n.x, y: n.y },
-        data:
-          n.type === "core"
-            ? { label: n.label }
-            : {
-                label: n.label,
-                size: n.size,
-                funnel: n.funnel,
-                hypeAvg: n.hypeAvg,
-                hypeMax: n.hypeMax,
-                keywords: n.keywords,
-                drops: n.drops,
-              },
-        draggable: true,
-      })),
-    [graph]
-  );
-
-  const initialEdges = useMemo<Edge[]>(
-    () =>
-      graph.edges.map((e) => {
-        const web = e.kind === "web";
-        return {
-          id: e.id,
-          source: e.source,
-          target: e.target,
-          type: "floating",
-          style: {
-            stroke: web ? "#a8a29e" : "var(--purple-mid)",
-            strokeWidth: web ? 0.8 + e.weight * 1.8 : 1,
-            opacity: web ? 0.22 + e.weight * 0.4 : 0.55,
-          },
-        };
-      }),
-    [graph]
-  );
-
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
-
-  const selectedNode = useMemo(
-    () => nodes.find((n) => n.id === selectedId) as Node<ThemeData> | undefined,
-    [nodes, selectedId]
-  );
-
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    setSelectedId(node.type === "theme" ? node.id : null);
-  }, []);
-
   return (
     <ReactFlowProvider>
-      <div className="relative w-full h-full">
-        <Toolbar graph={graph} marcas={marcas} />
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeClick={onNodeClick}
-          onPaneClick={() => setSelectedId(null)}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.15}
-          maxZoom={2.5}
-          proOptions={{ hideAttribution: true }}
-          nodesConnectable={false}
-          edgesFocusable={false}
-        >
-          <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="#232323" />
-          <Controls
-            showInteractive={false}
-            style={{ background: "#181818", border: "1px solid #232323", borderRadius: 10 }}
-          />
-          <MiniMap
-            pannable
-            zoomable
-            nodeColor={(n) =>
-              n.type === "core" ? "var(--purple)" : funnelColor((n.data as ThemeData).funnel)
-            }
-            maskColor="rgba(11,11,11,0.75)"
-            style={{ background: "#121212", border: "1px solid #232323" }}
-          />
-        </ReactFlow>
-        {selectedNode && (
-          <ThemePanel node={selectedNode} onClose={() => setSelectedId(null)} />
-        )}
-      </div>
+      <Arvore graph={graph} marcas={marcas} />
     </ReactFlowProvider>
   );
 }

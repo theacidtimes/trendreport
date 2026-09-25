@@ -12,6 +12,7 @@ export interface CanvasDrop {
   status: TrendDrop["status_hype"] | null;
   categoria: TrendDrop["categoria_funil"] | null;
   fontes: string[];
+  criado: string;
 }
 
 export interface CanvasNode {
@@ -516,6 +517,7 @@ export async function buildCanvasGraph(
         status: d.status_hype,
         categoria: d.categoria_funil,
         fontes: d.links_fontes ?? [],
+        criado: d.created_at,
       };
     });
     themeDrops.sort((a, b) => b.hype - a.hype);

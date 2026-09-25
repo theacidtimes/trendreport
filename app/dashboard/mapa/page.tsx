@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Waypoints } from "lucide-react";
+import { Network } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MapaPage() {
@@ -17,7 +17,7 @@ export default async function MapaPage() {
   return (
     <div className="h-full grid place-items-center text-center px-6">
       <div className="flex flex-col items-center gap-3 max-w-md">
-        <Waypoints className="w-8 h-8 text-muted-2" strokeWidth={1.5} />
+        <Network className="w-8 h-8 text-muted-2" strokeWidth={1.5} />
         <h1 className="font-serif text-white font-medium text-2xl">
           Mapa semântico
         </h1>

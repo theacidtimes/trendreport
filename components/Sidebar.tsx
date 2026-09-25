@@ -10,7 +10,7 @@ import {
   LogOut,
   Plus,
   Radar,
-  Waypoints,
+  Network,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
@@ -25,7 +25,7 @@ const NAV = [
   { href: "/dashboard/new", label: "Novo report", icon: Plus, modulo: "reports" },
   { href: "/dashboard", label: "Reports", icon: LayoutGrid },
   { href: "/dashboard/radar", label: "Radar", icon: Radar, modulo: "radar" },
-  { href: "/dashboard/mapa", label: "Mapa semântico", icon: Waypoints, modulo: "dados_semanticos" },
+  { href: "/dashboard/mapa", label: "Mapa semântico", icon: Network, modulo: "dados_semanticos" },
 ] as const;
 
 const ADMIN_NAV = [{ href: "/dashboard/admin", label: "Admin", icon: Bolt }];
