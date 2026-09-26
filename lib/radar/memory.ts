@@ -85,7 +85,10 @@ export async function processMemory(
   for (const lote of chunks(unique, DEDUP_CHUNK)) {
     const { data: batch, error } = await supabase.rpc('match_radar_signals_batch', {
       p_marca_id: marcaId,
-      p_queries: lote.map(u => u.emb),
+      // vetor como texto "[...]": array de arrays numéricos vira literal 2D
+      // ({{...}}) no PostgREST e o Postgres recusa como vector[] — o dedup
+      // falhava em todo lote e tratava tudo como novidade.
+      p_queries: lote.map(u => JSON.stringify(u.emb)),
       p_min_similarity: DEDUP_THRESHOLD
     })
     if (error) console.error('[MEMORY] Falha no dedup vs. histórico (lote tratado como novo):', error.message)

@@ -12,7 +12,9 @@ async function embed(texts: string[], inputType: InputType): Promise<number[][]>
       'Content-Type': 'application/json',
       Authorization: `Bearer ${process.env.VOYAGE_API_KEY!}`
     },
-    body: JSON.stringify({ input: texts, model: MODEL, input_type: inputType })
+    // Snippet cortado no meio de um emoji deixa surrogate órfão, e a Voyage
+    // recusa o lote inteiro (400 "valid UTF-8") — a marca rodava sem memória.
+    body: JSON.stringify({ input: texts.map(t => t.toWellFormed()), model: MODEL, input_type: inputType })
   })
 
   if (!res.ok) {
