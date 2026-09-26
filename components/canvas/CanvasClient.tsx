@@ -9,15 +9,16 @@ import {
   BackgroundVariant,
   Controls,
   Handle,
+  NodeToolbar,
   Position,
   useReactFlow,
   useNodesState,
-  useEdgesState,
   getNodesBounds,
   getViewportForBounds,
   type Node,
   type Edge,
   type NodeProps,
+  type OnNodeDrag,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toPng } from "html-to-image";
@@ -30,6 +31,7 @@ import {
   Sparkles,
   X,
   ExternalLink,
+  LayoutGrid,
 } from "lucide-react";
 import type { CanvasGraph, CanvasDrop, CanvasNode } from "@/lib/canvas/buildGraph";
 
@@ -102,19 +104,68 @@ function CoreNode({ data }: NodeProps<Node<CoreData>>) {
   );
 }
 
-function ThemeNode({ data }: NodeProps<Node<ThemeData>>) {
+// Borda e fundo do card: ativo = roxo 2px; senão contorno visível que acende
+// no hover. Via variável CSS pra o hover do Tailwind vencer o estilo inline.
+function cardClass(active: boolean, avulso = false) {
+  return [
+    "rounded-xl px-4 py-3 flex flex-col gap-1.5 cursor-pointer transition-[background-color,border-color,box-shadow] duration-150",
+    active
+      ? "border-2 border-[color:var(--purple)] bg-surface-3"
+      : `border ${avulso ? "border-dashed" : ""} border-[color:var(--muted-2)] bg-surface-2 hover:border-[color:var(--white)] hover:bg-surface-3 hover:shadow-[0_0_0_3px_rgba(245,243,239,0.08)]`,
+  ].join(" ");
+}
+
+// Prévia no hover: mostra o essencial sem precisar abrir. Some quando o nó
+// está aberto (aí o conteúdo já está na tela) e durante o arraste. Abre à
+// direita; se não couber na tela, abre à esquerda.
+function useHover() {
+  const [lado, setLado] = useState<Position | null>(null);
+  return {
+    lado,
+    handlers: {
+      onMouseEnter: (e: React.MouseEvent<HTMLElement>) =>
+        setLado(
+          e.currentTarget.getBoundingClientRect().right + 360 > window.innerWidth
+            ? Position.Left
+            : Position.Right
+        ),
+      onMouseLeave: () => setLado(null),
+    },
+  };
+}
+
+function Previa({
+  lado,
+  visivel,
+  children,
+}: {
+  lado: Position | null;
+  visivel: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <NodeToolbar isVisible={visivel && lado !== null} position={lado ?? Position.Right} offset={14}>
+      <div
+        className="w-[320px] rounded-xl border bg-surface-3 px-4 py-3 text-[13px] leading-relaxed text-white shadow-elevated pointer-events-none"
+        style={{ borderColor: "var(--muted)" }}
+      >
+        {children}
+      </div>
+    </NodeToolbar>
+  );
+}
+
+const primeiraFrase = (t: string) => t.match(/^(.+?[.!?])(\s|$)/)?.[1] ?? t;
+
+function ThemeNode({ data, dragging }: NodeProps<Node<ThemeData>>) {
   const { theme, active } = data;
+  const { lado, handlers } = useHover();
   const color = theme.avulso ? "var(--muted)" : funnelColor(theme.funnel);
   return (
     <div
-      className="rounded-xl px-4 py-3 flex flex-col gap-1.5 cursor-pointer transition-colors hover:bg-surface-3"
-      style={{
-        width: 320,
-        background: active ? "var(--surface-3)" : "var(--surface-2)",
-        border: active
-          ? `2px solid ${ACTIVE}`
-          : `1px ${theme.avulso ? "dashed" : "solid"} ${OUTLINE}`,
-      }}
+      className={cardClass(active, theme.avulso)}
+      style={{ width: 320 }}
+      {...handlers}
     >
       <Handle type="target" position={Position.Left} style={hiddenHandle} isConnectable={false} />
       <Handle type="source" position={Position.Right} style={hiddenHandle} isConnectable={false} />
@@ -145,21 +196,33 @@ function ThemeNode({ data }: NodeProps<Node<ThemeData>>) {
           style={{ color: active ? ACTIVE : "var(--muted)", transform: active ? "rotate(90deg)" : undefined }}
         />
       </div>
+      <Previa lado={lado} visivel={!active && !dragging}>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">
+          Drops mais recentes
+        </p>
+        <ul className="flex flex-col gap-1.5">
+          {theme.drops.slice(0, 3).map((d) => (
+            <li key={d.id} className="flex gap-2">
+              <span className="text-muted tabular-nums shrink-0">{fmtData(d.criado)}</span>
+              <span className="line-clamp-2">{d.titulo}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="text-[12px] text-muted mt-2">Clique para abrir · arraste para mover</p>
+      </Previa>
     </div>
   );
 }
 
-function DropNode({ data }: NodeProps<Node<DropData>>) {
+function DropNode({ data, dragging }: NodeProps<Node<DropData>>) {
   const { drop, active } = data;
+  const { lado, handlers } = useHover();
   const status = STATUS[drop.status ?? ""];
   return (
     <div
-      className="rounded-xl px-4 py-3 flex flex-col gap-1.5 cursor-pointer transition-colors hover:bg-surface-3"
-      style={{
-        width: 320,
-        background: active ? "var(--surface-3)" : "var(--surface-2)",
-        border: active ? `2px solid ${ACTIVE}` : `1px solid ${OUTLINE}`,
-      }}
+      className={cardClass(active)}
+      style={{ width: 320 }}
+      {...handlers}
     >
       <Handle type="target" position={Position.Left} style={hiddenHandle} isConnectable={false} />
       <div className="flex items-center gap-2 text-[11px]">
@@ -175,18 +238,28 @@ function DropNode({ data }: NodeProps<Node<DropData>>) {
         </span>
       </div>
       <p className="text-[13px] leading-snug font-medium text-white line-clamp-2">{drop.titulo}</p>
+      {drop.descricao && (
+        <Previa lado={lado} visivel={!active && !dragging}>
+          <p className="font-semibold">{primeiraFrase(drop.descricao)}</p>
+          <p className="text-[12px] text-muted mt-2">Clique para abrir · arraste para mover</p>
+        </Previa>
+      )}
     </div>
   );
 }
 
 const nodeTypes = { core: CoreNode, theme: ThemeNode, drop: DropNode };
 
+type Pos = { x: number; y: number };
+
 // Posiciona só o caminho aberto: todos os temas, e os drops do tema aberto
-// centralizados na altura dele.
+// centralizados na altura dele. Nó que o usuário arrastou fica onde ele pôs
+// (`manual`), e os drops nascem ao lado da posição ATUAL do tema aberto.
 function buildTree(
   graph: CanvasGraph,
   themeId: string | null,
-  dropId: string | null
+  dropId: string | null,
+  manual: Map<string, Pos>
 ): { nodes: Node[]; edges: Edge[] } {
   const themes = graph.nodes.filter((n) => n.type === "theme");
   const nodes: Node[] = [];
@@ -199,7 +272,7 @@ function buildTree(
   nodes.push({
     id: "core",
     type: "core",
-    position: { x: COL_X[0], y: top(0, H.core) },
+    position: manual.get("core") ?? { x: COL_X[0], y: top(0, H.core) },
     data: { label: graph.marca.nome, temas: themes.filter((t) => !t.avulso).length },
     selectable: false,
   });
@@ -210,7 +283,7 @@ function buildTree(
     nodes.push({
       id: t.id,
       type: "theme",
-      position: { x: COL_X[1], y: top(themeY[i], H.theme) },
+      position: manual.get(t.id) ?? { x: COL_X[1], y: top(themeY[i], H.theme) },
       data: { theme: t, active },
     });
     edges.push(edge("core", t.id, active));
@@ -219,14 +292,16 @@ function buildTree(
   const openTheme = themes.findIndex((t) => t.id === themeId);
   if (openTheme >= 0) {
     const drops = themes[openTheme].drops;
-    const dropY = column(drops.length, STEP.drop, themeY[openTheme]);
+    const base = manual.get(themeId!) ?? { x: COL_X[1], y: top(themeY[openTheme], H.theme) };
+    const dropX = base.x + (COL_X[2] - COL_X[1]);
+    const dropY = column(drops.length, STEP.drop, base.y + H.theme / 2);
     drops.forEach((d, i) => {
       const id = `drop-${d.id}`;
       const active = d.id === dropId;
       nodes.push({
         id,
         type: "drop",
-        position: { x: COL_X[2], y: top(dropY[i], H.drop) },
+        position: manual.get(id) ?? { x: dropX, y: top(dropY[i], H.drop) },
         data: { drop: d, active },
       });
       edges.push(edge(themeId!, id, active));
@@ -387,10 +462,12 @@ function Trilha({
 function Toolbar({
   graph,
   marcas,
+  onReorganizar,
   children,
 }: {
   graph: CanvasGraph;
   marcas: { id: string; nome: string }[];
+  onReorganizar: () => void;
   children: React.ReactNode;
 }) {
   const { getNodes } = useReactFlow();
@@ -447,6 +524,15 @@ function Toolbar({
             {graph.meta.semantic ? "semântico" : "estrutural"}
           </span>
         </div>
+        <button
+          onClick={onReorganizar}
+          className="h-9 rounded-full border bg-surface/90 backdrop-blur text-muted hover:text-white hover:border-white/40 transition-colors flex items-center gap-1.5 px-3 text-[12px] shrink-0"
+          style={{ borderColor: OUTLINE }}
+          title="Volta os nós pro layout automático"
+        >
+          <LayoutGrid className="w-3.5 h-3.5" />
+          Reorganizar
+        </button>
         <button onClick={onExportPng} className={iconBtn} style={{ borderColor: OUTLINE }} aria-label="Exportar PNG">
           <Download className="w-4 h-4" />
         </button>
@@ -612,24 +698,36 @@ function Arvore({
   const [dropId, setDropId] = useState<string | null>(null);
   const { fitView } = useReactFlow();
 
+  // Posições que o usuário arrastou. Valem só na sessão: os ids de tema são
+  // recalculados a cada visita, então salvar posição agora grudaria no tema
+  // errado. Com territórios (ids estáveis) dá pra persistir.
+  const manual = useRef(new Map<string, Pos>());
+  const [versao, setVersao] = useState(0);
+  const [hoverId, setHoverId] = useState<string | null>(null);
+
   // Trocar janela ou marca gera outro grafo: fecha o que estava aberto.
   useEffect(() => {
     setThemeId(null);
     setDropId(null);
+    manual.current.clear();
   }, [graph]);
 
-  const tree = useMemo(() => buildTree(graph, themeId, dropId), [graph, themeId, dropId]);
+  const tree = useMemo(
+    () => buildTree(graph, themeId, dropId, manual.current),
+    // `versao` força recálculo depois de "Reorganizar" limpar o mapa manual
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [graph, themeId, dropId, versao]
+  );
   const [nodes, setNodes, onNodesChange] = useNodesState(tree.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(tree.edges);
 
   // Enquadra o caminho aberto (e não a árvore inteira): ao abrir um tema, o
   // foco vai pro tema e seus drops; com o painel aberto, reserva a direita.
   // O fitView do React Flow 12 fica na fila até a PRÓXIMA troca de nós, então
   // precisa ser pedido antes do setNodes — depois, chega um clique atrasado.
   // A carga inicial fica com o `fitView` nativo do <ReactFlow>.
-  const enquadrado = useRef(`${graph.marca.id}|${graph.meta.janelaDias}|null|null`);
+  const enquadrado = useRef(`${graph.marca.id}|${graph.meta.janelaDias}|null|null|0`);
   useEffect(() => {
-    const chave = `${graph.marca.id}|${graph.meta.janelaDias}|${themeId}|${dropId}`;
+    const chave = `${graph.marca.id}|${graph.meta.janelaDias}|${themeId}|${dropId}|${versao}`;
     if (enquadrado.current !== chave) {
       enquadrado.current = chave;
       const ids = themeId
@@ -643,8 +741,27 @@ function Arvore({
       });
     }
     setNodes(tree.nodes);
-    setEdges(tree.edges);
-  }, [tree, graph, themeId, dropId, fitView, setNodes, setEdges]);
+  }, [tree, graph, themeId, dropId, versao, fitView, setNodes]);
+
+  // Hover acende as linhas que tocam o nó (o caminho aberto segue roxo).
+  const edges = useMemo(
+    () =>
+      tree.edges.map((e) => {
+        const ativa = e.style?.stroke === ACTIVE;
+        if (ativa || !hoverId || (e.source !== hoverId && e.target !== hoverId)) return e;
+        return { ...e, style: { stroke: "var(--white)", strokeWidth: 1.75 } };
+      }),
+    [tree, hoverId]
+  );
+
+  const onNodeDragStop: OnNodeDrag = useCallback((_e, _n, arrastados) => {
+    for (const n of arrastados) manual.current.set(n.id, n.position);
+  }, []);
+
+  const reorganizar = useCallback(() => {
+    manual.current.clear();
+    setVersao((v) => v + 1);
+  }, []);
 
   const theme = graph.nodes.find((n) => n.id === themeId);
   const drop = theme?.drops.find((d) => d.id === dropId);
@@ -660,7 +777,7 @@ function Arvore({
 
   return (
     <div className="relative w-full h-full">
-      <Toolbar graph={graph} marcas={marcas}>
+      <Toolbar graph={graph} marcas={marcas} onReorganizar={reorganizar}>
         <Trilha
           graph={graph}
           theme={theme}
@@ -676,15 +793,19 @@ function Arvore({
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onNodeDragStop={onNodeDragStop}
+        onNodeMouseEnter={(_, n) => setHoverId(n.id)}
+        onNodeMouseLeave={() => setHoverId(null)}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={FIT_INICIAL}
         minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-        nodesDraggable={false}
+        nodesDraggable
+        selectNodesOnDrag={false}
+        elevateNodesOnSelect
         nodesConnectable={false}
         edgesFocusable={false}
       >
