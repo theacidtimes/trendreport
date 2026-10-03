@@ -11,6 +11,8 @@
  * zera tudo; se a linha pudesse ser 'CA' e a marca não, a linha nunca casaria.
  * Nos dois casos, silêncio.
  */
-export const PAISES = ['BR', 'AU', 'US', 'PT', 'ES', 'MX', 'AR'] as const
+// CO e CL entraram com os mercados LATAM (out/2026): país aqui também decide de
+// onde a coleta raspa, ver lib/mercados.ts.
+export const PAISES = ['BR', 'AU', 'US', 'PT', 'ES', 'MX', 'AR', 'CO', 'CL'] as const
 
 export type Pais = (typeof PAISES)[number]

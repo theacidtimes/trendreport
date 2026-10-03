@@ -1,4 +1,5 @@
 import { RawDataPoint } from '../types'
+import { Mercado, MERCADO_PADRAO, ehEspanhol } from '../mercados'
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN!
 const APIFY_BASE = 'https://api.apify.com/v2'
@@ -13,17 +14,13 @@ function actorPath(actorId: string): string {
   return actorId.replace('/', '~')
 }
 
-// Recorte de imprensa pro News: catch amplo de BR (.com.br cobre folha, estadao, uol,
-// infomoney, exame.com.br, fastcompany.com.br, meioemensagem etc.) + portais fortes que
-// NÃO terminam em .com.br e precisam entrar na mão (globo, valor, exame.com). Editar aqui
-// muda as duas lanes de news (cultural e marca) de uma vez.
-const NEWS_SITES = [
-  '.com.br',
-  'g1.globo.com',
-  'valor.globo.com',
-  'exame.com',
-  'fastcompany.com'
-].map(s => `site:${s}`).join(' OR ')
+// Recorte de imprensa pro News, por mercado (lib/mercados.ts). No BR: catch amplo
+// (.com.br cobre folha, estadao, uol, infomoney, exame.com.br, fastcompany.com.br,
+// meioemensagem etc.) + portais fortes que NÃO terminam em .com.br (globo, valor,
+// exame.com). Editar lá muda as duas lanes de news (cultural e marca) de uma vez.
+function newsSites(mercado: Mercado): string {
+  return mercado.news.sites.map(s => `site:${s}`).join(' OR ')
+}
 
 // Lane GLOBAL de early signals (20% do composto): imprensa internacional que capta o
 // sinal antes de ele chegar ao BR. Mix de tech (Wired, The Information, MIT), forecasting
@@ -47,7 +44,13 @@ const NEWS_SITES_GLOBAL = [
 // + fetchDataset. Ver runRadar.ts.
 // Exportada só para o check: o recorte de cada lane é CONFIGURAÇÃO, e config
 // que some não levanta exceção — a lane volta a raspar tweet de 2015 calada.
-export function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string; input: Record<string, unknown> } {
+// `mercado` decide país e idioma de cada lane; o default BR mantém o input
+// byte-idêntico ao de antes para quem não declara país.
+export function scrapeSpec(
+  fonte: Fonte,
+  keywords: string[],
+  mercado: Mercado = MERCADO_PADRAO
+): { actorId: string; input: Record<string, unknown> } {
   if (fonte === 'reddit') {
     const query = keywords.slice(0, 3).join(' OR ')
     // includeMediaLinks é o que traz upVotes/numberOfComments — sem ele os contadores
@@ -72,9 +75,9 @@ export function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string;
     return {
       actorId: 'johnvc/GoogleNewsAPI',
       input: {
-        q: `${query} ${NEWS_SITES}`,
-        gl: 'br',
-        hl: 'pt-br',
+        q: `${query} ${newsSites(mercado)}`,
+        gl: mercado.news.gl,
+        hl: mercado.news.hl,
         max_pages: 2
       }
     }
@@ -94,8 +97,8 @@ export function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string;
   if (fonte === 'tiktok') {
     // Uma query por termo (searchQueries é array), poucos vídeos por query pra segurar
     // o custo por evento. /video foca em conteúdo (não perfis). MOST_RELEVANT + PAST_MONTH
-    // evita ruído viral velho e run vazio de nicho. proxyCountryCode BR é ESSENCIAL: sem
-    // ele a busca devolve conteúdo global (EN/ES) e o filtro de idioma zera o resultado.
+    // evita ruído viral velho e run vazio de nicho. proxyCountryCode do mercado é ESSENCIAL:
+    // sem ele a busca devolve conteúdo global e o filtro de idioma zera o resultado.
     return {
       actorId: 'clockworks/tiktok-scraper',
       input: {
@@ -104,7 +107,7 @@ export function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string;
         searchSection: '/video',
         videoSearchSorting: 'MOST_RELEVANT',
         videoSearchDateFilter: 'PAST_MONTH',
-        proxyCountryCode: 'BR'
+        proxyCountryCode: mercado.tiktokProxy
       }
     }
   }
@@ -144,7 +147,7 @@ export function scrapeSpec(fonte: Fonte, keywords: string[]): { actorId: string;
       searchTerms: [query],
       maxItems: 20,
       sort: 'Top',
-      tweetLanguage: 'pt',
+      tweetLanguage: mercado.xIdioma,
       // Janela de recência. 7 dias e não 2: o radar da marca roda a cada 12–24h,
       // mas 48h com sort=Top esvazia termo de nicho (é o mesmo motivo de o
       // Reddit usar month e não day). Uma semana ainda é "está acontecendo".
@@ -182,12 +185,16 @@ function janelaDeBusca(dias: number, now: Date = new Date()): string {
 
 // Dispara o run e NÃO espera (waitForFinish=0). Devolve o id do run pra ser pollado
 // depois. null = falhou ao disparar (sem token, HTTP erro, resposta sem id).
-export async function startScrape(fonte: Fonte, keywords: string[]): Promise<string | null> {
+export async function startScrape(
+  fonte: Fonte,
+  keywords: string[],
+  mercado: Mercado = MERCADO_PADRAO
+): Promise<string | null> {
   if (!APIFY_TOKEN) {
     console.error(`[APIFY] APIFY_TOKEN ausente — ${fonte} não dispara`)
     return null
   }
-  const { actorId, input } = scrapeSpec(fonte, keywords)
+  const { actorId, input } = scrapeSpec(fonte, keywords, mercado)
   const res = await fetch(
     `${APIFY_BASE}/acts/${actorPath(actorId)}/runs?token=${APIFY_TOKEN}&waitForFinish=0`,
     {
@@ -249,12 +256,19 @@ export async function fetchDataset(datasetId: string): Promise<any[]> {
 
 // Converte itens crus do dataset (por fonte) em RawDataPoint[]. Puro — roda no tick
 // que finaliza o batch, sobre o raw guardado em radar_scrape_jobs.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapItems(fonte: Fonte, items: any[], idioma?: string): RawDataPoint[] {
-  if (fonte === 'reddit') return mapReddit(items)
+// `idioma` é o da marca (só o LinkedIn usa, como antes); o mercado governa a peneira
+// de idioma e a lista de subreddits das outras fontes.
+export function mapItems(
+  fonte: Fonte,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  items: any[],
+  idioma?: string,
+  mercado: Mercado = MERCADO_PADRAO
+): RawDataPoint[] {
+  if (fonte === 'reddit') return mapReddit(items, mercado)
   if (fonte === 'news' || fonte === 'news_global') return mapNews(items)
-  if (fonte === 'tiktok') return mapTikTok(items)
-  if (fonte === 'linkedin') return mapLinkedin(items, idioma)
+  if (fonte === 'tiktok') return mapTikTok(items, mercado)
+  if (fonte === 'linkedin') return mapLinkedin(items, idioma ?? mercado.idioma)
   return mapTwitter(items)
 }
 
@@ -278,8 +292,18 @@ function isPortuguese(text: string): boolean {
   const hits = (t.match(PT_MARKERS) || []).length + (t.match(PT_DIACRITICS) || []).length
   return hits >= 2
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const isBRSub = (c: any) => SUBREDDITS_BR.has(String(c || '').replace(/^r\//i, '').toLowerCase())
+// Âncora de idioma do mercado. Português segue com o detector de sempre (o BR fica
+// idêntico); espanhol usa o de lib/mercados.ts.
+function ehDoIdioma(text: string, mercado: Mercado): boolean {
+  return mercado.idioma === 'es' ? ehEspanhol(text) : isPortuguese(text)
+}
+
+// Sub conhecido do mercado entra mesmo sem bater idioma. No BR é a lista histórica
+// acima; nos outros, os subs do país em lib/mercados.ts.
+function subsDoMercado(mercado: Mercado): Set<string> {
+  if (mercado.pais === MERCADO_PADRAO.pais) return SUBREDDITS_BR
+  return new Set([...mercado.reddit.geral, ...mercado.reddit.meme].map(s => s.toLowerCase()))
+}
 
 // id do post na URL (compartilhado entre post e seus comentários):
 // .../comments/{postId}/... e .../comments/{postId}/comment/{commentId}/
@@ -289,7 +313,10 @@ function postIdFromUrl(url: string): string | null {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapReddit(items: any[]): RawDataPoint[] {
+function mapReddit(items: any[], mercado: Mercado): RawDataPoint[] {
+  const subs = subsDoMercado(mercado)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isSubDoMercado = (c: any) => subs.has(String(c || '').replace(/^r\//i, '').toLowerCase())
   // O actor devolve posts e comentários como itens SEPARADOS (dataType). Comentário
   // não tem título, então o filtro antigo (titulo && url) descartava todos — o agente
   // nunca lia a conversa. Aqui os comentários são agrupados no post pai e entram no
@@ -298,10 +325,10 @@ function mapReddit(items: any[]): RawDataPoint[] {
   // é o que faz o Reddit virar insumo principal sem manter whitelist por marca.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const posts = items.filter((i: any) =>
-    i.dataType === 'post' && (isBRSub(i.communityName) || isPortuguese(`${i.title || ''} ${i.body || ''}`)))
+    i.dataType === 'post' && (isSubDoMercado(i.communityName) || ehDoIdioma(`${i.title || ''} ${i.body || ''}`, mercado)))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const comments = items.filter((i: any) =>
-    i.dataType === 'comment' && (isBRSub(i.communityName) || isPortuguese(i.body || '')))
+    i.dataType === 'comment' && (isSubDoMercado(i.communityName) || ehDoIdioma(i.body || '', mercado)))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const commentsByPost = new Map<string, any[]>()
@@ -377,11 +404,11 @@ function mapTwitter(items: any[]): RawDataPoint[] {
 // snippet. Filtra por idioma (textLanguage 'pt' ou heurística) pra manter a conversa BR.
 // diggCount (curtidas)→upvotes, commentCount→comentarios alimentam densidade/velocidade.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapTikTok(items: any[]): RawDataPoint[] {
+function mapTikTok(items: any[], mercado: Mercado): RawDataPoint[] {
   return items
     .filter((i) => {
       const t = String(i.text || '')
-      return t && (i.textLanguage === 'pt' || isPortuguese(t))
+      return t && (i.textLanguage === mercado.idioma || ehDoIdioma(t, mercado))
     })
     .map((i) => {
       const texto = String(i.text || '').replace(/\s+/g, ' ').trim()
@@ -451,8 +478,8 @@ function mapLinkedin(items: any[], idioma = 'pt'): RawDataPoint[] {
       item.url &&
       item.snippet.length >= LINKEDIN_MIN_CORPO &&
       item.upvotes + item.comentarios >= LINKEDIN_MIN_ENGAJAMENTO &&
-      // Peneira de idioma: só barra quando a marca é PT (é o único detector que temos).
-      // Idioma != 'pt' passa sem filtro — não dropar às cegas sem detector pro idioma.
-      (idioma !== 'pt' || ehPortugues(item.snippet))
+      // Peneira de idioma: só barra quando temos detector pro idioma da marca (pt, es).
+      // Outro idioma passa sem filtro — não dropar às cegas sem detector.
+      (idioma === 'pt' ? ehPortugues(item.snippet) : idioma === 'es' ? ehEspanhol(item.snippet) : true)
     )
 }

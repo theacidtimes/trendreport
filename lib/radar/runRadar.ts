@@ -14,6 +14,7 @@ import { computeStatus } from './momentum'
 import { processMemory, RetrievedSignal } from './memory'
 import { planLanes, diagnosticarAgenda } from './planner'
 import { Marca, RawDataPoint, PulsoCultural } from '../types'
+import { mercadoDaMarca } from '../mercados'
 import { registrarCustos, custoAnthropic } from '../custos'
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -110,13 +111,15 @@ async function closeRun(
 // as ignora e roda idêntica ao comportamento legado.
 async function kickoffMarca(supabase: SupabaseLike, marca: Marca, batchId: string, agenda: PulsoCultural[]): Promise<void> {
   const lanes = planLanes(marca, agenda)
+  // Mesmo `pais` que escolheu a agenda acima escolhe onde raspar (lib/mercados.ts).
+  const mercado = mercadoDaMarca(marca.yaml_conhecimento)
   // Agenda vazia é indistinguível de agenda desligada olhando só o resultado da
   // varredura — as duas produzem as mesmas lanes evergreen+marca. Esta linha é o
   // que teria denunciado, meses antes, que marca criada pela tela nunca recebia
   // agenda nenhuma: o run dizia "8 lanes disparadas" e ninguém tinha como saber
   // que zero delas eram culturais.
   console.log(`[RADAR][AGENDA] ${diagnosticarAgenda(marca, agenda).resumo}`)
-  const runIds = await Promise.all(lanes.map(l => startScrape(l.fonte, l.keywords)))
+  const runIds = await Promise.all(lanes.map(l => startScrape(l.fonte, l.keywords, mercado)))
   const rows = lanes.map((lane, i) => ({
     batch_id: batchId,
     marca_id: marca.id,
@@ -128,7 +131,7 @@ async function kickoffMarca(supabase: SupabaseLike, marca: Marca, batchId: strin
   await supabase.from('marcas')
     .update({ ultima_varredura: new Date().toISOString() })
     .eq('id', marca.id)
-  console.log(`[RADAR] Disparado: ${marca.nome} (${rows.filter(r => r.status === 'running').length}/${rows.length} lanes)`)
+  console.log(`[RADAR] Disparado: ${marca.nome} [${mercado.pais}] (${rows.filter(r => r.status === 'running').length}/${rows.length} lanes)`)
 }
 
 // Poll dos jobs 'running': SUCCEEDED vira 'done' com o dataset guardado; terminal de
@@ -243,9 +246,10 @@ async function processMarcaBatch(
   jobs: ScrapeJob[]
 ): Promise<void> {
   console.log(`[RADAR] Finalizando: ${marca.nome}`)
+  const mercado = mercadoDaMarca(marca.yaml_conhecimento)
   const rawData: RawDataPoint[] = jobs
     .filter(j => j.status === 'done')
-    .flatMap(j => mapItems(j.fonte as Fonte, j.raw || [], marca.yaml_conhecimento.idioma))
+    .flatMap(j => mapItems(j.fonte as Fonte, j.raw || [], marca.yaml_conhecimento.idioma, mercado))
 
   if (rawData.length < 3) {
     console.log(`[RADAR] Dados insuficientes para ${marca.nome}`)

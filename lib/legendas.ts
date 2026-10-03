@@ -77,8 +77,13 @@ const MAX_CHARS_LEGENDA = 600;
  * achata gíria e trocadilho, que é exatamente o que faz uma trend ser trend.
  */
 export function escolherLegenda(
-  links: SubtitleLink[] | null | undefined
+  links: SubtitleLink[] | null | undefined,
+  // Idioma do mercado do report. Fora do BR a regra é a mesma com a língua
+  // trocada: no México a fala original em espanhol vale mais que uma tradução
+  // automática pra português.
+  idioma: "pt" | "es" = "pt"
 ): string | null {
+  const prefixos = idioma === "es" ? ["es", "spa"] : ["por", "pt"];
   if (!Array.isArray(links)) return null;
 
   let melhor: SubtitleLink | null = null;
@@ -90,10 +95,10 @@ export function escolherLegenda(
     if (!link?.downloadLink) continue;
 
     const lingua = String(link.language ?? "").toLowerCase();
-    const ehPortugues = lingua.startsWith("por") || lingua.startsWith("pt");
+    const ehDoIdioma = prefixos.some((p) => lingua.startsWith(p));
     const ehTraducao = String(link.source ?? "").toUpperCase() === "MT";
 
-    const ponto = (ehPortugues ? 2 : 0) + (ehTraducao ? 0 : 1);
+    const ponto = (ehDoIdioma ? 2 : 0) + (ehTraducao ? 0 : 1);
     // `>` e não `>=`: em empate fica o primeiro, que é a ordem que o TikTok
     // devolveu (a legenda original costuma vir na frente).
     if (ponto > melhorPonto) {

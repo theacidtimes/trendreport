@@ -34,6 +34,10 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import type { CanvasGraph, CanvasDrop, CanvasNode } from "@/lib/canvas/buildGraph";
+import { REGIOES, type Regiao } from "@/lib/mercados";
+
+// Opção do seletor de marca. `regiao` vem resolvida do servidor (país da marca).
+type MarcaOpcao = { id: string; nome: string; regiao?: Regiao };
 
 // ─── Árvore da esquerda pra direita ───────────────────────────
 // Marca → tema → drop, abrindo um nível por clique; o drop abre no painel.
@@ -336,12 +340,18 @@ function MarcaSwitcher({
   marcas,
   activeId,
 }: {
-  marcas: { id: string; nome: string }[];
+  marcas: MarcaOpcao[];
   activeId: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const active = marcas.find((m) => m.id === activeId);
+  // Abas BR / LATAM só quando há marca nas duas regiões. Abre na região da marca
+  // atual: quem está no mapa da G-Shock CO quer trocar para outra marca LATAM.
+  const regioes = REGIOES.filter((r) => marcas.some((m) => m.regiao === r));
+  const [regiao, setRegiao] = useState<Regiao | null>(active?.regiao ?? null);
+  const visiveis =
+    regioes.length > 1 && regiao ? marcas.filter((m) => m.regiao === regiao) : marcas;
 
   return (
     <div className="relative">
@@ -361,10 +371,29 @@ function MarcaSwitcher({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div
-            className="absolute top-full left-0 mt-2 z-20 min-w-[200px] max-h-[60vh] overflow-y-auto rounded-2xl border bg-surface-2 p-1.5 shadow-elevated"
+            className="absolute top-full left-0 mt-2 z-20 min-w-[220px] max-h-[60vh] overflow-y-auto rounded-2xl border bg-surface-2 p-1.5 shadow-elevated"
             style={{ borderColor: OUTLINE }}
           >
-            {marcas.map((m) => {
+            {regioes.length > 1 && (
+              <div role="group" aria-label="Região" className="flex gap-1 p-1 mb-1 border-b" style={{ borderColor: OUTLINE }}>
+                {([null, ...regioes] as (Regiao | null)[]).map((r) => {
+                  const on = regiao === r;
+                  return (
+                    <button
+                      key={r ?? "todas"}
+                      aria-pressed={on}
+                      onClick={() => setRegiao(r)}
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wider transition-colors ${
+                        on ? "bg-white text-black" : "text-muted hover:text-white"
+                      }`}
+                    >
+                      {r ?? "TODAS"}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {visiveis.map((m) => {
               const isActive = m.id === activeId;
               return (
                 <button
@@ -466,7 +495,7 @@ function Toolbar({
   children,
 }: {
   graph: CanvasGraph;
-  marcas: { id: string; nome: string }[];
+  marcas: MarcaOpcao[];
   onReorganizar: () => void;
   children: React.ReactNode;
 }) {
@@ -692,7 +721,7 @@ function Arvore({
   marcas,
 }: {
   graph: CanvasGraph;
-  marcas: { id: string; nome: string }[];
+  marcas: MarcaOpcao[];
 }) {
   const [themeId, setThemeId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
@@ -834,7 +863,7 @@ export default function CanvasClient({
   marcas,
 }: {
   graph: CanvasGraph;
-  marcas: { id: string; nome: string }[];
+  marcas: MarcaOpcao[];
 }) {
   return (
     <ReactFlowProvider>

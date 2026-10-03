@@ -1,5 +1,6 @@
 import { MarcaKnowledge, RawDataPoint } from '../types'
 import { RetrievedSignal } from './memory'
+import { blocoMercado, mercadoDaMarca } from '../mercados'
 
 const CAMADA_CCCARAMELO = `
 Você é o motor de inteligência cultural da cccaramelo, agência brasileira. Sua função
@@ -242,8 +243,14 @@ export function buildRadarPrompt(
   if (memoria) userBlocks.push(memoria)
   userBlocks.push(OUTPUT_SCHEMA)
 
+  // Mercado fora do BR: diz ao modelo de onde vêm os sinais e em que idioma
+  // escrever. No BR o bloco é vazio e o system fica idêntico ao de antes.
+  const mercado = blocoMercado(mercadoDaMarca(knowledge))
+  const systemBlocks = [CAMADA_CCCARAMELO, buildCamadaMarca(knowledge)]
+  if (mercado) systemBlocks.push(mercado)
+
   return {
-    system: [CAMADA_CCCARAMELO, '\n\n---\n\n', buildCamadaMarca(knowledge)].join(''),
+    system: systemBlocks.join('\n\n---\n\n'),
     user:   userBlocks.join('\n\n---\n\n'),
     corte:  resumirCorte(data)
   }

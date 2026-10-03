@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Radar } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -6,8 +7,13 @@ import { checkIsAdmin } from "@/lib/admin";
 import DropsPanel from "@/components/radar/DropsPanel";
 import RadarStatus from "@/components/radar/RadarStatus";
 import type { Marca } from "@/lib/types";
+import { REGIOES, parseRegiao, regiaoDe, type Regiao } from "@/lib/mercados";
 
-export default async function RadarPage() {
+export default async function RadarPage({
+  searchParams,
+}: {
+  searchParams: { regiao?: string | string[] };
+}) {
   const supabase = createClient();
 
   const {
@@ -25,7 +31,34 @@ export default async function RadarPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
-  const marcas = (data ?? []) as Marca[];
+  const todas = (data ?? []) as Marca[];
+
+  // Filtro BR / LATAM pela região do país da marca. Só aparece quando existe
+  // marca nas duas regiões — com tudo no BR seria um botão que não filtra nada.
+  const regiao = parseRegiao(searchParams.regiao);
+  const regioesPresentes = new Set(todas.map((m) => regiaoDe(m.yaml_conhecimento?.pais)));
+  const mostrarFiltro = regioesPresentes.size > 1;
+  const marcas = regiao
+    ? todas.filter((m) => regiaoDe(m.yaml_conhecimento?.pais) === regiao)
+    : todas;
+
+  const chip = (label: string, valor: Regiao | null) => {
+    const on = regiao === valor;
+    return (
+      <Link
+        key={label}
+        href={valor ? `/dashboard/radar?regiao=${valor.toLowerCase()}` : "/dashboard/radar"}
+        aria-current={on ? "page" : undefined}
+        className={`rounded-full border px-4 py-1.5 text-xs font-semibold tracking-wider transition-colors ${
+          on
+            ? "bg-white text-black border-white"
+            : "text-muted border-border hover:text-white hover:border-white/40"
+        }`}
+      >
+        {label}
+      </Link>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-bg">
@@ -48,6 +81,13 @@ export default async function RadarPage() {
             </p>
           </div>
 
+          {mostrarFiltro && (
+            <nav aria-label="Região" className="flex items-center gap-2">
+              {chip("TODAS", null)}
+              {REGIOES.map((r) => chip(r, r))}
+            </nav>
+          )}
+
           <section className="flex flex-col gap-3">
             <h2 className="kicker text-muted-2">Status da captura</h2>
             <RadarStatus marcas={marcas} />
@@ -55,7 +95,12 @@ export default async function RadarPage() {
 
           <section className="flex flex-col gap-3">
             <h2 className="kicker text-muted-2">Drops recentes</h2>
-            <DropsPanel marcas={marcas} />
+            {/* key reseta o filtro de marca interno ao trocar de região. */}
+            <DropsPanel
+              key={regiao ?? "todas"}
+              marcas={marcas}
+              escopo={regiao ? marcas.map((m) => m.id) : undefined}
+            />
           </section>
         </div>
       </main>

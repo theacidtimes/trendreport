@@ -22,6 +22,15 @@ export async function GET(request: Request) {
   const desde    = searchParams.get('desde')
   const ate      = searchParams.get('ate')
 
+  // Escopo de região (radar filtrado por BR/LATAM): lista de marcas. Presente e
+  // vazio = região sem marca, devolve vazio em vez de cair em "todas".
+  const marca_ids = searchParams.get('marca_ids')
+  if (marca_ids !== null) {
+    const ids = marca_ids.split(',').filter(Boolean)
+    if (!ids.length) return NextResponse.json({ drops: [], hasMore: false })
+    query = query.in('marca_id', ids)
+  }
+
   if (marca_id) query = query.eq('marca_id', marca_id)
   if (status)   query = query.eq('status_hype', status)
   if (funil)    query = query.eq('categoria_funil', funil)

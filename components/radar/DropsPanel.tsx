@@ -20,7 +20,9 @@ function desdeISO(periodo: Periodo, customDe: string): string {
   return ''
 }
 
-export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[]; marcaId?: string }) {
+// `escopo`: ids das marcas da região filtrada na página (BR/LATAM). Sem marca
+// escolhida, o feed fica restrito a elas; undefined = todas, como antes.
+export default function DropsPanel({ marcas = [], marcaId, escopo }: { marcas?: Marca[]; marcaId?: string; escopo?: string[] }) {
   const [drops, setDrops] = useState<TrendDrop[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -38,6 +40,7 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
   const buildParams = useCallback((offset: number, limit: number) => {
     const params = new URLSearchParams()
     if (marcaAtiva)   params.set('marca_id', marcaAtiva)
+    else if (escopo)  params.set('marca_ids', escopo.join(','))
     if (filtroStatus) params.set('status', filtroStatus)
     if (filtroFunil)  params.set('funil', filtroFunil)
     const desde = desdeISO(periodo, customDe)
@@ -46,7 +49,10 @@ export default function DropsPanel({ marcas = [], marcaId }: { marcas?: Marca[];
     params.set('offset', String(offset))
     params.set('limit', String(limit))
     return params
-  }, [marcaAtiva, filtroStatus, filtroFunil, periodo, customDe, customAte])
+    // escopo entra pela chave (join) e não pela referência: o array é recriado a
+    // cada render do pai e dispararia o loadFirst em loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marcaAtiva, escopo?.join(','), filtroStatus, filtroFunil, periodo, customDe, customAte])
 
   // Página inicial: troca a lista inteira (com loader). Dispara a cada mudança de filtro.
   const loadFirst = useCallback(async () => {

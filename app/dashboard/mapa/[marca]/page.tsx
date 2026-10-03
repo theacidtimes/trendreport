@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { buildCanvasGraph } from "@/lib/canvas/buildGraph";
 import CanvasClient from "@/components/canvas/CanvasClient";
+import { regiaoDe } from "@/lib/mercados";
 
 // ?janela=14|30|90|tudo — padrão 30 dias: o mapa é sobre o que está vivo.
 function parseJanela(v: string | string[] | undefined): number | null {
@@ -20,13 +21,19 @@ export default async function MapaCanvasPage({
   const supabase = createClient();
 
   const [{ data: marcasData }, graph] = await Promise.all([
-    supabase.from("marcas").select("id, nome").order("nome", { ascending: true }),
+    supabase
+      .from("marcas")
+      .select("id, nome, pais:yaml_conhecimento->>pais")
+      .order("nome", { ascending: true }),
     buildCanvasGraph(supabase, params.marca, parseJanela(searchParams.janela)),
   ]);
 
   if (!graph) notFound();
 
-  const marcas = (marcasData ?? []) as { id: string; nome: string }[];
+  // Região resolvida aqui (servidor) pra o seletor de marca agrupar BR / LATAM.
+  const marcas = ((marcasData ?? []) as { id: string; nome: string; pais: string | null }[]).map(
+    (m) => ({ id: m.id, nome: m.nome, regiao: regiaoDe(m.pais) })
+  );
 
   return <CanvasClient graph={graph} marcas={marcas} />;
 }

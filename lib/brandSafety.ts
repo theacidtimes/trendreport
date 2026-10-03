@@ -119,6 +119,39 @@ const TERMOS_POLITICA = [
   "sancionada",
   "vetou",
   "veto presidencial",
+  // LATAM (mercados MX/AR/CO/CL, out/2026). Só o que NÃO casa já pelos termos
+  // acima (normalizados, "candidato" e "ministro" servem às duas línguas). Ficam
+  // de fora de propósito palavras comuns que são também sigla/nome político:
+  // "morena" (cor de cabelo), "pan" (pão), "massa" (domínio da agenda).
+  "amlo",
+  "lopez obrador",
+  "sheinbaum",
+  "kirchner",
+  "kirchnerista",
+  "kirchneristas",
+  "kirchnerismo",
+  "macri",
+  "peronismo",
+  "peronista",
+  "peronistas",
+  "gustavo petro",
+  "uribe",
+  "boric",
+  "kast",
+  "bachelet",
+  "congreso",
+  "diputado",
+  "diputada",
+  "diputados",
+  "gobernador",
+  "gobernadora",
+  "alcalde",
+  "alcaldesa",
+  "eleccion",
+  "elecciones",
+  "electoral",
+  "presidente de la republica",
+  "dictadura",
 ];
 
 // Crime violento e tragédia. Marca não se insere nisso nem por engano.
@@ -145,6 +178,21 @@ const TERMOS_VIOLENCIA = [
   "sequestrado",
   "cadaver",
   "suicidio",
+  // LATAM
+  "asesinato",
+  "asesinado",
+  "asesinada",
+  "asesino",
+  "violacion",
+  "violador",
+  "masacre",
+  "tiroteo",
+  "secuestro",
+  "secuestrado",
+  "secuestrada",
+  "narcotrafico",
+  "sicario",
+  "sicarios",
 ];
 
 // Siglas de partido. Separadas porque casam SÓ em maiúsculas e sem

@@ -1,4 +1,5 @@
 import type { MarcaKnowledge } from "./types";
+import { type Mercado, MERCADO_PADRAO, blocoMercado } from "./mercados";
 
 // MÉTODO CRIATIVO — macro, vale para qualquer marca. É IP do motor Acid Fabric:
 // como transformar cultura em gancho de produto, independente de quem é a marca.
@@ -131,7 +132,7 @@ Independente do tema cultural do briefing, os ganchos criativos devem sempre ret
 
 export const SYSTEM_PROMPT = `Você é o Trends Agent do Acid Fabric, inteligência cultural para marcas brasileiras.
 
-Responda SEMPRE em português brasileiro, independentemente do idioma dos dados recebidos.
+Responda SEMPRE em português brasileiro, independentemente do idioma dos dados recebidos — a única exceção é um bloco MERCADO E IDIOMA no fim deste prompt, que define outro idioma de saída.
 
 Recebe três inputs:
 1. Um briefing YAML da social media manager
@@ -451,6 +452,10 @@ O JSON raiz deve ter exatamente oito chaves: meta, tendencias, memes, oportunida
 }`;
 
 // Bloco dinâmico — muda a cada request, por isso fica fora do trecho cacheado.
-export function systemPromptDynamic(): string {
-  return `A data de hoje é ${new Date().toLocaleDateString("pt-BR")}.`;
+// O bloco de mercado mora aqui (fora do cache) porque varia por marca: no BR é
+// vazio e o texto fica igual ao de antes.
+export function systemPromptDynamic(mercado: Mercado = MERCADO_PADRAO): string {
+  const data = `A data de hoje é ${new Date().toLocaleDateString("pt-BR")}.`;
+  const bloco = blocoMercado(mercado);
+  return bloco ? `${data}\n\n${bloco}` : data;
 }

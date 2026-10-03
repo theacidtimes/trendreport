@@ -12,6 +12,7 @@ import {
   sinalizarLinguagem,
 } from "./brandSafety";
 import { custoAnthropic, type RegistroCusto } from "./custos";
+import { type Mercado, MERCADO_PADRAO, mercadoDaMarca } from "./mercados";
 import { persistirImagensDoReport } from "./imagens";
 import { enriquecerComLegendas } from "./legendas";
 import {
@@ -141,6 +142,19 @@ function extractKeywords(briefing: Record<string, unknown>): string[] {
 // news precisa de query jornalística (marca/IP/evento), social precisa de
 // meme/hashtag/nome do IP. Mandar a mesma keyword pra tudo era o que fazia News
 // zerar (recebia frase de meme). O tipo SearchTerms vem de apify.ts.
+// O idioma e o país dos termos seguem o mercado da marca: termo em português
+// numa busca do TikTok mexicano volta vazio (ou volta Brasil, que é pior).
+function deriveSystem(mercado: Mercado): string {
+  const idiomaTermos =
+    mercado.idioma === "es"
+      ? `- Termos em espanhol como se fala em ${mercado.nome} (gírias e nomes locais quando houver), exceto nomes próprios em inglês. O briefing pode estar em português: traduza a INTENÇÃO, não as palavras.`
+      : "- Termos em português do Brasil, exceto nomes próprios em inglês.";
+  return DERIVE_SYSTEM.replace("Google News (Brasil)", `Google News (${mercado.nome})`).replace(
+    "- Termos em português do Brasil, exceto nomes próprios em inglês.",
+    idiomaTermos
+  );
+}
+
 const DERIVE_SYSTEM = `Você deriva TERMOS DE BUSCA a partir do briefing de um relatório de tendências. Esses termos alimentam scrapers de TikTok, Twitter e Google News (Brasil). Você NÃO escreve o relatório, só decide o que buscar. Buscar amplo é bom: quanto mais território real você cobrir, mais matéria-prima o relatório tem pra peneirar. A trava contra invenção acontece DEPOIS, no relatório (todo item precisa existir nos dados coletados), então aqui você pode e deve abrir o leque.
 
 Regras:
@@ -189,7 +203,8 @@ const DERIVE_TOOL: Anthropic.Tool = {
 async function deriveSearchTerms(
   briefingYaml: string,
   briefing: Record<string, unknown>,
-  custos?: CustoColetado[]
+  custos?: CustoColetado[],
+  mercado: Mercado = MERCADO_PADRAO
 ): Promise<SearchTerms> {
   const fallback = (): SearchTerms => {
     const kw = extractKeywords(briefing);
@@ -209,7 +224,7 @@ async function deriveSearchTerms(
     const response = await anthropic.messages.create({
       model: MODELO_TERMOS,
       max_tokens: 500,
-      system: DERIVE_SYSTEM,
+      system: deriveSystem(mercado),
       tools: [DERIVE_TOOL],
       tool_choice: { type: "tool", name: "termos_de_busca" },
       messages: [{ role: "user", content: `BRIEFING (YAML):\n${briefingYaml}` }],
@@ -594,8 +609,10 @@ export async function generateReport(
   const custos: CustoColetado[] = [];
   const apifyLog: ApifyRunLog = [];
 
+  // Report avulso (sem marca) e marca sem país caem no BR, como sempre.
+  const mercado = mercadoDaMarca(marcaKnowledge);
   const terms = mergeMarcaTerms(
-    await deriveSearchTerms(briefingYaml, briefing, custos),
+    await deriveSearchTerms(briefingYaml, briefing, custos, mercado),
     marcaKnowledge
   );
   const sourcesDone: SourceName[] = [];
@@ -610,7 +627,8 @@ export async function generateReport(
       // coleta de dados em si — só a barra de progresso fica desatualizada.
       void onProgress?.({ phase: "collecting", sources_done: [...sourcesDone] });
     },
-    apifyLog
+    apifyLog,
+    mercado
   );
 
   const diag = diagnosticarColeta(apifyLog);
@@ -705,7 +723,7 @@ export async function generateReport(
           text: `${CREATIVE_METHOD}\n\n---\n\n${buildBrandBlock(marcaKnowledge)}\n\n---\n\n${SYSTEM_PROMPT}`,
           cache_control: { type: "ephemeral" },
         },
-        { type: "text", text: systemPromptDynamic() },
+        { type: "text", text: systemPromptDynamic(mercado) },
       ],
       // Este modelo não aceita prefill de assistant (a conversa precisa terminar
       // num user message), então só mandamos o user. O preâmbulo/cerca que o

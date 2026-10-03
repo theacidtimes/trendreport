@@ -8,6 +8,8 @@ import type {
 } from "./types";
 import { escolherLegenda, type SubtitleLink } from "./legendas";
 
+import { type Mercado, MERCADO_PADRAO, ehEspanhol } from "./mercados";
+
 const APIFY_BASE = "https://api.apify.com/v2";
 
 // ── Execução de actor na Apify ─────────────────────────────────────────────
@@ -470,10 +472,16 @@ const INSTAGRAM_BASE_PROFILES = [
   ...INSTAGRAM_MEME_PROFILES,
 ];
 
-const MEME_PROFILE_SET = new Set(INSTAGRAM_MEME_PROFILES);
-
-function fonteDoPerfil(username?: string): InstagramItem["fonte"] {
-  return MEME_PROFILE_SET.has(username ?? "") ? "meme" : "geral";
+// Fora do BR os perfis vêm de lib/mercados.ts. O BR segue com as constantes
+// acima, que são a curadoria validada e têm a história nos comentários.
+function perfisInstagram(mercado: Mercado): { todos: string[]; meme: Set<string> } {
+  if (mercado.pais === MERCADO_PADRAO.pais) {
+    return { todos: INSTAGRAM_BASE_PROFILES, meme: new Set(INSTAGRAM_MEME_PROFILES) };
+  }
+  return {
+    todos: [...mercado.instagram.geral, ...mercado.instagram.meme],
+    meme: new Set(mercado.instagram.meme),
+  };
 }
 
 interface RawInstagramItem {
@@ -505,13 +513,16 @@ function isRecentInstagram(timestamp?: string): boolean {
 }
 
 export async function fetchInstagram(
-  log?: ApifyRunLog
+  log?: ApifyRunLog,
+  mercado: Mercado = MERCADO_PADRAO
 ): Promise<InstagramItem[]> {
+  const perfis = perfisInstagram(mercado);
+  if (!perfis.todos.length) return [];
   try {
     const raw = await runActor<RawInstagramItem>(
       "apify~instagram-scraper",
       {
-        directUrls: INSTAGRAM_BASE_PROFILES.map(
+        directUrls: perfis.todos.map(
           (username) => `https://www.instagram.com/${username}/`
         ),
         resultsType: "posts",
@@ -539,7 +550,7 @@ export async function fetchInstagram(
         hashtags: item.hashtags,
         ownerUsername: item.ownerUsername,
         type: item.type,
-        fonte: fonteDoPerfil(item.ownerUsername),
+        fonte: perfis.meme.has(item.ownerUsername ?? "") ? "meme" : "geral",
       }));
   } catch (e) {
     return laneVazia("instagram", e);
@@ -603,8 +614,11 @@ function isRecentTikTok(createTimeISO?: string): boolean {
 
 export async function fetchTikTok(
   keywords: string[],
-  log?: ApifyRunLog
+  log?: ApifyRunLog,
+  mercado: Mercado = MERCADO_PADRAO
 ): Promise<TikTokItem[]> {
+  const doIdioma = (t: string) =>
+    mercado.idioma === "es" ? ehEspanhol(t) : isPortuguese(t);
   try {
     const input = {
       searchQueries: keywords,
@@ -627,8 +641,8 @@ export async function fetchTikTok(
       // report volta a entregar viral antigo em silêncio.
       videoSearchSorting: "MOST_RELEVANT",
       videoSearchDateFilter: "PAST_WEEK",
-      // Este funciona: sem ele a busca volta conteúdo global em vez do feed BR.
-      proxyCountryCode: "BR",
+      // Este funciona: sem ele a busca volta conteúdo global em vez do feed do país.
+      proxyCountryCode: mercado.tiktokProxy,
       // Traz a legenda que o próprio TikTok já gerou. Sem isto a relevância do
       // vídeo é julgada só pela caption ("kkkk #fyp") enquanto o conteúdo está
       // na fala — a causa estrutural do "tema certo, conteúdo irrelevante".
@@ -668,9 +682,10 @@ export async function fetchTikTok(
           // no mesmo balaio e a repetição acumulada de um hit antigo vence a
           // repetição recente de uma trend de verdade.
           isRecentTikTok(item.createTimeISO) &&
-          // Mantém só conteúdo PT: textLanguage do próprio TikTok como atalho, ou
-          // a heurística na legenda. Sem isso entrava viral gringo na busca aberta.
-          (item.textLanguage === "pt" || isPortuguese(item.text ?? ""))
+          // Mantém só conteúdo no idioma do mercado: textLanguage do próprio TikTok
+          // como atalho, ou a heurística na legenda. Sem isso entrava viral gringo
+          // na busca aberta.
+          (item.textLanguage === mercado.idioma || doIdioma(item.text ?? ""))
       )
       .map((item) => ({
         text: item.text,
@@ -697,7 +712,8 @@ export async function fetchTikTok(
         // apenas para os vídeos que sobrarem do trimForModel (ver
         // lib/legendas.ts). Baixar as ~200 da coleta seria jogar fora o
         // trabalho dos ~150 que o modelo nunca vê.
-        subtitleUrl: escolherLegenda(item.videoMeta?.subtitleLinks) ?? undefined,
+        subtitleUrl:
+          escolherLegenda(item.videoMeta?.subtitleLinks, mercado.idioma) ?? undefined,
       }));
   } catch (e) {
     return laneVazia("tiktok", e);
@@ -725,7 +741,8 @@ function dataISO(ms: number): string {
 
 export async function fetchTwitter(
   keywords: string[],
-  log?: ApifyRunLog
+  log?: ApifyRunLog,
+  mercado: Mercado = MERCADO_PADRAO
 ): Promise<TwitterItem[]> {
   const query = keywords
     .slice(0, 3)
@@ -740,7 +757,7 @@ export async function fetchTwitter(
         searchTerms: [query],
         maxItems: 20,
         sort: "Top",
-        tweetLanguage: "pt",
+        tweetLanguage: mercado.xIdioma,
         // "Top" sem janela devolve o tweet mais curtido DE SEMPRE com aquele
         // termo. Foi assim que um tweet de janeiro de 2023 (Lula "assinando o
         // Vivo Fibra sem ler", 129 mil likes) chegou como meme em report de
@@ -802,8 +819,10 @@ function isRecentNews(date?: string): boolean {
   if (!date) return true;
   // Corte só do claramente velho: "N meses atrás" (2+) e "ano(s) atrás".
   // "1 mês atrás" pra baixo (semanas/dias/horas) fica — News já é fonte magra
-  // e cortar o mês inteiro arriscava zerar em cliente de nicho.
-  return !/\b(meses|anos?)\b/i.test(date);
+  // e cortar o mês inteiro arriscava zerar em cliente de nicho. Com hl em
+  // espanhol a data vem "hace 2 meses" / "hace 1 año": "meses" já casa, "año"
+  // precisa entrar (o \b do JS não enxerga o ñ, por isso o grupo explícito).
+  return !/\b(meses|anos?)\b|(^|\s)años?(\s|$)/i.test(date);
 }
 
 // Matérias que a News pode considerar recente por causa da recência do sistema.
@@ -883,7 +902,8 @@ function absolutizar(src: string, base: string): string | null {
 // os resultados (dedupe por link) pra cobrir mais terreno.
 export async function fetchNews(
   keywords: string[],
-  log?: ApifyRunLog
+  log?: ApifyRunLog,
+  mercado: Mercado = MERCADO_PADRAO
 ): Promise<NewsItem[]> {
   const queries = keywords.slice(0, 3);
 
@@ -891,7 +911,7 @@ export async function fetchNews(
     queries.map((q) =>
       runActor<RawNewsPage>(
         "johnvc~GoogleNewsAPI",
-        { q, gl: "br", hl: "pt-br", max_pages: 1 },
+        { q, gl: mercado.news.gl, hl: mercado.news.hl, max_pages: 1 },
         { fonte: "news", log }
       ).catch((e) => laneVazia("news", e) as RawNewsPage[])
     )
@@ -1106,18 +1126,31 @@ type LaneReddit = {
   comentariosPorPost: number;
 };
 
-const LANES_REDDIT: LaneReddit[] = [
-  {
-    fonte: "geral",
-    subs: REDDIT_SUBS_GERAL,
-    posts: REDDIT_POSTS_POR_SUB,
-    comentariosPorPost: REDDIT_COMENTARIOS_POR_POST,
-  },
-  // Sem comentários e com mais posts: em sub de meme o valor está na imagem e
-  // no título (é a piada inteira), enquanto a caixa de comentários é reação
-  // solta. Como comentário é item cobrado, cortá-los aqui paga mais post.
-  { fonte: "meme", subs: REDDIT_SUBS_MEME, posts: 6, comentariosPorPost: 0 },
-];
+function montarLanesReddit(geral: string[], meme: string[]): LaneReddit[] {
+  return [
+    {
+      fonte: "geral" as const,
+      subs: geral,
+      posts: REDDIT_POSTS_POR_SUB,
+      comentariosPorPost: REDDIT_COMENTARIOS_POR_POST,
+    },
+    // Sem comentários e com mais posts: em sub de meme o valor está na imagem e
+    // no título (é a piada inteira), enquanto a caixa de comentários é reação
+    // solta. Como comentário é item cobrado, cortá-los aqui paga mais post.
+    { fonte: "meme" as const, subs: meme, posts: 6, comentariosPorPost: 0 },
+  ].filter((l) => l.subs.length > 0);
+}
+
+const LANES_REDDIT: LaneReddit[] = montarLanesReddit(REDDIT_SUBS_GERAL, REDDIT_SUBS_MEME);
+
+// Lanes do mercado. O cache continua funcionando sem estado nosso: o run é
+// reconhecido pelo CONJUNTO de subs do input, e cada mercado tem o seu — run do
+// México nunca é lido como cache do Brasil. Mercados com a mesma lista (o
+// r/yo_elvr pan-hispânico) compartilham cache, o que é correto: é o mesmo dado.
+function lanesReddit(mercado: Mercado): LaneReddit[] {
+  if (mercado.pais === MERCADO_PADRAO.pais) return LANES_REDDIT;
+  return montarLanesReddit(mercado.reddit.geral, mercado.reddit.meme);
+}
 
 const REDDIT_ACTOR = "trudax~reddit-scraper-lite";
 
@@ -1166,7 +1199,8 @@ function inputReddit(lane: LaneReddit): Record<string, unknown> {
  * ninguém vê erro nenhum, só meme onde devia ter discussão.
  */
 export function identificarLaneReddit(
-  input: unknown
+  input: unknown,
+  lanes: LaneReddit[] = LANES_REDDIT
 ): LaneReddit["fonte"] | null {
   const startUrls = (input as { startUrls?: unknown } | null)?.startUrls;
   if (!Array.isArray(startUrls)) return null;
@@ -1176,7 +1210,7 @@ export function identificarLaneReddit(
       .filter((u): u is string => typeof u === "string")
       .map((u) => u.trim().toLowerCase().replace(/\/+$/, ""))
   );
-  for (const lane of LANES_REDDIT) {
+  for (const lane of lanes) {
     const esperado = lane.subs.map((s) => urlSub(s).toLowerCase().replace(/\/+$/, ""));
     if (
       esperado.length === urls.size &&
@@ -1201,7 +1235,10 @@ type RunRedditRecente = {
 // lista e um GET por run (o INPUT) — só pros que cabem na janela de cache,
 // então normalmente meia dúzia. Qualquer erro aqui vira "sem cache", nunca
 // derruba a coleta.
-async function listarRunsReddit(token: string): Promise<RunRedditRecente[]> {
+async function listarRunsReddit(
+  token: string,
+  lanes: LaneReddit[]
+): Promise<RunRedditRecente[]> {
   const res = await fetch(
     `${APIFY_BASE}/acts/${REDDIT_ACTOR}/runs?token=${token}&desc=1&limit=20`
   );
@@ -1228,7 +1265,7 @@ async function listarRunsReddit(token: string): Promise<RunRedditRecente[]> {
           const inp = await fetch(
             `${APIFY_BASE}/key-value-stores/${r.defaultKeyValueStoreId}/records/INPUT?token=${token}`
           );
-          if (inp.ok) lane = identificarLaneReddit(await inp.json());
+          if (inp.ok) lane = identificarLaneReddit(await inp.json(), lanes);
         } catch {
           // INPUT ilegível = run de lane desconhecida; segue sem ele.
         }
@@ -1374,7 +1411,11 @@ async function coletarLaneReddit(
   }
 }
 
-export async function fetchReddit(log?: ApifyRunLog): Promise<RedditItem[]> {
+export async function fetchReddit(
+  log?: ApifyRunLog,
+  mercado: Mercado = MERCADO_PADRAO
+): Promise<RedditItem[]> {
+  const lanes = lanesReddit(mercado);
   const token = process.env.APIFY_TOKEN;
   if (!token) return laneVazia("reddit", new Error("APIFY_TOKEN não configurado"));
 
@@ -1382,7 +1423,7 @@ export async function fetchReddit(log?: ApifyRunLog): Promise<RedditItem[]> {
   // lane cai no caminho de raspar agora (comportamento anterior).
   let recentes: RunRedditRecente[] = [];
   try {
-    recentes = await listarRunsReddit(token);
+    recentes = await listarRunsReddit(token, lanes);
   } catch (e) {
     console.error(
       "[APIFY][reddit] nao conseguiu listar runs recentes (segue sem cache):",
@@ -1394,7 +1435,7 @@ export async function fetchReddit(log?: ApifyRunLog): Promise<RedditItem[]> {
   // inteiro, juntar as duas faria a geral (5 subs, muito mais volume) engolir
   // a cota da de meme (2 subs). Em paralelo pra não somar latência.
   const resultados = await Promise.all(
-    LANES_REDDIT.map((lane) => coletarLaneReddit(lane, recentes, log))
+    lanes.map((lane) => coletarLaneReddit(lane, recentes, log))
   );
   return resultados.flat();
 }
@@ -1430,7 +1471,8 @@ export type SearchTerms = { social: string[]; news: string[]; adjacent: string[]
 export async function collectAll(
   terms: SearchTerms,
   onProgress?: (source: SourceName) => void,
-  log?: ApifyRunLog
+  log?: ApifyRunLog,
+  mercado: Mercado = MERCADO_PADRAO
 ): Promise<RawData> {
   // As buscas sociais recebem os termos diretos MAIS os adjacentes: as diretas
   // trazem o IP/marca, as adjacentes trazem a conversa em volta. Dedupe + teto
@@ -1442,11 +1484,11 @@ export async function collectAll(
   ).slice(0, 10);
 
   const [instagram, tiktok, twitter, news, reddit] = await Promise.all([
-    track("instagram", fetchInstagram(log), onProgress),
-    track("tiktok", fetchTikTok(socialTerms, log), onProgress),
-    track("twitter", fetchTwitter(socialTerms, log), onProgress),
-    track("news", fetchNews(terms.news, log), onProgress),
-    track("reddit", fetchReddit(log), onProgress),
+    track("instagram", fetchInstagram(log, mercado), onProgress),
+    track("tiktok", fetchTikTok(socialTerms, log, mercado), onProgress),
+    track("twitter", fetchTwitter(socialTerms, log, mercado), onProgress),
+    track("news", fetchNews(terms.news, log, mercado), onProgress),
+    track("reddit", fetchReddit(log, mercado), onProgress),
   ]);
 
   return { instagram, tiktok, twitter, news, reddit };
