@@ -75,6 +75,24 @@ const redditItems = [
 const mxRed = mapItems("reddit", redditItems, "es", MX).map((d) => d.url);
 check("MX: reddit aceita r/mexico pelo sub e larga r/brasil", mxRed.join() === "https://r/a/comments/1/x/", mxRed);
 
+const CO = MERCADOS.CO;
+const tweets = [
+  { text: "Brutal la pelea de anoche, qué nivel", lang: "es", url: "https://x/es" },
+  { text: "Saiu carregado mas lutou muito, que guerreiro", lang: "pt", url: "https://x/pt" },
+  { text: "¿Quién más sale a correr a las 5am? Yo sí", url: "https://x/sem-lang" },
+];
+const coTw = mapItems("twitter", tweets, "es", CO).map((d) => d.url);
+check("CO: X larga tweet em portugues (lang do X)", coTw.join() === "https://x/es,https://x/sem-lang", coTw);
+const brTw = mapItems("twitter", tweets).map((d) => d.url);
+check("BR: X segue sem peneira de idioma", brTw.length === 3, brTw);
+
+const redditLatam = [
+  { dataType: "post", title: "Me fundí el cerebro con el celular, ¿a alguien más le pasa?", body: "", communityName: "r/chile", url: "https://r/cl/comments/9/x/" },
+  { dataType: "post", title: "¿Dónde compran ropa de segunda en Bogotá? Está muy cara", body: "", communityName: "r/bogota", url: "https://r/bog/comments/8/x/" },
+];
+const coRed = mapItems("reddit", redditLatam, "es", CO).map((d) => d.url);
+check("CO: reddit larga r/chile e fica com o espanhol de outro sub", coRed.join() === "https://r/bog/comments/8/x/", coRed);
+
 // ── prompt do radar ───────────────────────────────────────
 const knowledge = (pais?: string): MarcaKnowledge => ({
   marca: "G-Shock", produto: "relogio", tom: "seco", perfil_comportamental: "jovem",
@@ -86,6 +104,8 @@ check("MX: system do radar leva bloco de mercado", pMx.system.includes("MERCADO 
 check("MX: radar manda escrever em espanhol", pMx.system.includes("IDIOMA DE SAÍDA: escreva TODO o texto que você gerar em espanhol"));
 const pBr = buildRadarPrompt(knowledge(), []);
 check("BR: system do radar sem bloco de mercado", !pBr.system.includes("MERCADO E IDIOMA"));
+check("MX: a ULTIMA coisa do user e o pedido de idioma", pMx.user.trim().split("\n\n---\n\n").pop()!.startsWith("IDIOMA DA RESPOSTA"), pMx.user.slice(-300));
+check("BR: user do radar sem pedido de idioma", !pBr.user.includes("IDIOMA DA RESPOSTA"));
 check("MX: prompt dinamico do report leva o bloco", systemPromptDynamic(MX).includes("IDIOMA DE SAÍDA"));
 
 // ── legenda do TikTok ─────────────────────────────────────

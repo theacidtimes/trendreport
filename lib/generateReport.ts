@@ -703,9 +703,16 @@ export async function generateReport(
     );
   }
 
+  // Fora do BR o idioma de saída é repetido no FIM da mensagem: o system inteiro
+  // (método, schema, exemplos) é em português e, no radar, só o pedido no system
+  // não bastou — o modelo segue o que leu por último.
+  const fechoIdioma =
+    mercado.pais === MERCADO_PADRAO.pais
+      ? ""
+      : `\n\nIDIOMA DA RESPOSTA: escreva todo o texto do JSON em ${mercado.idiomaSaida}, mesmo que o briefing esteja em português. Use apenas sinais de ${mercado.nome}.`;
   const userMessage = `BRIEFING (YAML):\n${briefingYaml}\n\nDADOS COLETADOS AGORA (JSON):\n${JSON.stringify(
     enviados
-  )}\n\nCANDIDATOS A TREND NO TIKTOK (JSON):\n${JSON.stringify(clusters)}`;
+  )}\n\nCANDIDATOS A TREND NO TIKTOK (JSON):\n${JSON.stringify(clusters)}${fechoIdioma}`;
 
   await onProgress?.({ phase: "model", sources_done: sourcesDone });
 

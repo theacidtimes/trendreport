@@ -1,5 +1,5 @@
 import { RawDataPoint } from '../types'
-import { Mercado, MERCADO_PADRAO, ehEspanhol } from '../mercados'
+import { Mercado, MERCADOS, MERCADO_PADRAO, ehEspanhol } from '../mercados'
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN!
 const APIFY_BASE = 'https://api.apify.com/v2'
@@ -269,7 +269,7 @@ export function mapItems(
   if (fonte === 'news' || fonte === 'news_global') return mapNews(items)
   if (fonte === 'tiktok') return mapTikTok(items, mercado)
   if (fonte === 'linkedin') return mapLinkedin(items, idioma ?? mercado.idioma)
-  return mapTwitter(items)
+  return mapTwitter(items, mercado)
 }
 
 // O actor IGNORA qualquer parâmetro de subreddit (não existe no schema dele), então a
@@ -298,6 +298,20 @@ function ehDoIdioma(text: string, mercado: Mercado): boolean {
   return mercado.idioma === 'es' ? ehEspanhol(text) : isPortuguese(text)
 }
 
+// Subs que são de OUTRO país do mesmo idioma. Fora do BR a peneira de idioma não
+// separa país: um post de r/chile é espanhol e entrava na Colômbia (medido no
+// primeiro lote da G-Shock CO, 03/10/2026). Sub conhecido de outro mercado sai.
+function subsDeOutrosMercados(mercado: Mercado): Set<string> {
+  const out = new Set<string>()
+  for (const m of Object.values(MERCADOS)) {
+    if (m.pais === mercado.pais || m.pais === MERCADO_PADRAO.pais) continue
+    for (const s of m.reddit.geral) out.add(s.toLowerCase())
+  }
+  // Pan-hispânico (r/yo_elvr) aparece em vários mercados e não é de ninguém.
+  for (const s of [...mercado.reddit.geral, ...mercado.reddit.meme]) out.delete(s.toLowerCase())
+  return out
+}
+
 // Sub conhecido do mercado entra mesmo sem bater idioma. No BR é a lista histórica
 // acima; nos outros, os subs do país em lib/mercados.ts.
 function subsDoMercado(mercado: Mercado): Set<string> {
@@ -315,8 +329,14 @@ function postIdFromUrl(url: string): string | null {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapReddit(items: any[], mercado: Mercado): RawDataPoint[] {
   const subs = subsDoMercado(mercado)
+  const alheios = mercado.pais === MERCADO_PADRAO.pais ? new Set<string>() : subsDeOutrosMercados(mercado)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isSubDoMercado = (c: any) => subs.has(String(c || '').replace(/^r\//i, '').toLowerCase())
+  const nomeSub = (c: any) => String(c || '').replace(/^r\//i, '').toLowerCase()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isSubDoMercado = (c: any) => subs.has(nomeSub(c))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const doMercado = (i: any, texto: string) =>
+    !alheios.has(nomeSub(i.communityName)) && (isSubDoMercado(i.communityName) || ehDoIdioma(texto, mercado))
   // O actor devolve posts e comentários como itens SEPARADOS (dataType). Comentário
   // não tem título, então o filtro antigo (titulo && url) descartava todos — o agente
   // nunca lia a conversa. Aqui os comentários são agrupados no post pai e entram no
@@ -325,10 +345,10 @@ function mapReddit(items: any[], mercado: Mercado): RawDataPoint[] {
   // é o que faz o Reddit virar insumo principal sem manter whitelist por marca.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const posts = items.filter((i: any) =>
-    i.dataType === 'post' && (isSubDoMercado(i.communityName) || ehDoIdioma(`${i.title || ''} ${i.body || ''}`, mercado)))
+    i.dataType === 'post' && doMercado(i, `${i.title || ''} ${i.body || ''}`))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const comments = items.filter((i: any) =>
-    i.dataType === 'comment' && (isSubDoMercado(i.communityName) || ehDoIdioma(i.body || '', mercado)))
+    i.dataType === 'comment' && doMercado(i, i.body || ''))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const commentsByPost = new Map<string, any[]>()
@@ -384,8 +404,16 @@ function mapNews(items: any[]): RawDataPoint[] {
 // por isso o Twitter volta a ser fonte clicável (o filtro anti-alucinação em runRadar
 // deixou de excluí-lo). Engajamento vira densidade/velocidade: likes→upvotes, replies→comentarios.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapTwitter(items: any[]): RawDataPoint[] {
-  return items.map(item => {
+function mapTwitter(items: any[], mercado: Mercado = MERCADO_PADRAO): RawDataPoint[] {
+  // Fora do BR, peneira de idioma: o `lang` que o próprio X atribui ao tweet e, sem
+  // ele, o detector. O BR segue sem peneira, como sempre rodou.
+  const fora = mercado.pais !== MERCADO_PADRAO.pais
+  return items
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter((item: any) => !fora || (item.lang
+      ? item.lang === mercado.idioma
+      : ehDoIdioma(String(item.text || item.fullText || ''), mercado)))
+    .map(item => {
     const texto = String(item.text || item.fullText || '').replace(/\s+/g, ' ').trim()
     const autor = item.author?.userName ? `@${item.author.userName}` : ''
     return {

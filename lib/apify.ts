@@ -722,6 +722,7 @@ export async function fetchTikTok(
 
 interface RawTweet {
   text?: string;
+  lang?: string;
   fullText?: string;
   url?: string;
   twitterUrl?: string;
@@ -774,6 +775,16 @@ export async function fetchTwitter(
       // Corta-se pelos dois lados: o tweet marcado como sensível e o autor marcado
       // como sensível (perfil adulto cujo post individual não veio marcado).
       .filter((item) => !item.possiblySensitive && !item.author?.possiblySensitive)
+      // Fora do BR, peneira de idioma: o `tweetLanguage` não segurou sozinho (o
+      // primeiro lote LATAM trouxe tweet em português). `lang` é o idioma que o
+      // próprio X atribui; sem ele, o detector.
+      .filter(
+        (item) =>
+          mercado.pais === MERCADO_PADRAO.pais ||
+          (item.lang
+            ? item.lang === mercado.idioma
+            : mercado.idioma !== "es" || ehEspanhol(item.text ?? item.fullText ?? ""))
+      )
       .map((item) => {
         const text = String(item.text ?? item.fullText ?? "")
           .replace(/\s+/g, " ")

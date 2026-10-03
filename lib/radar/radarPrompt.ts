@@ -1,6 +1,6 @@
 import { MarcaKnowledge, RawDataPoint } from '../types'
 import { RetrievedSignal } from './memory'
-import { blocoMercado, mercadoDaMarca } from '../mercados'
+import { blocoMercado, mercadoDaMarca, MERCADO_PADRAO } from '../mercados'
 
 const CAMADA_CCCARAMELO = `
 Você é o motor de inteligência cultural da cccaramelo, agência brasileira. Sua função
@@ -238,10 +238,21 @@ export function buildRadarPrompt(
   data: RawDataPoint[],
   retrieved: RetrievedSignal[] = []
 ): { system: string; user: string; corte: string } {
+  const mercadoDaMarcaAtual = mercadoDaMarca(knowledge)
   const memoria = buildCamadaMemoria(retrieved)
   const userBlocks = [buildCamadaInternet(data)]
   if (memoria) userBlocks.push(memoria)
   userBlocks.push(OUTPUT_SCHEMA)
+  // O pedido de idioma no system NÃO bastou: o schema acima, em português e com
+  // exemplos em português, vem por último e ganha. A instrução tem que ser a
+  // última coisa que o modelo lê antes de responder.
+  if (mercadoDaMarcaAtual.pais !== MERCADO_PADRAO.pais) {
+    userBlocks.push(
+      `IDIOMA DA RESPOSTA: escreva insight_titulo, descricao_fato e gancho_produto em ${mercadoDaMarcaAtual.idiomaSaida}. ` +
+      `Os exemplos acima estão em português só para mostrar o formato; NÃO responda em português. ` +
+      `Use apenas sinais de ${mercadoDaMarcaAtual.nome}: ignore conversa de outros países (inclusive Brasil e Espanha).`
+    )
+  }
 
   // Mercado fora do BR: diz ao modelo de onde vêm os sinais e em que idioma
   // escrever. No BR o bloco é vazio e o system fica idêntico ao de antes.
