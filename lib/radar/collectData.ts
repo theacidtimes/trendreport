@@ -145,7 +145,10 @@ export function scrapeSpec(
     actorId: 'apidojo/tweet-scraper',
     input: {
       searchTerms: [query],
-      maxItems: 20,
+      // 20 → 50 em out/2026, quando o radar passou a rodar 2×/semana. É a fonte
+      // mais barata (~$0,008 por run) e a de janela mais curta (7 dias), então é
+      // onde menos rodadas mais perderiam a cauda — vale raspar mais fundo.
+      maxItems: 50,
       sort: 'Top',
       tweetLanguage: mercado.xIdioma,
       // Janela de recência. 7 dias e não 2: o radar da marca roda a cada 12–24h,
@@ -183,6 +186,18 @@ function janelaDeBusca(dias: number, now: Date = new Date()): string {
   return new Date(now.getTime() - dias * 86_400_000).toISOString().slice(0, 10)
 }
 
+// Conta da Apify bloqueada (teto mensal estourado: HTTP 403 platform-feature-disabled).
+// NÃO é falha de uma lane: nenhum actor dispara até alguém subir o limite. Até
+// 05/10/2026 isto caía no `return null` comum: o job nascia 'failed', a marca era
+// dada como varrida e o workflow saía verde. O radar ficou ~40h cego sem ninguém
+// saber. Agora sobe como erro próprio e o runRadar para de disparar e falha o run.
+export class ApifyBloqueada extends Error {
+  constructor(detalhe: string) {
+    super(`Conta da Apify bloqueada (limite mensal estourado): ${detalhe}`)
+    this.name = 'ApifyBloqueada'
+  }
+}
+
 // Dispara o run e NÃO espera (waitForFinish=0). Devolve o id do run pra ser pollado
 // depois. null = falhou ao disparar (sem token, HTTP erro, resposta sem id).
 export async function startScrape(
@@ -204,7 +219,11 @@ export async function startScrape(
     }
   )
   if (!res.ok) {
-    console.error(`[APIFY] ${actorId} falhou ao disparar: HTTP ${res.status} — ${await res.text()}`)
+    const corpo = await res.text()
+    if (res.status === 403 && corpo.includes('platform-feature-disabled')) {
+      throw new ApifyBloqueada(corpo)
+    }
+    console.error(`[APIFY] ${actorId} falhou ao disparar: HTTP ${res.status} — ${corpo}`)
     return null
   }
   const run = await res.json()

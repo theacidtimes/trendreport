@@ -123,7 +123,10 @@ check(
 const diaDaVivo: RawDataPoint[] = [
   ponto("twitter", "tweet-2019-com-2-curtidas", 2),
   ponto("twitter", "tweet-2023-com-9-curtidas", 9),
-  ...Array.from({ length: 40 }, (_, i) => ponto("twitter", `ruido-${i}`, i)),
+  // 60 de ruído (0 a 59 curtidas) e não 40: com o teto de 45 tweets no prompt
+  // (out/2026), 40 deixava os tweets de 2 e 9 curtidas dentro do corte e o teste
+  // de "não entrega o tweet de 2 curtidas" parava de provar alguma coisa.
+  ...Array.from({ length: 60 }, (_, i) => ponto("twitter", `ruido-${i}`, i)),
   ponto("twitter", "homem-aranha", 16885),
   ...Array.from({ length: 56 }, (_, i) => ponto("twitter", `cauda-${i}`, 1))
 ];
@@ -176,7 +179,7 @@ check(
 
 // ── resumirCorte ──────────────────────────────────────────
 const resumo = resumirCorte(diaDaVivo);
-check("resumo mostra levado/total da fonte", resumo.includes("twitter 20/99"), resumo);
+check("resumo mostra levado/total da fonte", resumo.includes("twitter 45/119"), resumo);
 // Fonte sem coleta tem que aparecer como 0/0, não sumir: "reddit ausente" é um
 // diagnóstico (lane falhou), e some se a linha for omitida.
 check("fonte sem dados aparece zerada", resumo.includes("reddit 0/0"), resumo);
@@ -196,7 +199,7 @@ const knowledge = {
 const { user, corte } = buildRadarPrompt(knowledge, diaDaVivo);
 check("prompt entrega o sinal mais engajado", user.includes("/homem-aranha"), null);
 check("prompt NAO entrega o tweet de 2 curtidas", !user.includes("/tweet-2019-com-2-curtidas"));
-check("buildRadarPrompt devolve o diagnostico de corte", corte.includes("twitter 20/99"), corte);
+check("buildRadarPrompt devolve o diagnostico de corte", corte.includes("twitter 45/119"), corte);
 // O cabeçalho afirmava "ÚLTIMAS 48H" enquanto 54% dos tweets eram mais velhos
 // que isso (123 com mais de um ano, medido). Afirmar recência que o dado não
 // tem faz o modelo escrever "está acontecendo agora" sobre reprise de 2015.

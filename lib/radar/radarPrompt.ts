@@ -36,12 +36,18 @@ contextualizados como insumo para o time criativo.
 // Reddit tem o teto mais alto em relação ao volume porque é onde está a
 // conversa (post + até 5 comentários por item); Twitter e TikTok são o grosso
 // da coleta e é lá que o corte doía mais.
+//
+// Out/2026: subiram de novo (87 → 150) junto com a troca de cadência. O radar
+// passou de rodar a cada 6–24h para 2×/semana (BR) e 1×/semana (LATAM) para
+// caber no teto da Apify, e o teto de drops foi de 4 para 8 por rodada. Menos
+// rodadas, então cada uma precisa mostrar mais do que raspou. Continua sendo só
+// token de input (~+$0,03 por rodada).
 const LIMITES: Record<string, number> = {
-  reddit: 20,
-  tiktok: 20,
-  twitter: 20,
-  linkedin: 12,
-  news: 15
+  reddit: 30,
+  tiktok: 35,
+  twitter: 45,
+  linkedin: 15,
+  news: 25
 }
 
 function numero(v: unknown): number {
@@ -184,7 +190,8 @@ Se o sinal não tiver fit genuíno, ignore. Não force conexões.
 
 const OUTPUT_SCHEMA = `
 Responda SOMENTE com array JSON válido. Sem markdown. Sem texto fora do JSON.
-Máximo 4 drops. Mínimo 1. Só drops com fit genuíno.
+Máximo 8 drops. Mínimo 1. Só drops com fit genuíno: 8 é teto, não meta. Melhor
+4 drops fortes do que 8 com metade esticada.
 
 ESTILO: escreva como gente, não como IA. Quase nada de travessão/hífen ("—"): ele
 denuncia texto de máquina. Prefira ponto, vírgula ou dois-pontos. No máximo um "—" por

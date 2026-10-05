@@ -46,6 +46,7 @@ async function main() {
   const intervalo = Number(process.env.RADAR_INTERVALO_SEGUNDOS ?? 120);
   const fim = Date.now() + janela * 1000;
   let ticks = 0;
+  let bloqueada = false;
 
   console.log(
     `[RADAR] Iniciando no runner. Node = ${process.version}. Janela ${janela}s, tick a cada ${intervalo}s.`
@@ -55,10 +56,17 @@ async function main() {
   // então o worker sai. O timeout-minutes do job tem folga pra isso.
   do {
     ticks++;
-    await runAllActiveRadars();
+    const { apifyBloqueada } = await runAllActiveRadars();
+    if (apifyBloqueada) bloqueada = true;
     if (Date.now() < fim) await dormir(intervalo);
   } while (Date.now() < fim);
   console.log(`[RADAR] Janela encerrada após ${ticks} tick(s).`);
+  // A janela segue até o fim mesmo bloqueada (os finalizes de runs já em voo
+  // continuam valendo), mas o run sai vermelho: é o alarme de "radar cego".
+  if (bloqueada) {
+    console.error("[RADAR] Apify bloqueada nesta janela: suba o limite mensal na conta da Apify.");
+    process.exitCode = 1;
+  }
 }
 
 const dormir = (s: number) => new Promise((r) => setTimeout(r, s * 1000));

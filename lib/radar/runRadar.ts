@@ -6,7 +6,8 @@ import {
   getRunStatus,
   fetchDataset,
   mapItems,
-  TERMINAL_FAIL
+  TERMINAL_FAIL,
+  ApifyBloqueada
 } from './collectData'
 import { scoreHype, scoreForDrop } from './scoreHype'
 import { buildRadarPrompt } from './radarPrompt'
@@ -31,6 +32,33 @@ const JOB_STALE_MS = 30 * 60 * 1000
 // no meio de uma marca (foi assim que a VOLL ficou com memória órfã e sem drops).
 // Folga confortável abaixo do timeout-minutes do workflow (30min).
 const FINALIZE_BUDGET_MS = 25 * 60 * 1000
+
+// Fontes que rodam no máximo 1×/semana por marca, independente da cadência dela.
+// Medido de 19/09 a 02/10/2026: 84% do que o Reddit devolvia e 85% do LinkedIn
+// era item já raspado. As duas buscam com time=month + relevância, então uma
+// passada por semana cobre a janela com sobra. E o Reddit sozinho era 55% da
+// conta da Apify. X e TikTok (janela menor, menos repetição) seguem a cadência
+// da marca. A folga abaixo de 7 dias evita pular a semana inteira quando a
+// marca (84h) vence poucos minutos antes de completar 168h.
+const FONTES_SEMANAIS: Fonte[] = ['reddit', 'linkedin']
+const INTERVALO_SEMANAL_MS = 6.5 * 24 * 3_600_000
+
+// Fontes semanais que esta marca já disparou dentro da semana (pelo histórico de
+// jobs). FAIL-OPEN: se a consulta falhar, nada é pulado e a rodada sai completa.
+async function fontesSemanaisRecentes(supabase: SupabaseLike, marcaId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('radar_scrape_jobs')
+    .select('fonte')
+    .eq('marca_id', marcaId)
+    .in('fonte', FONTES_SEMANAIS)
+    .not('apify_run_id', 'is', null)
+    .gte('created_at', new Date(Date.now() - INTERVALO_SEMANAL_MS).toISOString())
+  if (error) {
+    console.error(`[RADAR] Falha ao checar fontes semanais (rodada sai completa): ${error.message}`)
+    return new Set()
+  }
+  return new Set((data ?? []).map(r => r.fonte as string))
+}
 
 function getSupabase() {
   return createClient(
@@ -110,7 +138,11 @@ async function closeRun(
 // agenda = rows de pulso_cultural do tick (globais + do tenant); marca não-migrada
 // as ignora e roda idêntica ao comportamento legado.
 async function kickoffMarca(supabase: SupabaseLike, marca: Marca, batchId: string, agenda: PulsoCultural[]): Promise<void> {
-  const lanes = planLanes(marca, agenda)
+  const recentes = await fontesSemanaisRecentes(supabase, marca.id)
+  const lanes = planLanes(marca, agenda).filter(l => !recentes.has(l.fonte))
+  if (recentes.size) {
+    console.log(`[RADAR] ${marca.nome}: ${Array.from(recentes).join(', ')} já rodou nesta semana, fica fora`)
+  }
   // Mesmo `pais` que escolheu a agenda acima escolhe onde raspar (lib/mercados.ts).
   const mercado = mercadoDaMarca(marca.yaml_conhecimento)
   // Agenda vazia é indistinguível de agenda desligada olhando só o resultado da
@@ -296,7 +328,8 @@ async function processMarcaBatch(
   console.log(`[RADAR][PROMPT] ${marca.nome}: ${corte} (de ${freshData.length} sinais novos)`)
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 4000,
+    // 8 drops por rodada (era 4): o teto acompanha pra o JSON não sair cortado.
+    max_tokens: 8000,
     system,
     messages: [{ role: 'user', content: user }]
   })
@@ -397,7 +430,9 @@ function isDue(marca: Marca, now: number): boolean {
 // Cada tick faz duas coisas: FINALIZA batches pendentes de ticks anteriores (o
 // resultado da Apify que já ficou pronto) e DISPARA novos scrapes pras marcas
 // vencidas. Assim nenhum passo espera run lento inline — o cron cobre a latência.
-export async function runAllActiveRadars(): Promise<void> {
+// Devolve se a Apify recusou disparo por conta bloqueada, pra o script do runner
+// falhar o workflow (vermelho na aba Actions) em vez de sair verde com radar cego.
+export async function runAllActiveRadars(): Promise<{ apifyBloqueada: boolean }> {
   const supabase = getSupabase()
   const anthropic = getAnthropic()
 
@@ -412,14 +447,14 @@ export async function runAllActiveRadars(): Promise<void> {
 
   if (error || !marcas?.length) {
     console.log('[RADAR] Nenhuma marca ativa')
-    return
+    return { apifyBloqueada: false }
   }
 
   const now = Date.now()
   const due = (marcas as Marca[]).filter(m => isDue(m, now))
   if (!due.length) {
     console.log(`[RADAR] ${marcas.length} ativa(s), nenhuma vencida ainda`)
-    return
+    return { apifyBloqueada: false }
   }
 
   // Enforcement (Fase 3B + status + modulo): a varredura é PULADA quando o tenant
@@ -479,8 +514,16 @@ export async function runAllActiveRadars(): Promise<void> {
       await kickoffMarca(supabase, marca, batchId, agenda)
       disparadas++
     } catch (e) {
+      // Conta bloqueada vale pra todas: para de disparar. O kickoff abortou antes
+      // de gravar jobs e ultima_varredura, então a marca continua vencida e sai
+      // no primeiro tick depois que o limite for liberado.
+      if (e instanceof ApifyBloqueada) {
+        console.error(`[RADAR][APIFY] ${e.message} — nenhuma marca disparada até o limite ser liberado`)
+        return { apifyBloqueada: true }
+      }
       console.error(`[RADAR] Erro ao disparar ${marca.nome}:`, e)
     }
   }
   console.log(`[RADAR] Disparo completo (${disparadas}/${due.length} due, ${marcas.length} ativas)`)
+  return { apifyBloqueada: false }
 }
