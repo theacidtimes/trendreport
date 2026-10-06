@@ -222,16 +222,28 @@ export function mercadoDaMarca(k?: MarcaKnowledge | null): Mercado {
 // "aquí" (terminando em acento) nunca casariam.
 // Construída por string porque o tsconfig mira ES5, que não aceita a flag `u`
 // em regex literal (o Node aceita, é só o compilador).
-const ES_MARKERS = new RegExp(
-  "(?<!\\p{L})(el|los|las|del|muy|pero|esto|eso|hay|tambi[ée]n|entonces|yo|t[úu]|usted|ustedes|qu[ée]|c[óo]mo|cuando|ahora|aqu[íi]|tengo|tiene|con|una|est[áa]s|soy|eres|vos|che|wey|güey|parce|weón)(?!\\p{L})",
-  "giu"
-);
+//
+// MONTADA SÓ NO PRIMEIRO USO, nunca no import. Este arquivo também é importado
+// por telas do navegador (formulário de report, mapa), e Safari anterior ao 16.4
+// não conhece lookbehind: `new RegExp("(?<!...")` no topo do módulo lançava
+// SyntaxError no carregamento e derrubava a página inteira ("Application error:
+// a client-side exception") antes de qualquer código da tela rodar. Medido em
+// 06/10/2026: a tela de novo report caiu para quem estava num Safari antigo.
+// O detector de espanhol só roda no servidor (radar e report).
+let esMarkers: RegExp | null = null;
+function marcadoresEspanhol(): RegExp {
+  esMarkers ??= new RegExp(
+    "(?<!\\p{L})(el|los|las|del|muy|pero|esto|eso|hay|tambi[ée]n|entonces|yo|t[úu]|usted|ustedes|qu[ée]|c[óo]mo|cuando|ahora|aqu[íi]|tengo|tiene|con|una|est[áa]s|soy|eres|vos|che|wey|güey|parce|weón)(?!\\p{L})",
+    "giu"
+  );
+  return esMarkers;
+}
 const ES_CHARS = /[ñ¿¡]/gi;
 
 export function ehEspanhol(text: string): boolean {
   const t = String(text || "");
   if (t.length < 8) return false;
-  const hits = (t.match(ES_MARKERS) || []).length + (t.match(ES_CHARS) || []).length;
+  const hits = (t.match(marcadoresEspanhol()) || []).length + (t.match(ES_CHARS) || []).length;
   return hits >= 2;
 }
 
