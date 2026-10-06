@@ -144,7 +144,59 @@ const CL: Mercado = {
   instagram: { geral: ["netflixlat", "latercera", "biobiochile", "t13"], meme: [] },
 };
 
-export const MERCADOS: Record<string, Mercado> = { BR, MX, AR, CO, CL };
+// PA, PE e UY entraram em 05/10/2026: a lista real da Casio LATAM é AR, CL, CO,
+// PA, PE e UY (MX não entra — a entrada fica só para não quebrar marca antiga
+// que ainda aponte pra lá). Mesmo critério das outras: imprensa e Reddit do país
+// como ponto de partida, perfis de meme vazios até ter curadoria local.
+const PA: Mercado = {
+  pais: "PA",
+  nome: "Panamá",
+  idioma: "es",
+  idiomaSaida: "espanhol latino-americano (com o vocabulário do Panamá quando citar a conversa local)",
+  news: {
+    gl: "pa",
+    hl: "es-419",
+    sites: [".pa", "prensa.com", "tvn-2.com", "laestrella.com.pa", "infobae.com"],
+  },
+  tiktokProxy: "PA",
+  xIdioma: "es",
+  reddit: { geral: ["Panama"], meme: ["yo_elvr"] },
+  instagram: { geral: ["netflixlat", "prensacom", "tvnnoticias"], meme: [] },
+};
+
+const PE: Mercado = {
+  pais: "PE",
+  nome: "Peru",
+  idioma: "es",
+  idiomaSaida: "espanhol latino-americano (com o vocabulário do Peru quando citar a conversa local)",
+  news: {
+    gl: "pe",
+    hl: "es-419",
+    sites: [".pe", "elcomercio.pe", "larepublica.pe", "rpp.pe", "infobae.com"],
+  },
+  tiktokProxy: "PE",
+  xIdioma: "es",
+  reddit: { geral: ["PERU"], meme: ["yo_elvr"] },
+  instagram: { geral: ["netflixlat", "elcomercio_peru", "larepublica_pe", "rppnoticias"], meme: [] },
+};
+
+const UY: Mercado = {
+  pais: "UY",
+  nome: "Uruguai",
+  idioma: "es",
+  idiomaSaida: "espanhol latino-americano (com o vocabulário do Uruguai quando citar a conversa local)",
+  news: {
+    gl: "uy",
+    hl: "es-419",
+    sites: [".com.uy", "elpais.com.uy", "montevideo.com.uy", "elobservador.com.uy", "infobae.com"],
+  },
+  tiktokProxy: "UY",
+  xIdioma: "es",
+  reddit: { geral: ["uruguay"], meme: ["yo_elvr"] },
+  instagram: { geral: ["netflixlat", "elpaisuy", "montevideoportal"], meme: [] },
+};
+
+export const MERCADOS: Record<string, Mercado> = { BR, MX, AR, CO, CL, PA, PE, UY };
 export const MERCADO_PADRAO = BR;
 
 export function mercadoDe(pais?: string | null): Mercado {

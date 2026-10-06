@@ -5,12 +5,24 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Plus, TriangleAlert, Upload, X } from "lucide-react";
 import * as yaml from "js-yaml";
 import { createClient } from "@/lib/supabase/client";
+import { mercadoDe } from "@/lib/mercados";
 import {
   useBriefingState,
   type BriefingState,
 } from "@/components/briefing/useBriefingState";
 
-type MarcaOption = { id: string; nome: string };
+type MarcaOption = { id: string; nome: string; pais: string | null };
+
+// Cada país é uma marca separada ("G-Shock CO"), então o país do report sai da
+// marca escolhida e nada mais na tela dizia isso: escolher "G-Shock" pensando em
+// LATAM gerava um report do Brasil sem aviso. O sufixo de país é detalhe de
+// cadastro e não vai pro nome do cliente no report.
+function nomeSemPais(m: MarcaOption): string {
+  return m.pais ? m.nome.replace(new RegExp(`\\s+${m.pais}$`, "i"), "") : m.nome;
+}
+function rotuloMarca(m: MarcaOption): string {
+  return `${nomeSemPais(m)} · ${mercadoDe(m.pais).nome}`;
+}
 
 export default function BriefingForm({
   onLoadingChange,
@@ -56,7 +68,7 @@ export default function BriefingForm({
     const supabase = createClient();
     supabase
       .from("marcas")
-      .select("id, nome")
+      .select("id, nome, pais:yaml_conhecimento->>pais")
       .order("nome", { ascending: true })
       .then(({ data }) => {
         if (!data) return;
@@ -68,7 +80,7 @@ export default function BriefingForm({
         // (e sem o "evitar tom político" que está nele).
         if (lista.length === 1) {
           setMarcaId((atual) => atual || lista[0].id);
-          setCliente((atual) => atual || lista[0].nome);
+          setCliente((atual) => atual || nomeSemPais(lista[0]));
         }
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,7 +91,7 @@ export default function BriefingForm({
   function handleMarcaChange(id: string) {
     setMarcaId(id);
     const marca = marcas.find((m) => m.id === id);
-    if (marca) setCliente(marca.nome);
+    if (marca) setCliente(nomeSemPais(marca));
     // Avulso: libera o campo Cliente e apaga o nome herdado de uma marca que a
     // pessoa acabou de desmarcar, senão o report sai "avulso" com nome de marca.
     if (id === AVULSO) setCliente("");
@@ -245,7 +257,7 @@ export default function BriefingForm({
               </option>
               {marcas.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.nome}
+                  {rotuloMarca(m)}
                 </option>
               ))}
               <option value={AVULSO}>Report avulso (sem DNA, só o briefing)</option>
@@ -262,6 +274,18 @@ export default function BriefingForm({
               </span>
             ) : (
               <span className="text-muted/70 text-[12px]">
+                {(() => {
+                  const m = marcas.find((x) => x.id === marcaId);
+                  if (!m) return null;
+                  const mercado = mercadoDe(m.pais);
+                  return (
+                    <>
+                      <span className="text-white/80">
+                        Coleta e escrita: {mercado.nome}, em {mercado.idioma === "es" ? "espanhol" : "português"}.
+                      </span>{" "}
+                    </>
+                  );
+                })()}
                 Com marca, radar e report bebem do mesmo DNA. O briefing segue valendo pro contexto da edição.
               </span>
             )}
