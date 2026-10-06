@@ -26,6 +26,10 @@ export type Mercado = {
   idiomaSaida: string;
   news: {
     gl: string;
+    // Código aceito pelo actor johnvc/GoogleNewsAPI, que valida contra uma lista
+    // fechada: "es-419" (o padrão do Google para LATAM) é RECUSADO com HTTP 400 e a
+    // lane de news de toda marca LATAM falhou de 03 a 06/10/2026 sem ninguém ver.
+    // Usar es-<país> (es-co, es-ar...).
     hl: string;
     // Recorte de imprensa do radar (vira `site:` na query). TLD do país pega o
     // grosso; portais fortes fora do TLD entram na mão.
@@ -87,7 +91,7 @@ const MX: Mercado = {
   idiomaSaida: "espanhol latino-americano (com o vocabulário do México quando citar a conversa local)",
   news: {
     gl: "mx",
-    hl: "es-419",
+    hl: "es-mx",
     sites: [".mx", "milenio.com", "elfinanciero.com.mx", "infobae.com"],
   },
   tiktokProxy: "MX",
@@ -103,7 +107,7 @@ const AR: Mercado = {
   idiomaSaida: "espanhol latino-americano (com o vocabulário da Argentina quando citar a conversa local)",
   news: {
     gl: "ar",
-    hl: "es-419",
+    hl: "es-ar",
     sites: [".com.ar", "clarin.com", "infobae.com", "pagina12.com.ar"],
   },
   tiktokProxy: "AR",
@@ -119,7 +123,7 @@ const CO: Mercado = {
   idiomaSaida: "espanhol latino-americano (com o vocabulário da Colômbia quando citar a conversa local)",
   news: {
     gl: "co",
-    hl: "es-419",
+    hl: "es-co",
     sites: [".com.co", "eltiempo.com", "elespectador.com", "semana.com", "infobae.com"],
   },
   tiktokProxy: "CO",
@@ -135,7 +139,7 @@ const CL: Mercado = {
   idiomaSaida: "espanhol latino-americano (com o vocabulário do Chile quando citar a conversa local)",
   news: {
     gl: "cl",
-    hl: "es-419",
+    hl: "es-cl",
     sites: [".cl", "latercera.com", "emol.com", "biobiochile.cl", "infobae.com"],
   },
   tiktokProxy: "CL",
@@ -155,7 +159,7 @@ const PA: Mercado = {
   idiomaSaida: "espanhol latino-americano (com o vocabulário do Panamá quando citar a conversa local)",
   news: {
     gl: "pa",
-    hl: "es-419",
+    hl: "es-pa",
     sites: [".pa", "prensa.com", "tvn-2.com", "laestrella.com.pa", "infobae.com"],
   },
   tiktokProxy: "PA",
@@ -171,7 +175,7 @@ const PE: Mercado = {
   idiomaSaida: "espanhol latino-americano (com o vocabulário do Peru quando citar a conversa local)",
   news: {
     gl: "pe",
-    hl: "es-419",
+    hl: "es-pe",
     sites: [".pe", "elcomercio.pe", "larepublica.pe", "rpp.pe", "infobae.com"],
   },
   tiktokProxy: "PE",
@@ -187,7 +191,7 @@ const UY: Mercado = {
   idiomaSaida: "espanhol latino-americano (com o vocabulário do Uruguai quando citar a conversa local)",
   news: {
     gl: "uy",
-    hl: "es-419",
+    hl: "es-uy",
     sites: [".com.uy", "elpais.com.uy", "montevideo.com.uy", "elobservador.com.uy", "infobae.com"],
   },
   tiktokProxy: "UY",

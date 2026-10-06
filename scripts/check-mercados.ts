@@ -44,7 +44,11 @@ check("BR: prompt dinamico do report so tem a data", !systemPromptDynamic().incl
 
 // ── MX ────────────────────────────────────────────────────
 const mxNews = scrapeSpec("news", termos, MX).input;
-check("MX: news gl=mx hl=es-419", mxNews.gl === "mx" && mxNews.hl === "es-419", mxNews);
+// es-419 é recusado pelo actor (HTTP 400): o hl tem que ser es-<país>.
+check("MX: news gl=mx hl=es-mx", mxNews.gl === "mx" && mxNews.hl === "es-mx", mxNews);
+for (const m of Object.values(MERCADOS)) {
+  check(`${m.pais}: hl do news nao e es-419`, m.news.hl !== "es-419", m.news);
+}
 check("MX: news recorta imprensa mexicana", String(mxNews.q).includes("site:.mx") && !String(mxNews.q).includes(".com.br"), mxNews.q);
 check("MX: tiktok proxy MX", scrapeSpec("tiktok", termos, MX).input.proxyCountryCode === "MX");
 check("MX: twitter es", scrapeSpec("twitter", termos, MX).input.tweetLanguage === "es");
@@ -67,6 +71,17 @@ const brTik = mapItems("tiktok", tiktokItems).map((d) => d.url);
 // de português, então deixa passar espanhol acentuado. Comportamento antigo,
 // fora do escopo do mercado.
 check("BR: tiktok segue com o portugues", brTik.includes("https://t/pt"), brTik);
+
+// Emoji cortado ao meio (surrogate órfão) derrubava a rodada inteira na Anthropic
+// e o lote da memória no Postgres (06/10/2026). mapItems tem que devolver texto
+// bem-formado, seja qual for a fonte.
+const cortado = "Meu G-Shock novo, o que vocês acham? não é lindo \uD83D";
+const sujo = mapItems("tiktok", [{ text: cortado, webVideoUrl: "https://t/emoji" }]);
+check(
+  "mapItems saneia emoji cortado (surrogate orfao)",
+  sujo.length > 0 && sujo.every((d) => Object.values(d).every((v) => typeof v !== "string" || v.isWellFormed())),
+  sujo
+);
 
 const redditItems = [
   { dataType: "post", title: "Relojes", body: "short", communityName: "r/mexico", url: "https://r/a/comments/1/x/" },

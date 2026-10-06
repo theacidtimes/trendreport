@@ -284,11 +284,28 @@ export function mapItems(
   idioma?: string,
   mercado: Mercado = MERCADO_PADRAO
 ): RawDataPoint[] {
-  if (fonte === 'reddit') return mapReddit(items, mercado)
-  if (fonte === 'news' || fonte === 'news_global') return mapNews(items)
-  if (fonte === 'tiktok') return mapTikTok(items, mercado)
-  if (fonte === 'linkedin') return mapLinkedin(items, idioma ?? mercado.idioma)
-  return mapTwitter(items, mercado)
+  const pontos =
+    fonte === 'reddit' ? mapReddit(items, mercado)
+    : fonte === 'news' || fonte === 'news_global' ? mapNews(items)
+    : fonte === 'tiktok' ? mapTikTok(items, mercado)
+    : fonte === 'linkedin' ? mapLinkedin(items, idioma ?? mercado.idioma)
+    : mapTwitter(items, mercado)
+  return pontos.map(sanearTextos)
+}
+
+// Texto cortado no meio de um emoji (o próprio scraper corta, e os nossos .slice
+// também) deixa um surrogate UTF-16 órfão. Ele passa por tudo em JS e só estoura
+// na serialização: a Anthropic recusa o corpo inteiro ("unexpected end of hex
+// escape") e o Postgres recusa o lote da memória ("invalid input syntax for type
+// json"). Medido em 06/10/2026: G-Shock BR e CL perderam a rodada inteira assim,
+// depois que o prompt passou de 20 para 45 tweets. A Voyage já saneava sozinha
+// (embeddings.ts); aqui sai limpo de uma vez pra prompt, memória e embedding.
+function sanearTextos(p: RawDataPoint): RawDataPoint {
+  const limpo: Record<string, unknown> = { ...p }
+  for (const [k, v] of Object.entries(limpo)) {
+    if (typeof v === 'string') limpo[k] = v.toWellFormed()
+  }
+  return limpo as unknown as RawDataPoint
 }
 
 // O actor IGNORA qualquer parâmetro de subreddit (não existe no schema dele), então a
