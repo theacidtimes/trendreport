@@ -254,7 +254,7 @@ IDIOMA DE SAÍDA: escreva TODO o texto que você gerar em ${m.idiomaSaida}. Isto
 // LATAM conta como BR, coerente com mercadoDe (que também cai no BR).
 export type Regiao = "BR" | "LATAM";
 export const REGIOES: Regiao[] = ["BR", "LATAM"];
-const PAISES_LATAM = new Set(["MX", "AR", "CO", "CL"]);
+const PAISES_LATAM = new Set(["MX", "AR", "CO", "CL", "PA", "PE", "UY"]);
 
 export function regiaoDe(pais?: string | null): Regiao {
   const p = typeof pais === "string" ? pais.trim().toUpperCase() : "";

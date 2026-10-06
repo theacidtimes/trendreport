@@ -12,7 +12,8 @@
  * Nos dois casos, silêncio.
  */
 // CO e CL entraram com os mercados LATAM (out/2026): país aqui também decide de
-// onde a coleta raspa, ver lib/mercados.ts.
-export const PAISES = ['BR', 'AU', 'US', 'PT', 'ES', 'MX', 'AR', 'CO', 'CL'] as const
+// onde a coleta raspa, ver lib/mercados.ts. PA, PE e UY entraram em 05/10/2026
+// (lista real da Casio LATAM: AR, CL, CO, PA, PE, UY).
+export const PAISES = ['BR', 'AU', 'US', 'PT', 'ES', 'MX', 'AR', 'CO', 'CL', 'PA', 'PE', 'UY'] as const
 
 export type Pais = (typeof PAISES)[number]
