@@ -350,9 +350,12 @@ function topInstagram(items: InstagramItem[]): InstagramItem[] {
 // inteiro do report. Qual dos dois vence não importa: os dois precisam chegar.
 function topReddit(items: RedditItem[]): RedditItem[] {
   const votos = (i: RedditItem) => i.upVotes ?? 0;
+  // tema vem na frente e com mais vagas: é a única lane que sabe do assunto do
+  // report. As fixas ficam como pulso geral do Reddit BR.
   return [
+    ...topByEngagement(items.filter((i) => i.fonte === "tema"), votos, 10),
     ...topByEngagement(items.filter((i) => i.fonte === "meme"), votos, 5),
-    ...topByEngagement(items.filter((i) => i.fonte !== "meme"), votos, 10),
+    ...topByEngagement(items.filter((i) => i.fonte === "geral"), votos, 5),
   ];
 }
 

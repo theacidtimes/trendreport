@@ -1043,11 +1043,32 @@ const REDDIT_MAX_AGE_DAYS = 7;
 // antes disso; se não, é ele travado e não vale segurar o report.
 const REDDIT_ORCAMENTO_MS = 150_000;
 
-function isRecentReddit(createdAt?: string): boolean {
+// ── Reddit por tema ──────────────────────────────────────────────────────────
+//
+// As lanes geral/meme leem subs FIXOS e não sabem do que o report trata. Report
+// de poker da Copag (08/10/2026, slug 0c526a23) é o caso que expôs isso: mesmo
+// sem timeout, o Reddit traria r/viagens e r/HUEstation, nada de poker. A lane
+// "tema" busca pelos mesmos termos que já alimentam TikTok/Twitter (briefing
+// primeiro, DNA da marca mesclado por mergeMarcaTerms), então o assunto do
+// projeto está sempre presente — o mesmo que o radar já faz em planner.ts.
+//
+// Janela de 30 dias: report é leitura do momento, e conversa de meses atrás
+// pode não valer mais. Um pouco mais larga que a semana das lanes fixas porque
+// comunidade de nicho em português posta pouco — uma semana zera a lane.
+const REDDIT_TEMA_MAX_AGE_DAYS = 30;
+const REDDIT_TEMA_QUERIES = 4;
+const REDDIT_TEMA_POSTS_POR_BUSCA = 8;
+const REDDIT_TEMA_COMENTARIOS_POR_POST = 5;
+// Busca não tem cache (depende do briefing), então o report espera de verdade.
+// Medido em 08/10: 7 buscas / 300 itens fecharam em 6min. Com 4 buscas o teto
+// cabe com folga; acima do TikTok (300s), mas a geração inteira já leva ~8min.
+const REDDIT_TEMA_ORCAMENTO_MS = 420_000;
+
+function isRecentReddit(createdAt?: string, maxAgeDays = REDDIT_MAX_AGE_DAYS): boolean {
   if (!createdAt) return true;
   const posted = new Date(createdAt).getTime();
   if (Number.isNaN(posted)) return true;
-  return (Date.now() - posted) / 86_400_000 <= REDDIT_MAX_AGE_DAYS;
+  return (Date.now() - posted) / 86_400_000 <= maxAgeDays;
 }
 
 // Separado da chamada de rede pra poder ser testado: o join post↔comentário por
@@ -1055,8 +1076,9 @@ function isRecentReddit(createdAt?: string): boolean {
 // discussão, exatamente como o bug que este código conserta.
 export function montarPostsReddit(
   raw: RawRedditItem[],
-  fonte: "meme" | "geral"
+  fonte: "meme" | "geral" | "tema"
 ): RedditItem[] {
+  const maxAgeDays = fonte === "tema" ? REDDIT_TEMA_MAX_AGE_DAYS : REDDIT_MAX_AGE_DAYS;
   // Os comentários chegam como itens irmãos dos posts, então a discussão é
   // remontada aqui antes de qualquer corte.
   const porPost = new Map<string, RawRedditComment[]>();
@@ -1073,7 +1095,7 @@ export function montarPostsReddit(
       (item) =>
         item.dataType === "post" &&
         item.title &&
-        isRecentReddit(item.createdAt) &&
+        isRecentReddit(item.createdAt, maxAgeDays) &&
         // Cinto e suspensório: `includeNSFW: false` age do lado do actor e
         // depende de o Reddit marcar a comunidade. Este segundo corte usa a
         // marcação do próprio post, então post adulto dentro de sub SFW
@@ -1106,6 +1128,7 @@ export function montarPostsReddit(
         numberOfComments: item.numberOfComments,
         imageUrl: imagemDoPost(item.imageUrls),
         fonte,
+        createdAt: item.createdAt,
       };
     });
 }
@@ -1451,6 +1474,68 @@ export async function fetchReddit(
   return resultados.flat();
 }
 
+/**
+ * Escolhe as buscas da lane tema: alterna termo direto e termo de entorno pra
+ * não gastar as 4 vagas só em menção de marca (ou só em comportamento). Os
+ * termos já chegam no idioma do mercado (deriveSystem). Exportada pra teste.
+ */
+export function termosRedditTema(terms: SearchTerms): string[] {
+  const vistos = new Set<string>();
+  const out: string[] = [];
+  const social = terms.social.map((t) => t.trim()).filter(Boolean);
+  const adjacent = terms.adjacent.map((t) => t.trim()).filter(Boolean);
+  const intercalados: string[] = [];
+  for (let i = 0; i < Math.max(social.length, adjacent.length); i++) {
+    if (social[i]) intercalados.push(social[i]);
+    if (adjacent[i]) intercalados.push(adjacent[i]);
+  }
+  for (const t of intercalados) {
+    const k = t.toLowerCase();
+    if (vistos.has(k)) continue;
+    vistos.add(k);
+    out.push(t);
+    if (out.length >= REDDIT_TEMA_QUERIES) break;
+  }
+  return out;
+}
+
+export function inputRedditTema(termos: string[]): Record<string, unknown> {
+  return {
+    searches: termos,
+    // relevance + month: hot/day (o das lanes fixas) volta vazio pra termo de
+    // nicho — mesma lição e mesma janela do radar (collectData.ts).
+    sort: "relevance",
+    time: "month",
+    includeMediaLinks: true,
+    skipComments: false,
+    maxComments: REDDIT_TEMA_COMENTARIOS_POR_POST,
+    skipCommunity: true,
+    // NUNCA remover — ver inputReddit.
+    includeNSFW: false,
+    maxItems: termos.length * REDDIT_TEMA_POSTS_POR_BUSCA * (1 + REDDIT_TEMA_COMENTARIOS_POR_POST),
+    maxPostCount: REDDIT_TEMA_POSTS_POR_BUSCA,
+  };
+}
+
+export async function fetchRedditTema(
+  terms: SearchTerms,
+  log?: ApifyRunLog
+): Promise<RedditItem[]> {
+  const termos = termosRedditTema(terms);
+  if (!termos.length) return [];
+  console.log(`[APIFY][reddit] lane tema: buscando ${JSON.stringify(termos)}`);
+  try {
+    const raw = await runActor<RawRedditItem>(REDDIT_ACTOR, inputRedditTema(termos), {
+      fonte: "reddit",
+      log,
+      orcamentoMs: REDDIT_TEMA_ORCAMENTO_MS,
+    });
+    return montarPostsReddit(raw, "tema");
+  } catch (e) {
+    return laneVazia("reddit", e);
+  }
+}
+
 export type SourceName = "instagram" | "tiktok" | "twitter" | "news" | "reddit";
 
 // As 5 fontes rodam em paralelo (Promise.all), então não têm uma ordem fixa
@@ -1471,8 +1556,8 @@ async function track<T>(
 // briefing; adjacent traz o ENTORNO cultural (nostalgia, hype de lançamento
 // vizinho, hábitos do público) e TAMBÉM alimenta tiktok/twitter, ampliando a
 // rede além das menções diretas — é o que diferencia isto de um monitoramento
-// de marca comum. news recebe query jornalística. Instagram e Reddit usam
-// perfis/subs fixos e ignoram termos de busca.
+// de marca comum. news recebe query jornalística. Instagram usa perfis fixos e
+// ignora termos; o Reddit soma subs fixos com a lane tema, que busca por eles.
 export type SearchTerms = { social: string[]; news: string[]; adjacent: string[] };
 
 // `log` é opcional e sempre fornecido pelo gerador de report: é por ele que o
@@ -1499,7 +1584,15 @@ export async function collectAll(
     track("tiktok", fetchTikTok(socialTerms, log, mercado), onProgress),
     track("twitter", fetchTwitter(socialTerms, log, mercado), onProgress),
     track("news", fetchNews(terms.news, log, mercado), onProgress),
-    track("reddit", fetchReddit(log, mercado), onProgress),
+    // Fixas (cache) + tema (busca do briefing/marca). A tema dita o tempo da
+    // fonte; as fixas respondem do cache quase sempre.
+    track(
+      "reddit",
+      Promise.all([fetchReddit(log, mercado), fetchRedditTema(terms, log)]).then((r) =>
+        r.flat()
+      ),
+      onProgress
+    ),
   ]);
 
   return { instagram, tiktok, twitter, news, reddit };

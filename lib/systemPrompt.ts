@@ -307,6 +307,7 @@ A expressão, o bordão ou a estrutura de frase que o meme está espalhando, esc
 Cada post de Instagram e de Reddit vem com um campo fonte, que diz a procedência e muda como você lê o item:
 - fonte "meme": comunidade ou conta cuja publicação é o próprio meme. É a matéria-prima direta desta seção.
 - fonte "geral": veículo de notícia, esporte, cultura pop, ou comunidade de discussão. Raramente sustenta um meme sozinho.
+- fonte "tema" (só Reddit): busca pelo assunto do briefing e da marca, em qualquer comunidade, nos últimos 30 dias (veja createdAt). É a melhor fonte de comportamento, rituais, barreiras e vocabulário de quem vive o tema agora. Comunidade em outro idioma (ex.: r/poker em inglês) é sinal de comportamento global: diga isso, não apresente como conversa do país.
 
 No Reddit, fonte "meme" vem de comunidade de humor, onde o post costuma ser uma imagem-modelo e o texto do título é a legenda aplicada a ela. É o formato que se repete com variação, não aquela imagem específica: descreva em linguagem a estrutura reaproveitável ("legenda X sobre foto de Y"), não a piada individual. Post de fonte "meme" com muitos upvotes e imageUrl é o melhor candidato de imagem-modelo que temos — as outras fontes cobrem áudio e bordão, não imagem.
 

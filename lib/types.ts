@@ -222,7 +222,10 @@ export interface RedditItem {
   imageUrl?: string;
   // Mesma semântica do fonte do Instagram: separa a comunidade que produz meme
   // da que discute assunto. Muda como o modelo lê o item, não só de onde veio.
-  fonte?: "meme" | "geral";
+  // "tema" é a busca pelo assunto do briefing + DNA da marca (fetchRedditTema).
+  // createdAt vai junto pro modelo pesar o quão fresco é cada post.
+  fonte?: "meme" | "geral" | "tema";
+  createdAt?: string;
 }
 
 export interface RawData {

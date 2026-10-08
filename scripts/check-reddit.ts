@@ -1,4 +1,9 @@
-import { montarPostsReddit, type RawRedditItem } from "../lib/apify";
+import {
+  inputRedditTema,
+  montarPostsReddit,
+  termosRedditTema,
+  type RawRedditItem,
+} from "../lib/apify";
 
 // A coleta do Reddit não pode ser verificada rodando o actor (custa por item, e
 // a conta ficou sem saldo), então o que dá pra garantir é a transformação: o
@@ -152,6 +157,52 @@ check(
   "fonte é carimbada no item",
   montarPostsReddit([post()], "meme")[0]?.fonte === "meme"
 );
+
+// ── lane tema ─────────────────────────────────────────────
+// A lane que sabe do assunto do report. Se ela não buscar pelo tema, o Reddit
+// volta a ser só pulso geral (o bug do report de poker da Copag, 08/10/2026).
+
+const termosTema = termosRedditTema({
+  social: ["poker", "BSOP", "Copag"],
+  adjacent: ["noite de jogos", "Poker", "home game"],
+  news: [],
+});
+check(
+  "tema intercala termo direto e entorno, sem repetir, até 4",
+  JSON.stringify(termosTema) === JSON.stringify(["poker", "noite de jogos", "BSOP", "Copag"]),
+  termosTema
+);
+check(
+  "sem termos não busca nada",
+  termosRedditTema({ social: [], adjacent: [], news: [] }).length === 0
+);
+const inTema = inputRedditTema(termosTema);
+check(
+  "tema busca pelos termos, não por subs fixos",
+  JSON.stringify(inTema.searches) === JSON.stringify(termosTema) && !("startUrls" in inTema),
+  inTema
+);
+check("tema nunca liga NSFW", inTema.includeNSFW === false);
+
+const tresSemanas = new Date(Date.now() - 21 * 86_400_000).toISOString();
+const doisMeses = new Date(Date.now() - 60 * 86_400_000).toISOString();
+check(
+  "tema aceita post do último mês",
+  montarPostsReddit([post({ createdAt: tresSemanas })], "tema").length === 1
+);
+check(
+  "tema corta post de mais de um mês (report é do momento)",
+  montarPostsReddit([post({ createdAt: doisMeses })], "tema").length === 0
+);
+check(
+  "lanes fixas seguem na janela de uma semana",
+  montarPostsReddit([post({ createdAt: tresSemanas })], "geral").length === 0
+);
+check(
+  "tema leva a data pro modelo",
+  montarPostsReddit([post({ createdAt: tresSemanas })], "tema")[0]?.createdAt === tresSemanas
+);
+check("tema busca no último mês", inTema.time === "month");
 
 console.log(falhas === 0 ? "\nTodos os casos passaram." : `\n${falhas} caso(s) falhou.`);
 process.exit(falhas === 0 ? 0 : 1);
