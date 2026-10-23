@@ -40,7 +40,7 @@ const FINALIZE_BUDGET_MS = 25 * 60 * 1000
 // conta da Apify. X e TikTok (janela menor, menos repetição) seguem a cadência
 // da marca. A folga abaixo de 7 dias evita pular a semana inteira quando a
 // marca (84h) vence poucos minutos antes de completar 168h.
-const FONTES_SEMANAIS: Fonte[] = ['reddit', 'linkedin']
+const FONTES_SEMANAIS: Fonte[] = ['reddit', 'linkedin', 'youtube']
 const INTERVALO_SEMANAL_MS = 6.5 * 24 * 3_600_000
 
 // Fontes semanais que esta marca já disparou dentro da semana (pelo histórico de
