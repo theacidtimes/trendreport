@@ -6,7 +6,7 @@ export function scoreHype(data: RawDataPoint[]): HypeScore {
   // comportamento manda (85% densidade+velocidade), fato é só âncora (15%).
   const densos  = data.filter(d => d.fonte === 'reddit' || d.fonte === 'linkedin')
   const news    = data.filter(d => d.fonte === 'news')
-  const rapidos = data.filter(d => d.fonte === 'twitter' || d.fonte === 'tiktok')
+  const rapidos = data.filter(d => d.fonte === 'twitter' || d.fonte === 'tiktok' || d.fonte === 'youtube')
 
   // DIMENSÃO 1 — Densidade Conversacional (65%)
   const totalComentarios = densos.reduce((acc, d) => acc + (d.comentarios || 0), 0)

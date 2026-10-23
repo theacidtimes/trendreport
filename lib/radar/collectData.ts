@@ -6,7 +6,7 @@ const APIFY_BASE = 'https://api.apify.com/v2'
 
 // Fonte de SCRAPE (o que dispara um run). Difere da fonte do RawDataPoint: 'news_global'
 // raspa imprensa global EN mas os itens saem como fonte 'news' (mesma dimensão de score).
-export type Fonte = 'reddit' | 'news' | 'news_global' | 'twitter' | 'tiktok' | 'linkedin'
+export type Fonte = 'reddit' | 'news' | 'news_global' | 'twitter' | 'tiktok' | 'linkedin' | 'youtube'
 
 // A REST da Apify exige o ID no formato username~actor (til), não username/actor.
 // A barra quebra o path e a API responde 404 "no API endpoint at this URL".
@@ -129,6 +129,25 @@ export function scrapeSpec(
         scrapeComments: false,
         scrapeReactions: false,
         profileScraperMode: 'short'
+      }
+    }
+  }
+  if (fonte === 'youtube') {
+    // Busca de vídeos por termo (streamers/youtube-scraper, oficial Apify). Sem shorts nem
+    // streams: o valor é o vídeo técnico. date=month + relevance segura recência sem run
+    // vazio em termo de nicho. 3 termos × 10 vídeos ≈ US$ 0,08 por run (US$ 0,0026/vídeo).
+    // Comentários NÃO são raspados aqui: exigiriam um segundo run encadeado, e o vídeo
+    // (título + descrição + views/likes) já carrega o argumento.
+    return {
+      actorId: 'streamers/youtube-scraper',
+      input: {
+        searchQueries: keywords.slice(0, 3),
+        maxResults: 10,
+        maxResultsShorts: 0,
+        maxResultStreams: 0,
+        dateFilter: 'month',
+        sortingOrder: 'relevance',
+        videoType: 'video'
       }
     }
   }
@@ -289,6 +308,7 @@ export function mapItems(
     : fonte === 'news' || fonte === 'news_global' ? mapNews(items)
     : fonte === 'tiktok' ? mapTikTok(items, mercado)
     : fonte === 'linkedin' ? mapLinkedin(items, idioma ?? mercado.idioma)
+    : fonte === 'youtube' ? mapYouTube(items, idioma ?? mercado.idioma)
     : mapTwitter(items, mercado)
   return pontos.map(sanearTextos)
 }
@@ -546,4 +566,47 @@ function mapLinkedin(items: any[], idioma = 'pt'): RawDataPoint[] {
       // Outro idioma passa sem filtro — não dropar às cegas sem detector.
       (idioma === 'pt' ? ehPortugues(item.snippet) : idioma === 'es' ? ehEspanhol(item.snippet) : true)
     )
+}
+
+// Vídeos do YouTube por busca de termo (streamers/youtube-scraper). Medido em 23/10/2026
+// com 'vigor da semente de soja': de 5 vídeos, 4 tinham menos de 150 views e nenhum
+// comentário — canal de nicho técnico tem audiência pequena, então o piso é BAIXO de
+// propósito (300 views OU 5 curtidas) e ele existe só pra barrar vídeo morto. A descrição
+// é o corpo: título + texto do autor é o argumento, e views/curtidas dão a tração.
+// Autor do canal não entra no snippet além do nome público do canal (conteúdo publicado).
+const YOUTUBE_MIN_VIEWS = 300
+const YOUTUBE_MIN_CURTIDAS = 5
+const YOUTUBE_MIN_CORPO = 80
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapYouTube(items: any[], idioma = 'pt'): RawDataPoint[] {
+  return items
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter((i: any) => i.type === 'video' || i.type === undefined)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((i: any) => {
+      const titulo = String(i.title || '').replace(/\s+/g, ' ').trim()
+      const descricao = String(i.text || '').replace(/\s+/g, ' ').trim()
+      const canal = i.channelName ? `${i.channelName}: ` : ''
+      const views = Number(i.viewCount) || 0
+      const curtidas = Number(i.likes) || 0
+      return {
+        fonte: 'youtube' as const,
+        titulo: titulo.substring(0, 100),
+        url: i.url || '',
+        snippet: `${canal}${titulo}. ${descricao.substring(0, 420)}\n(${views} views, ${curtidas} curtidas)`,
+        comentarios: Number(i.commentsCount) || 0,
+        upvotes: curtidas,
+        _views: views,
+        coletado_em: new Date().toISOString()
+      }
+    })
+    .filter(item =>
+      item.titulo &&
+      item.url &&
+      item.snippet.length >= YOUTUBE_MIN_CORPO &&
+      (item._views >= YOUTUBE_MIN_VIEWS || item.upvotes >= YOUTUBE_MIN_CURTIDAS) &&
+      (idioma === 'pt' ? ehPortugues(item.snippet) : idioma === 'es' ? ehEspanhol(item.snippet) : true)
+    )
+    .map(({ _views, ...ponto }) => { void _views; return ponto })
 }

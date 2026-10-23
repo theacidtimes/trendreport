@@ -47,6 +47,7 @@ const LIMITES: Record<string, number> = {
   tiktok: 35,
   twitter: 45,
   linkedin: 15,
+  youtube: 15,
   news: 25
 }
 
@@ -116,6 +117,7 @@ function buildCamadaInternet(data: RawDataPoint[]): string {
   const tiktok   = maisRelevantes(data, 'tiktok',   LIMITES.tiktok)
   const twitter  = maisRelevantes(data, 'twitter',  LIMITES.twitter)
   const linkedin = maisRelevantes(data, 'linkedin', LIMITES.linkedin)
+  const youtube  = maisRelevantes(data, 'youtube',  LIMITES.youtube)
   const news     = maisRelevantes(data, 'news',     LIMITES.news)
 
   const blocos = [
@@ -132,6 +134,11 @@ ${twitter.map(d => `[TWITTER] ${d.titulo} (${d.comentarios || 0} respostas, ${d.
   if (linkedin.length) {
     blocos.push(`--- LINKEDIN (discurso profissional e de mercado) ---
 ${linkedin.map(d => `[LINKEDIN] ${d.titulo} (${d.comentarios || 0} comentários, ${d.upvotes || 0} reações)\n${d.snippet}\nFonte: ${d.url}`).join('\n\n')}`)
+  }
+
+  if (youtube.length) {
+    blocos.push(`--- YOUTUBE (vídeo técnico e prova de campo) ---
+${youtube.map(d => `[YOUTUBE] ${d.titulo} (${d.comentarios || 0} comentários, ${d.upvotes || 0} curtidas)\n${d.snippet}\nFonte: ${d.url}`).join('\n\n')}`)
   }
 
   blocos.push(`--- GOOGLE NEWS (transbordo de mídia, âncora factual) ---

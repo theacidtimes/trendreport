@@ -19,7 +19,7 @@ const check = (nome: string, ok: boolean, extra?: unknown) => {
 const termos = ["homem aranha", "tom holland", "trailer", "quarto termo"];
 const spec = (fonte: Fonte) => scrapeSpec(fonte, termos);
 
-const FONTES: Fonte[] = ["reddit", "news", "news_global", "twitter", "tiktok", "linkedin"];
+const FONTES: Fonte[] = ["reddit", "news", "news_global", "twitter", "tiktok", "linkedin", "youtube"];
 
 // ── contrato comum ────────────────────────────────────────
 for (const fonte of FONTES) {
@@ -92,6 +92,12 @@ const tk = spec("tiktok").input;
 check("tiktok: mantem janela de um mes", tk.videoSearchDateFilter === "PAST_MONTH", tk.videoSearchDateFilter);
 // Sem proxy BR a busca devolve conteúdo global e o filtro de idioma zera.
 check("tiktok: mantem proxy BR", tk.proxyCountryCode === "BR", tk.proxyCountryCode);
+
+const yt = spec("youtube").input;
+check("youtube: actor oficial de busca", spec("youtube").actorId === "streamers/youtube-scraper");
+check("youtube: corta em 3 termos", (yt.searchQueries as string[]).length === 3, yt.searchQueries);
+check("youtube: so video (sem shorts nem streams)", yt.maxResultsShorts === 0 && yt.maxResultStreams === 0, yt);
+check("youtube: tem janela de um mes", yt.dateFilter === "month", yt.dateFilter);
 
 // ── borda: menos termos que o corte ───────────────────────
 const um = scrapeSpec("twitter", ["so um termo"]).input;

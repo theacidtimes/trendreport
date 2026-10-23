@@ -25,6 +25,8 @@ insert into public.marcas (nome, tenant_id, status_varredura, intervalo_horas, y
     "termos_culturais_en": ["seed technology", "agtech", "regenerative agriculture", "soil health", "seed genetics", "precision agriculture", "crop rotation", "brazil soybean"],
     "linkedin_ativo": true,
     "termos_linkedin": ["tecnologia de sementes", "agtech brasil", "agricultura regenerativa", "biotecnologia agricola", "pesquisa agropecuaria", "melhoramento genetico"],
+    "youtube_ativo": true,
+    "termos_youtube": ["vigor da semente de soja", "milheto granifero segunda safra", "silagem de milheto valente", "semente pirata ADR300", "dia de campo soja"],
     "dominios_culturais": ["agro", "clima", "economia", "tech"],
     "peso_cultural": 0.35,
     "perfil_cultural_manual": true,

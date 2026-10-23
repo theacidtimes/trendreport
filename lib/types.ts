@@ -269,6 +269,13 @@ export interface MarcaKnowledge {
   // pro léxico B2B certo (ex. VOLL: "gestão de viagens corporativas"). Vazio/ausente
   // = fallback pros termos_culturais (compat com marcas que já rodavam sem isto).
   termos_linkedin?: string[]
+  // YouTube é ligável por marca, como o LinkedIn. Liga pra quem o público vive de vídeo
+  // técnico e dia de campo (agro, indústria, B2B de produto): ali a prova está no vídeo
+  // e na conversa em volta dele. Ausente/false = não raspa.
+  youtube_ativo?: boolean
+  // Termos DEDICADOS da lane YouTube: frase de busca de vídeo (como o público digitaria
+  // na barra do YouTube), não termo de marca. Vazio/ausente = fallback pros termos_culturais.
+  termos_youtube?: string[]
   // Idioma editorial da marca (ISO curto: 'pt', 'en', 'es'). Governa a peneira de
   // idioma da lane LinkedIn — o actor busca global e não filtra geo/idioma, então post
   // fora do idioma da marca é ruído (ex.: GRC global em inglês pra marca BR). Ausente =
@@ -443,7 +450,7 @@ export interface TrendDrop {
 }
 
 export interface RawDataPoint {
-  fonte: 'reddit' | 'news' | 'twitter' | 'tiktok' | 'linkedin'
+  fonte: 'reddit' | 'news' | 'twitter' | 'tiktok' | 'linkedin' | 'youtube'
   titulo: string
   url: string
   snippet: string

@@ -46,7 +46,7 @@ function culturalTrio(termos: string[]): ScrapeLane[] {
 }
 
 // Ancoras que NAO entram no fan-out: early signals global (culturalEn), ancora de
-// marca (reddit direto + news pt-br) e LinkedIn (unica fonte ligavel por marca).
+// marca (reddit direto + news pt-br), LinkedIn e YouTube (as fontes ligaveis por marca).
 // Identicas ao lanesFor legado — o que muda entre os dois caminhos e so o miolo cultural.
 function anchorLanes(marca: Marca): ScrapeLane[] {
   const k = marca.yaml_conhecimento
@@ -58,6 +58,10 @@ function anchorLanes(marca: Marca): ScrapeLane[] {
   if (k.linkedin_ativo) {
     const linkedinTerms = k.termos_linkedin?.length ? k.termos_linkedin : (k.termos_culturais ?? [])
     if (linkedinTerms.length) lanes.push({ fonte: 'linkedin', keywords: linkedinTerms })
+  }
+  if (k.youtube_ativo) {
+    const youtubeTerms = k.termos_youtube?.length ? k.termos_youtube : (k.termos_culturais ?? [])
+    if (youtubeTerms.length) lanes.push({ fonte: 'youtube', keywords: youtubeTerms })
   }
   return lanes
 }
