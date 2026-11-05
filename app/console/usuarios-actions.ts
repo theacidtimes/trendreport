@@ -35,8 +35,8 @@ function serviceDb() {
 }
 
 // Origem real da requisicao (local: localhost; prod: dominio Vercel via forwarded).
-function origin(): string {
-  const h = headers();
+async function origin(): Promise<string> {
+  const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
   return `${proto}://${host}`;
@@ -56,7 +56,7 @@ function senhaTemporaria(): string {
 export async function listarUsuariosTenant(
   tenantId: string
 ): Promise<UsuarioTenant[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.rpc("acid_tenant_usuarios", {
     p_tenant: tenantId,
   });
@@ -71,7 +71,7 @@ export async function definirPapel(
   role: string
 ): Promise<void> {
   if (!ROLES.includes(role as Role)) throw new Error("Papel inválido.");
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.rpc("acid_definir_papel", {
     p_tenant: tenantId,
     p_user: userId,
@@ -86,7 +86,7 @@ export async function removerMembro(
   tenantId: string,
   userId: string
 ): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.rpc("acid_remover_membro", {
     p_tenant: tenantId,
     p_user: userId,
@@ -113,7 +113,7 @@ export async function adicionarUsuario(
   if (!EMAIL_RE.test(email)) throw new Error("E-mail inválido.");
   if (!ROLES.includes(role as Role)) throw new Error("Papel inválido.");
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 1. Ja tem conta?
   const { data: existingId, error: buscaErr } = await supabase.rpc(
@@ -182,7 +182,7 @@ export async function adicionarUsuario(
     const { data: link } = await admin.auth.admin.generateLink({ type: "recovery", email });
     const hash = link?.properties?.hashed_token;
     if (hash) {
-      const actionUrl = `${origin()}/auth/confirm?token_hash=${hash}&type=recovery&next=/ativar`;
+      const actionUrl = `${await origin()}/auth/confirm?token_hash=${hash}&type=recovery&next=/ativar`;
       const { subject, html } = contaCriadaEmail({ tenantNome, actionUrl });
       await sendEmail({ to: email, subject, html });
     }
@@ -210,7 +210,7 @@ export async function convidarAdminInicial(
   const email = emailRaw.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) throw new Error("E-mail do admin inválido.");
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Nome do tenant pro corpo do e-mail.
   const { data: tenantRow } = await supabase
@@ -260,7 +260,7 @@ export async function convidarAdminInicial(
     throw new Error(papelErr.message);
   }
 
-  const actionUrl = `${origin()}/auth/confirm?token_hash=${hash}&type=invite&next=/ativar`;
+  const actionUrl = `${await origin()}/auth/confirm?token_hash=${hash}&type=invite&next=/ativar`;
   const { subject, html } = inviteEmail({ tenantNome, actionUrl });
   await sendEmail({ to: email, subject, html });
 

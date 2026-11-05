@@ -54,12 +54,13 @@ function StatCard({ label, total, d30, d7, peak }: StatCardProps) {
   );
 }
 
-export default async function ClienteDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const supabase = createClient();
+export default async function ClienteDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const { data: marcaData } = await supabase
     .from("marcas")

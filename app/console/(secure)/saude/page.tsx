@@ -122,7 +122,7 @@ function alertasDe(t: SaudeRow): Alerta[] {
 }
 
 export default async function SaudePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase.rpc("acid_saude_tenants");
   const rows = (data ?? []) as SaudeRow[];
 

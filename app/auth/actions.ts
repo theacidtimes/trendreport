@@ -19,8 +19,8 @@ function serviceDb() {
 }
 
 // Origem real da requisição (local: localhost; prod: domínio Vercel via forwarded).
-function origin(): string {
-  const h = headers();
+async function origin(): Promise<string> {
+  const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
   return `${proto}://${host}`;
@@ -28,8 +28,8 @@ function origin(): string {
 
 // IP do cliente pro registro de aceite (comprovação). x-forwarded-for pode vir
 // como lista "cliente, proxy1, proxy2": o primeiro é o cliente real.
-function clientIp(): string | null {
-  const h = headers();
+async function clientIp(): Promise<string | null> {
+  const h = await headers();
   const fwd = h.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0].trim();
   return h.get("x-real-ip");
@@ -58,7 +58,7 @@ export async function solicitarReset(emailRaw: string): Promise<{ ok: true }> {
   const hash = data.properties?.hashed_token;
   if (!hash) throw new Error("Falha ao gerar o link de recuperação.");
 
-  const actionUrl = `${origin()}/auth/confirm?token_hash=${hash}&type=recovery&next=/redefinir-senha`;
+  const actionUrl = `${await origin()}/auth/confirm?token_hash=${hash}&type=recovery&next=/redefinir-senha`;
   const { subject, html } = resetEmail({ actionUrl });
   await sendEmail({ to: email, subject, html });
 
@@ -70,7 +70,7 @@ export async function redefinirSenha(novaSenha: string): Promise<{ ok: true }> {
   if (novaSenha.length < 8) {
     throw new Error("A senha precisa ter ao menos 8 caracteres.");
   }
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Sessão de recuperação expirada. Peça um novo link.");
 
@@ -94,7 +94,7 @@ export async function ativarConta(
   if (senha.length < 8) throw new Error("A senha precisa ter ao menos 8 caracteres.");
   if (!aceitouTermos) throw new Error("É necessário aceitar os Termos e Condições para ativar a conta.");
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Convite expirado. Peça um novo para o administrador.");
 
@@ -104,7 +104,7 @@ export async function ativarConta(
       full_name: nome,
       termos_versao: TERMOS_VERSAO,
       termos_aceitos_em: new Date().toISOString(),
-      termos_aceite_ip: clientIp(),
+      termos_aceite_ip: await clientIp(),
     },
   });
   if (error) throw new Error(error.message);

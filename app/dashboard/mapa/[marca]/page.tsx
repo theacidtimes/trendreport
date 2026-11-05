@@ -11,14 +11,15 @@ function parseJanela(v: string | string[] | undefined): number | null {
   return [14, 30, 90].includes(n) ? n : 30;
 }
 
-export default async function MapaCanvasPage({
-  params,
-  searchParams,
-}: {
-  params: { marca: string };
-  searchParams: { janela?: string | string[] };
-}) {
-  const supabase = createClient();
+export default async function MapaCanvasPage(
+  props: {
+    params: Promise<{ marca: string }>;
+    searchParams: Promise<{ janela?: string | string[] }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+  const supabase = await createClient();
 
   const [{ data: marcasData }, graph] = await Promise.all([
     supabase

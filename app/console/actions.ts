@@ -36,7 +36,7 @@ export async function provisionarTenant(input: {
     MODULOS.includes(m as ModuloNome)
   );
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.rpc("provisionar_tenant", {
     p_nome: nome,
     p_tipo: input.tipo,
@@ -62,7 +62,7 @@ export async function updateTenant(
   if (!TIPOS.includes(input.tipo as Tipo)) throw new Error("Tipo inválido.");
   if (!STATUS.includes(input.status as Status)) throw new Error("Status inválido.");
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("tenants")
     .update({
@@ -86,7 +86,7 @@ export async function toggleModulo(
   ativo: boolean
 ): Promise<void> {
   if (!MODULOS.includes(modulo)) throw new Error("Módulo inválido.");
-  const supabase = createClient();
+  const supabase = await createClient();
   // upsert: o tenant pode nunca ter tido a linha (provisionado sem esse módulo).
   const { error } = await supabase
     .from("tenant_modulos")
@@ -108,7 +108,7 @@ export async function lancarAssinatura(
   plano: string
 ): Promise<void> {
   if (!PLANOS.includes(plano as Plano)) throw new Error("Plano inválido.");
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { error: expErr } = await supabase
     .from("assinaturas")
@@ -128,7 +128,7 @@ export async function lancarAssinatura(
 
 // ─── Assinatura: cancelar a vigente ───────────────────────
 export async function cancelarAssinatura(tenantId: string): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("assinaturas")
     .update({ status: "cancelada", auto_renovacao: false })

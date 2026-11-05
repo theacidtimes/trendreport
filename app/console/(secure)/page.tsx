@@ -61,7 +61,7 @@ function formatDate(iso: string | null): string {
 }
 
 export default async function ConsolePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // is_acid_admin bypassa RLS: enxerga todos os tenants. Embeds trazem módulos,
   // assinaturas e contagens de uma vez (sem N+1).

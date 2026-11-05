@@ -17,7 +17,7 @@ function formatDate(iso: string | null): string {
 }
 
 export default async function ClientesPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data } = await supabase
     .from("marcas")

@@ -3,7 +3,7 @@ import BrandingForm from "@/components/admin/BrandingForm";
 import type { Tenant, TenantBranding } from "@/lib/types";
 
 export default async function MarcaPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // A rota já é protegida pelo admin/layout (checkIsAdmin). Resolve o tenant do
   // usuário pela própria associação (self-read na policy de tenant_users).

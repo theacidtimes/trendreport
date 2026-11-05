@@ -32,7 +32,7 @@ async function comPerfilDerivado(dna: MarcaKnowledge): Promise<MarcaKnowledge> {
 }
 
 export async function toggleMarca(id: string, status: boolean): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("marcas")
     .update({ status_varredura: status })
@@ -46,7 +46,7 @@ export async function toggleMarca(id: string, status: boolean): Promise<void> {
 // travadas). linkedin_ativo vive dentro do jsonb yaml_conhecimento, então lê o DNA atual,
 // troca só o flag e regrava (preserva o resto do DNA).
 export async function toggleLinkedin(id: string, active: boolean): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: atual } = await supabase
     .from("marcas")
     .select("yaml_conhecimento")
@@ -100,7 +100,7 @@ export async function createMarca(data: {
     pais: (data.pais ?? "BR").trim().toUpperCase(),
   };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   // Marca nova SEM perfil declarado é exatamente o caso que criou o buraco: antes
   // disto ela nascia, por construção, sem agenda cultural nenhuma, e a ausência
   // não dava erro nem log. Se o admin já preencheu os campos na tela, a escolha
@@ -149,7 +149,7 @@ export async function updateMarca(
   const nome = data.nome.trim();
   if (!nome) throw new Error("Nome da marca é obrigatório.");
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Sempre lê o DNA gravado. Antes, esta leitura era condicional (só quando algum
   // dos três campos conhecidos faltava) e o resultado era montado do zero: quem

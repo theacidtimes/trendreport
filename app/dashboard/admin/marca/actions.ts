@@ -48,7 +48,7 @@ export async function salvarBranding(input: {
   if (cor_primaria) branding.cor_primaria = cor_primaria.toUpperCase();
   if (cor_destaque) branding.cor_destaque = cor_destaque.toUpperCase();
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.rpc("atualizar_branding", {
     p_branding: branding,
   });

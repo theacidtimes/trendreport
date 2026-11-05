@@ -24,7 +24,7 @@ export async function salvarLinha(entrada: EntradaLinha): Promise<void> {
   const v = normalizarLinha(entrada);
   if (!v.ok) throw new Error(v.erro);
 
-  const supabase = createClient();
+  const supabase = await createClient();
   // Linha própria herda o tenant da marca. Escolher os dois separados na tela
   // permitiria marca de um tenant com escopo de outro — combinação que a RLS
   // aceita e que selectAgenda nunca usaria do jeito que a tela mostra.
@@ -50,7 +50,7 @@ export async function salvarLinha(entrada: EntradaLinha): Promise<void> {
 }
 
 export async function alternarLinha(id: string, ativo: boolean): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("pulso_cultural")
     .update({ ativo })
@@ -60,7 +60,7 @@ export async function alternarLinha(id: string, ativo: boolean): Promise<void> {
 }
 
 export async function excluirLinha(id: string): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("pulso_cultural").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidar();
@@ -87,7 +87,7 @@ export type MudancaPerfil = {
  * que a do modelo, e sobrescrevê-la em lote seria destruir trabalho sem aviso.
  */
 export async function reavaliarPerfis(): Promise<MudancaPerfil[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase.from("marcas").select("*");
   const marcas = (data ?? []) as Marca[];
 

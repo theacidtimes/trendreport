@@ -7,7 +7,7 @@ import type { Membro } from "@/app/dashboard/admin/usuarios/actions";
 // tenant de jwt_tenant_id() por dentro. O teto de seats e read-only: quem vende
 // seat e a ACID (console); aqui o admin so preenche ate o teto.
 export default async function UsuariosPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
