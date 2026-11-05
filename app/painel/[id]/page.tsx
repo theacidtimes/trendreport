@@ -19,11 +19,12 @@ function serviceDb() {
   );
 }
 
-export default async function PainelPublico({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function PainelPublico(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   if (!UUID_RE.test(params.id)) notFound();
 
   const supabase = serviceDb();

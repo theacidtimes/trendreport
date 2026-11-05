@@ -11,11 +11,9 @@ type PatchBody = {
 // são sempre escritos pelo pipeline de geração, nunca por esta rota.
 const EDITABLE_STATUSES = ["ready", "published"] as const;
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { slug: string } }
-) {
-  const supabase = createClient();
+export async function PATCH(req: Request, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },
@@ -98,11 +96,9 @@ export async function PATCH(
   return NextResponse.json({ slug: data.slug, status: data.status });
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { slug: string } }
-) {
-  const supabase = createClient();
+export async function DELETE(_req: Request, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },

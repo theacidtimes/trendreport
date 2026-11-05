@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/server'
  * que nunca casa com linha nenhuma.
  */
 export async function dominiosDaAgenda(pais?: string): Promise<string[]> {
-  const supabase = createClient()
+  const supabase = await createClient()
   // Só linha de domínio (marca_id null). Linha própria entra na agenda da marca
   // sem assinatura; se contasse aqui, o domínio em que ela foi arquivada viraria
   // opção na derivação de TODA marca, sem nenhuma linha que case para elas.

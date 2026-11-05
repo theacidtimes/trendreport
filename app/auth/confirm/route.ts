@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const destino = next.startsWith("/") ? next : "/dashboard";
 
   if (token_hash && type) {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
       return NextResponse.redirect(`${origin}${destino}`);

@@ -48,16 +48,17 @@ const usd = (n: number) =>
     maximumFractionDigits: 2,
   })}`;
 
-export default async function CustosPage({
-  searchParams,
-}: {
-  searchParams: { dias?: string };
-}) {
+export default async function CustosPage(
+  props: {
+    searchParams: Promise<{ dias?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const dias = PERIODOS.includes(Number(searchParams.dias))
     ? Number(searchParams.dias)
     : 30;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const [{ data: custosData }, { data: detalheData }] = await Promise.all([
     supabase.rpc("acid_custos_tenants", { p_dias: dias }),
     supabase.rpc("acid_custos_detalhe", { p_dias: dias }),

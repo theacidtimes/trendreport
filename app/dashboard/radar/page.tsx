@@ -9,12 +9,13 @@ import RadarStatus from "@/components/radar/RadarStatus";
 import type { Marca } from "@/lib/types";
 import { REGIOES, parseRegiao, regiaoDe, type Regiao } from "@/lib/mercados";
 
-export default async function RadarPage({
-  searchParams,
-}: {
-  searchParams: { regiao?: string | string[] };
-}) {
-  const supabase = createClient();
+export default async function RadarPage(
+  props: {
+    searchParams: Promise<{ regiao?: string | string[] }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
 
   const {
     data: { user },

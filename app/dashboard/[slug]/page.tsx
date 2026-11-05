@@ -9,12 +9,13 @@ import ReportEditor from "./ReportEditor";
 import PendingReport from "./PendingReport";
 import type { TrendReport } from "@/lib/types";
 
-export default async function DashboardReportPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  const supabase = createClient();
+export default async function DashboardReportPage(
+  props: {
+    params: Promise<{ slug: string }>;
+  }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },

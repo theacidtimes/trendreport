@@ -41,8 +41,8 @@ function serviceDb() {
 }
 
 // Origem real da requisicao (local: localhost; prod: dominio Vercel via forwarded).
-function origin(): string {
-  const h = headers();
+async function origin(): Promise<string> {
+  const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
   return `${proto}://${host}`;
@@ -60,7 +60,7 @@ function senhaTemporaria(): string {
 
 // ─── Listar membros do proprio tenant ─────────────────────
 export async function listarMembros(): Promise<Membro[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.rpc("meus_usuarios");
   if (error) throw new Error(error.message);
   return (data ?? []) as Membro[];
@@ -72,7 +72,7 @@ export async function definirPapelMembro(
   role: string
 ): Promise<void> {
   if (!ROLES.includes(role as Role)) throw new Error("Papel inválido.");
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.rpc("meu_tenant_definir_papel", {
     p_user: userId,
     p_role: role,
@@ -83,7 +83,7 @@ export async function definirPapelMembro(
 
 // ─── Remover membro do proprio tenant ─────────────────────
 export async function removerMembroMeuTenant(userId: string): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.rpc("meu_tenant_remover_membro", {
     p_user: userId,
   });
@@ -108,7 +108,7 @@ export async function adicionarMembro(
   if (!EMAIL_RE.test(email)) throw new Error("E-mail inválido.");
   if (!ROLES.includes(role as Role)) throw new Error("Papel inválido.");
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 1. Pre-checa seats. Resolve o tenant pela associacao (self-read), le o teto
   //    (self-read em tenants) e conta membros via a propria RPC (admin-gated).
@@ -181,7 +181,7 @@ export async function adicionarMembro(
     const { data: link } = await admin.auth.admin.generateLink({ type: "recovery", email });
     const hash = link?.properties?.hashed_token;
     if (hash) {
-      const actionUrl = `${origin()}/auth/confirm?token_hash=${hash}&type=recovery&next=/ativar`;
+      const actionUrl = `${await origin()}/auth/confirm?token_hash=${hash}&type=recovery&next=/ativar`;
       const { subject, html } = contaCriadaEmail({ tenantNome, actionUrl });
       await sendEmail({ to: email, subject, html });
     }

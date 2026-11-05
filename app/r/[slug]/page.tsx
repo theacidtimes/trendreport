@@ -4,12 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import ReportView from "@/components/ReportView";
 import type { TrendReport, TenantBranding } from "@/lib/types";
 
-export default async function PublicReportPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  const supabase = createClient();
+export default async function PublicReportPage(
+  props: {
+    params: Promise<{ slug: string }>;
+  }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const { data: row } = await supabase
     .from("reports")

@@ -56,12 +56,13 @@ function formatDateTime(iso: string): string {
   });
 }
 
-export default async function TenantDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const supabase = createClient();
+export default async function TenantDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { id } = params;
 
   // is_acid_admin bypassa RLS — leitura cross-tenant. Tudo em paralelo.

@@ -48,7 +48,7 @@ function formatPeriodo(dateStr: string): string {
 }
 
 export default async function LakePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   // Primeiro corte: bucket semanal, sem recorte de setor/dimensão/data. A RPC já
   // vem ordenada por período desc, n_sinais desc — a célula mais quente no topo.
   const { data, error } = await supabase.rpc("fabric_trend_cells", {

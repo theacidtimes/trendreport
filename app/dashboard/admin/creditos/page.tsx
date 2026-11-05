@@ -22,7 +22,7 @@ function formatDateTime(iso: string): string {
 }
 
 export default async function CreditosPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // A rota já é protegida pelo admin/layout (checkIsAdmin). Aqui só resolvemos
   // o tenant do usuário e checamos o super-admin ACID (pra liberar a recarga).

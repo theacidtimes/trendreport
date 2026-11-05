@@ -7,7 +7,7 @@ import AgendaBoard, { type DominioResumo, type MarcaOpcao, type TenantOpcao } fr
 export const dynamic = "force-dynamic";
 
 export default async function AgendaPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const [{ data: linhasRaw }, { data: marcasRaw }, { data: tenantsRaw }] =
     await Promise.all([

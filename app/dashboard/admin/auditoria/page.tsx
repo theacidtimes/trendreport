@@ -62,7 +62,7 @@ function formatDate(iso: string): string {
 // tenant; esta pagina em si so faz sentido pro app_admin (ACID), entao reforca o
 // gate e manda o admin do tenant de volta pra gestao de membros.
 export default async function AuditoriaPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   if (!(await checkIsAdmin(supabase))) {
     redirect("/dashboard/admin/usuarios");
