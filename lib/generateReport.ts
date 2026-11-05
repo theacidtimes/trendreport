@@ -40,8 +40,8 @@ export type OnProgress = (progress: ReportProgress) => void | Promise<void>;
 
 const anthropic = new Anthropic();
 
-const MODELO_REPORT = "claude-sonnet-4-6";
-const MODELO_TERMOS = "claude-haiku-4-5-20251001";
+const MODELO_REPORT = "claude-opus-5-5";
+const MODELO_TERMOS = "claude-haiku-5-5";
 
 // Custo de fornecedor medido durante a geração, sem os campos que só quem
 // chama conhece (tenant, marca, origem). Este arquivo mede; quem tem o
@@ -223,7 +223,8 @@ async function deriveSearchTerms(
   try {
     const response = await anthropic.messages.create({
       model: MODELO_TERMOS,
-      max_tokens: 500,
+      // O Haiku 5.5 conta ~30% mais tokens pro mesmo texto; 500 virou 700.
+      max_tokens: 700,
       system: deriveSystem(mercado),
       tools: [DERIVE_TOOL],
       tool_choice: { type: "tool", name: "termos_de_busca" },
@@ -726,7 +727,11 @@ export async function generateReport(
       // margem de nada e cortou o report 4b9ec88a da Vivo no meio (stop_reason
       // max_tokens) depois de 9 minutos de pipeline. Como a chamada é em
       // streaming, teto alto não custa nada a mais: só se paga o que sai.
-      max_tokens: 16000,
+      // O Opus 5.5 sempre pensa antes de responder e o raciocínio sai do mesmo
+      // teto, por isso 64000 e não os 16000 de quando era Sonnet 4.6.
+      max_tokens: 64000,
+      thinking: { type: "adaptive" },
+      output_config: { effort: "high" },
       system: [
         {
           type: "text",
@@ -745,6 +750,15 @@ export async function generateReport(
   // Antes de qualquer validação do conteúdo: os tokens já foram cobrados,
   // inclusive os da resposta que vamos descartar logo abaixo.
   registrarLlm(custos, MODELO_REPORT, response);
+
+  // O 5.5 tem classificador de segurança: um briefing pode ser recusado sem erro de API.
+  if (response.stop_reason === "refusal") {
+    console.error("Geração recusada pelo modelo (stop_reason=refusal).");
+    return {
+      custos,
+      error: "O modelo recusou gerar este relatório. Revise o briefing e tente de novo.",
+    };
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {

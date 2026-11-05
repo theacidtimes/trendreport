@@ -72,6 +72,9 @@ const PRECO_POR_MTOK: Record<
 > = {
   "claude-sonnet-4-6": { in: 3, out: 15, cacheWrite: 3.75, cacheRead: 0.3 },
   "claude-haiku-4-5": { in: 1, out: 5, cacheWrite: 1.25, cacheRead: 0.1 },
+  "claude-opus-5-5": { in: 4, out: 20, cacheWrite: 5, cacheRead: 0.4 },
+  // Preço vale pra prompts de até 100K tokens, que é o caso de todas as chamadas daqui.
+  "claude-haiku-5-5": { in: 0.1, out: 0.5, cacheWrite: 0.125, cacheRead: 0.01 },
 };
 
 export type UsoAnthropic = {

@@ -15,7 +15,7 @@ import { CAP_AGENDA_CLUSTERS } from './planner'
 // culturais). O trabalho de traduzir isso para "quais domínios da agenda ela
 // assina e quanto pesam" é derivação, não digitação.
 
-const MODELO_PERFIL = 'claude-haiku-4-5-20251001'
+const MODELO_PERFIL = 'claude-haiku-5-5'
 
 // O que sai da derivação. `justificativa` não é enfeite: é o que permite a
 // alguém olhar a tela e discordar com fundamento — sem ela, o campo derivado
@@ -195,7 +195,7 @@ export async function derivarPerfilCultural(
   try {
     const res = await anthropicClient().messages.create({
       model: MODELO_PERFIL,
-      max_tokens: 400,
+      max_tokens: 550,
       system: SYSTEM,
       tools: [buildPerfilTool(dominiosDisponiveis)],
       tool_choice: { type: 'tool', name: 'perfil_cultural' },
