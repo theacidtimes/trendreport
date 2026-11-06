@@ -306,7 +306,6 @@ export default function ReportView({
   const capa = capaItem ? { ...capaItem, imagem_url: imagemDoPost(capaItem) ?? undefined } : undefined;
   const rotuloImporta = (meta.versao_formato ?? 1) >= 2 ? "Por que importa" : "Para a marca";
   const totalSinais = fontes ? Object.values(fontes).reduce((s, v) => s + (v ?? 0), 0) : 0;
-  const hype = Math.max(0, Math.min(100, meta.indice_hype ?? 0));
 
   return (
     <div id="report-raiz" className="bg-bg font-body text-white">
@@ -364,15 +363,8 @@ export default function ReportView({
           )}
 
           {/* EM NÚMEROS */}
-          <div className="mt-12 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="bg-purple-mid p-5 flex flex-col gap-2">
-              <span className="kicker text-white/70">Índice de hype</span>
-              <span className="font-serif text-5xl leading-none tabular-nums">{hype}</span>
-              <span className="block h-2 bg-black/30 mt-2">
-                <span className="block h-full bg-lime" style={{ width: `${hype}%` }} />
-              </span>
-            </div>
-            <div className="bg-surface border border-border p-5 flex flex-col gap-2 lg:col-span-2">
+          <div className="mt-12 grid gap-3 grid-cols-1 sm:grid-cols-3">
+            <div className="bg-surface border border-border p-5 flex flex-col gap-2 sm:col-span-2">
               <span className="kicker text-muted">Próximo gatilho</span>
               <span className="font-serif text-2xl md:text-3xl leading-tight">{meta.proximo_gatilho.evento}</span>
               <span className="text-sm text-lime">
