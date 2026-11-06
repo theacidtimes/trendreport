@@ -36,7 +36,7 @@ export default function PostMedia({
 
   return (
     <figure className="m-0">
-      <div className={`relative w-full overflow-hidden rounded-3xl bg-surface-2 ${proporcao}`}>
+      <div className={`relative w-full overflow-hidden bg-surface-2 ${proporcao}`}>
         {tocando && player ? (
           <iframe
             src={player}
