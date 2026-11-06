@@ -19,6 +19,14 @@ export interface ReportMeta {
   proximo_gatilho: ProximoGatilho;
   cor_marca?: string;
   titulo_social?: string;
+  // 2 = gancho_produto é "por que importa" (leitura), não "e se" criativo.
+  // Reports antigos não têm o campo e mantêm o rótulo "Para a marca".
+  versao_formato?: number;
+}
+
+export interface MetricaTendencia {
+  valor: string;
+  rotulo: string;
 }
 
 export interface Tendencia {
@@ -26,6 +34,9 @@ export interface Tendencia {
   status: TendenciaStatus;
   descricao: string;
   gancho_produto: string;
+  // Trecho literal de um post coletado; o que não bate com a coleta é descartado.
+  citacao?: string | null;
+  metrica?: MetricaTendencia | null;
   imagem_url?: string;
   post_url?: string;
   autor?: string | null;

@@ -531,6 +531,46 @@ export function detectarClusters(
 // Texto de todas as fontes MENOS o TikTok, pra medir transbordo. Sai do rawData
 // completo (não do recorte enviado ao modelo): quanto mais texto, melhor a chance
 // de detectar que o assunto vazou do TikTok pra imprensa/fórum.
+// Normaliza pra comparar citação com a coleta: sem acento, sem pontuação,
+// minúsculo. O JSON dos dados escapa aspas e quebras de linha; isso some aqui.
+function normalizarTexto(t: string): string {
+  return t
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\\n/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+// Mesma trava anti-alucinação dos links do radar, aplicada à evidência do
+// report: citação tem que estar, palavra por palavra, em algum post enviado ao
+// modelo; métrica tem que ter seus números nos dados. O que não bate vira null
+// e o capítulo cai pro molde sem citação/número.
+function validarEvidencias(report: TrendReport, enviados: RawData): number {
+  const bruto = JSON.stringify(enviados);
+  const texto = normalizarTexto(bruto);
+  const digitos = bruto.replace(/[.,]/g, "");
+  let descartadas = 0;
+  for (const t of report.tendencias ?? []) {
+    if (t.citacao) {
+      const trecho = normalizarTexto(t.citacao.replace(/^\.{3}|\.{3}$|…/g, ""));
+      if (trecho.split(" ").length < 4 || !texto.includes(trecho)) {
+        t.citacao = null;
+        descartadas++;
+      }
+    }
+    if (t.metrica) {
+      const numeros = (t.metrica.valor ?? "").replace(/[.]/g, "").match(/\d+/g) ?? [];
+      if (!t.metrica.rotulo || numeros.length === 0 || !numeros.every((n) => digitos.includes(n))) {
+        t.metrica = null;
+        descartadas++;
+      }
+    }
+  }
+  return descartadas;
+}
+
 function corpusExterno(rawData: RawData): { fonte: string; texto: string }[] {
   return [
     ...rawData.news.map((n) => ({
@@ -801,6 +841,12 @@ export async function generateReport(
     news: rawData.news.length,
     reddit: rawData.reddit.length,
   };
+
+  report.meta = { ...report.meta, versao_formato: 2 };
+  const descartadas = validarEvidencias(report, enviados);
+  if (descartadas > 0) {
+    console.log(`[REPORT][EVIDENCIA] ${descartadas} citacao/metrica descartada(s): nao batem com a coleta`);
+  }
 
   // Palavrão no post de origem não corta o card (é o tom real da conversa),
   // mas o card sai marcado pro revisor ver antes de publicar. Compara com

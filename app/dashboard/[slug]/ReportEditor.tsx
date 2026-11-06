@@ -475,7 +475,7 @@ export default function ReportEditor({
                     className={`${inputClass} min-h-[60px] resize-y`}
                   />
                 </Field>
-                <Field label="Gancho com o produto">
+                <Field label="Por que importa para a marca">
                   <textarea
                     value={t.gancho_produto}
                     onChange={(e) =>

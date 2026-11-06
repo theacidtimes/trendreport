@@ -69,7 +69,7 @@ Regra de legitimidade — antes de usar qualquer contexto, pergunte: a marca tem
 
 4. PADRÕES DE HEADLINE E COPY
 
-Estruturas de headline que funcionam bem para titulo_social (o gancho_produto das tendências é um "e se", ver regra própria):
+Estruturas de headline que funcionam bem para titulo_social (o gancho_produto das tendências é leitura de "por que importa", ver regra própria):
 - Pergunta: "Qual é o...", "Será que...", "Quem nunca..."
 - Comparação: "Mais ____ que isso...", "Só falta..."
 - Ironia/observação: "O verdadeiro terror...", "Nem precisa...", "Agora você entende..."
@@ -270,19 +270,23 @@ meta.cor_marca:
 Hex oficial da marca, quando informado no briefing. Se o briefing não trouxer cor, use "#660099".
 
 tendencias[].gancho_produto:
-Um "e se" criativo: provocação de território, NÃO post pronto. O papel do gancho é abrir possibilidades que o time pode explorar, não fechar numa claim. Quem escreve o post é o time; o report entrega o caminho.
-- Começa com "E se..." (ou pergunta equivalente) e tem 1 a 2 frases, até umas 35 palavras.
-- Cruza o universo da tendência com um lado do produto e deixa a execução em aberto. Pode apontar dois caminhos no mesmo gancho quando fizer sentido.
-- O benefício entra como TERRITÓRIO (velocidade, diversão, companhia, a casa inteira junta, imersão), nunca como promessa ou slogan ("sem travar", "já estava pronto", "não perdeu um segundo").
-- Pode ir pelo lado oposto do óbvio: se a tendência é terror, o produto não precisa ser o que "aguenta o susto"; pode ser a diversão, a velocidade de fuga, a companhia.
+POR QUE IMPORTA para a marca. Este report é leitura cultural com evidência, não sugestão criativa: o gancho diz o que o fenômeno significa para a marca e o produto, nunca propõe ação, campanha ou post.
+- 1 a 2 frases, até umas 35 palavras, afirmativas. Nada de "E se...", "A marca pode...", "Que tal...", imperativo ou ideia de peça.
+- Liga o comportamento observado ao público, à categoria ou ao uso do produto: quem está fazendo isso, o que está em jogo, por que agora.
+- O produto entra como contexto do comportamento, nunca como promessa ou slogan ("sem travar", "já estava pronto").
 
-RUIM (claim de post): "Resident Evil chegou como o terror do ano. Sua Fibra entregou cada cena sem travar."
-RUIM (genérico): "Conectar o meme com a internet rápida da Vivo"
-BOM: "E se a Fibra fosse a parceira que não sai do seu lado quando a horda zumbi chega? Dá pra brincar com velocidade de fuga, diversão e a turma toda no sofá."
-BOM: "E se o domingo de NFL fosse contado pelas telas da casa: jogo na TV, meme no celular, placar no notebook?"
-BOM: "E se o pré-download do GTA VI virasse ritual, com contagem regressiva, amigos na call e aposta de quem chega primeiro em Vice City?"
+RUIM (ideia criativa): "E se a G-SHOCK criasse um formato próprio de print de atividade para a comunidade compartilhar?"
+RUIM (genérico): "Mostra que a marca pode se conectar com o público."
+BOM: "Quem corre já trata o treino como conteúdo: o dado do pulso virou post. O relógio está no centro de um ritual social, não só de performance."
+BOM: "A estreia da NFL no Brasil é vivida em várias telas ao mesmo tempo; a conexão da casa vira parte de como o evento é assistido."
 
-VARIE O TERRITÓRIO. Cada gancho puxa um lado diferente do produto: o que ele viabiliza (o momento, a experiência, o estar junto), a casa inteira usando ao mesmo tempo, a imersão, a diversão, a velocidade. Desempenho/estabilidade é UM território entre vários: no máximo uma vez no report inteiro, somando tendencias[].gancho_produto e meta.titulo_social. Se dois ganchos caem no mesmo território, reescreva um. E nunca prometa que nada trava, cai ou engasga.
+VARIE O ÂNGULO entre as tendências (público, categoria, momento de uso, cultura da marca). Desempenho/estabilidade aparece no máximo uma vez no report inteiro.
+
+tendencias[].citacao:
+O trecho LITERAL de um post dos DADOS COLETADOS que melhor mostra a tendência, copiado sem mudar nenhuma palavra (texto do tweet, legenda, título da matéria, fala transcrita do TikTok). Até umas 30 palavras; pode cortar com "..." no começo ou no fim, nunca no meio. Use null se nenhum post tiver frase que valha citar. Nunca parafraseie nem traduza: citação que não estiver nos dados é descartada.
+
+tendencias[].metrica:
+Um número dos DADOS COLETADOS que dá a escala da tendência: { "valor": "17 mil", "rotulo": "curtidas no post da ESPN Brasil" }. O valor sai de um campo real (likesCount, commentsCount, playCount, número citado numa matéria) e pode ser arredondado ("17 mil", "1,2 mi"). Use null quando não houver número que sustente a leitura. Nunca estime nem some números de posts diferentes.
 
 tendencias[].imagem_url, post_url e autor:
 Nunca invente uma URL ou autor. Mapeie exatamente assim:
@@ -393,6 +397,8 @@ O JSON raiz deve ter exatamente oito chaves: meta, tendencias, memes, oportunida
       "status": "em_alta" | "subindo" | "estabilizando" | "esfriando",
       "descricao": string,
       "gancho_produto": string,
+      "citacao": string | null,
+      "metrica": { "valor": string, "rotulo": string } | null,
       "imagem_url": string | null,
       "post_url": string | null,
       "autor": string | null,
