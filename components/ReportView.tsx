@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowUpRight } from "lucide-react";
 import type { Meme, Tendencia, TrendReport } from "@/lib/types";
-import { PLATFORM_LABEL } from "@/lib/platforms";
+import { PLATFORM_ICON, PLATFORM_LABEL } from "@/lib/platforms";
 import CopyBlock from "./CopyBlock";
 import InsightCard from "./InsightCard";
 import GlossaryPanel from "./GlossaryPanel";
@@ -12,6 +12,7 @@ import Logo from "./Logo";
 import SmartImage from "./SmartImage";
 import ReportHeader, { type Capitulo } from "./report/ReportHeader";
 import PostMedia from "./report/PostMedia";
+import { imagemSubidaAMao, urlDoPlayer } from "@/lib/reportMidia";
 
 // Formato revista: capa, header fixo com índice, um capítulo por tendência com
 // foto grande (ou vídeo pelo player da rede) e o fechamento com oportunidades,
@@ -94,7 +95,11 @@ function CapituloTendencia({
   id: string;
 }) {
   const vertical = t.plataforma === "tiktok";
-  const temMidia = Boolean(t.imagem_url || t.post_url);
+  // Foto grande só quando ela é do post (ou há vídeo pra tocar). Post só de
+  // texto, como tweet e notícia sem imagem, vai pro bentô: abrir o capítulo
+  // com uma ilustração da equipe faria parecer que ela veio do post.
+  const ilustracao = imagemSubidaAMao(t.imagem_url) ? (t.imagem_url ?? null) : null;
+  const temMidia = Boolean((t.imagem_url && !ilustracao) || urlDoPlayer(t.post_url));
   return (
     <section id={id} className="scroll-mt-20 pt-20 md:pt-32">
       <Abertura
@@ -104,7 +109,9 @@ function CapituloTendencia({
         titulo={t.titulo}
         extra={<span className="text-muted">· {STATUS_LABEL[t.status]}</span>}
       />
-      {vertical && temMidia ? (
+      {!temMidia ? (
+        <BentoSemImagem t={t} ilustracao={ilustracao} />
+      ) : vertical ? (
         <div className="grid gap-8 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-14 items-start">
           <div className="max-w-[380px] w-full">
             <PostMedia
@@ -120,23 +127,67 @@ function CapituloTendencia({
         </div>
       ) : (
         <>
-          {temMidia && (
-            <div className="mb-10">
-              <PostMedia
-                imagem={t.imagem_url}
-                postUrl={t.post_url}
-                plataforma={t.plataforma}
-                autor={t.autor}
-                alt={t.titulo}
-              />
-            </div>
-          )}
+          <div className="mb-10">
+            <PostMedia
+              imagem={t.imagem_url}
+              postUrl={t.post_url}
+              plataforma={t.plataforma}
+              autor={t.autor}
+              alt={t.titulo}
+            />
+          </div>
           <p className="text-standfirst text-white/85 max-w-prose m-0">{t.descricao}</p>
         </>
       )}
-      <ParaMarca>{t.gancho_produto}</ParaMarca>
+      {temMidia && <ParaMarca>{t.gancho_produto}</ParaMarca>}
       <ASeguir cap={proximo} />
     </section>
+  );
+}
+
+function BentoSemImagem({ t, ilustracao }: { t: Tendencia; ilustracao: string | null }) {
+  const Icone = t.plataforma ? PLATFORM_ICON[t.plataforma] : null;
+  const temFonte = Boolean(t.autor || t.post_url);
+  return (
+    <div className="grid gap-3 grid-cols-1 md:grid-cols-6">
+      {temFonte && (
+        <div className="md:col-span-2 bg-surface border border-border p-6 flex flex-col gap-3">
+          <span className="kicker text-muted flex items-center gap-2">
+            {Icone && <Icone className="w-4 h-4" strokeWidth={1.8} />}
+            Post original{t.plataforma ? ` · ${PLATFORM_LABEL[t.plataforma]}` : ""}
+          </span>
+          {t.autor && <span className="font-serif text-2xl leading-tight text-white break-words">{t.autor}</span>}
+          {t.post_url && (
+            <a
+              href={t.post_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-auto inline-flex items-center gap-1.5 w-fit border border-border rounded-full px-4 py-2 kicker text-white hover:border-lime hover:text-lime transition-colors"
+            >
+              Ver post original
+              <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+            </a>
+          )}
+        </div>
+      )}
+      <div className={`${temFonte ? "md:col-span-4" : "md:col-span-6"} bg-surface border border-border p-6 md:p-8`}>
+        <p className="text-standfirst text-white/85 m-0 max-w-prose">{t.descricao}</p>
+      </div>
+      {ilustracao && (
+        <figure className="md:col-span-2 m-0 bg-surface border border-border p-3 flex flex-col">
+          <div className="relative aspect-[4/5] overflow-hidden bg-surface-2">
+            <SmartImage src={ilustracao} alt={t.titulo} className="absolute inset-0 w-full h-full object-cover" />
+          </div>
+          <figcaption className="kicker text-muted-2 pt-3">Imagem ilustrativa</figcaption>
+        </figure>
+      )}
+      <div
+        className={`${ilustracao ? "md:col-span-4" : "md:col-span-6"} bg-surface-2 p-6 md:p-10 flex flex-col gap-3 justify-center`}
+      >
+        <span className="kicker text-lime">Para a marca</span>
+        <p className="font-serif text-white text-xl md:text-3xl leading-snug m-0 max-w-[40ch]">{t.gancho_produto}</p>
+      </div>
+    </div>
   );
 }
 
@@ -206,7 +257,9 @@ export default function ReportView({
   const pos = (id: string) => capitulos.findIndex((c) => c.id === id);
   const depois = (id: string) => capitulos[pos(id) + 1];
 
-  const capa = tendencias.find((t) => t.imagem_url) ?? memes.find((m) => m.imagem_url);
+  // Capa só com imagem que veio de um post; ilustração da equipe não abre o report.
+  const doPost = (u?: string) => Boolean(u && !imagemSubidaAMao(u));
+  const capa = tendencias.find((t) => doPost(t.imagem_url)) ?? memes.find((m) => doPost(m.imagem_url));
   const totalSinais = fontes ? Object.values(fontes).reduce((s, v) => s + (v ?? 0), 0) : 0;
   const hype = Math.max(0, Math.min(100, meta.indice_hype ?? 0));
 

@@ -5,18 +5,7 @@ import { ArrowUpRight, Play } from "lucide-react";
 import type { Plataforma } from "@/lib/platforms";
 import { PLATFORM_LABEL } from "@/lib/platforms";
 import SmartImage from "../SmartImage";
-
-// O report guarda só o link do post, não o arquivo do vídeo. Vídeo de TikTok
-// e reel de Instagram tocam pelo player oficial da rede, carregado só no
-// clique: até lá fica a imagem que já está no nosso storage (não expira).
-export function urlDoPlayer(postUrl?: string | null): string | null {
-  if (!postUrl) return null;
-  const tiktok = postUrl.match(/tiktok\.com\/.*\/video\/(\d+)/);
-  if (tiktok) return `https://www.tiktok.com/embed/v2/${tiktok[1]}`;
-  const reel = postUrl.match(/instagram\.com\/(?:reel|reels|tv)\/([\w-]+)/);
-  if (reel) return `https://www.instagram.com/reel/${reel[1]}/embed`;
-  return null;
-}
+import { imagemSubidaAMao, urlDoPlayer } from "@/lib/reportMidia";
 
 export default function PostMedia({
   imagem,
@@ -35,6 +24,7 @@ export default function PostMedia({
   formato?: "largo" | "vertical";
 }) {
   const player = urlDoPlayer(postUrl);
+  const ilustrativa = imagemSubidaAMao(imagem);
   const [tocando, setTocando] = useState(false);
   if (!imagem && !player) return null;
 
@@ -75,6 +65,7 @@ export default function PostMedia({
       </div>
       {(autor || plataforma || postUrl) && (
         <figcaption className="mt-2 pt-2 border-t border-border flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+          {ilustrativa && !tocando && <span className="kicker text-muted-2">Imagem ilustrativa · Fonte:</span>}
           {autor && <span className="text-white/80">{autor}</span>}
           {plataforma && <span>{PLATFORM_LABEL[plataforma]}</span>}
           {postUrl && (
