@@ -19,3 +19,15 @@ export function urlDoPlayer(postUrl?: string | null): string | null {
 export function imagemSubidaAMao(url?: string | null): boolean {
   return Boolean(url && url.includes("/report-images/") && !url.includes("/report-images/auto/"));
 }
+
+// Player de um post do radar, com a proporção do que ele mostra: TikTok e reel
+// são verticais (9:16), post de Instagram é retrato (4:5). Reddit, notícia e
+// tweet não têm player e viram card de texto.
+export function embedDoPost(postUrl?: string | null): { src: string; proporcao: string } | null {
+  if (!postUrl) return null;
+  const video = urlDoPlayer(postUrl);
+  if (video) return { src: video, proporcao: "9 / 16" };
+  const post = postUrl.match(/instagram\.com\/p\/([\w-]+)/);
+  if (post) return { src: `https://www.instagram.com/p/${post[1]}/embed`, proporcao: "4 / 5" };
+  return null;
+}

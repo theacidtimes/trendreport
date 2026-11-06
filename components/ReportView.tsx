@@ -12,6 +12,7 @@ import Logo from "./Logo";
 import SmartImage from "./SmartImage";
 import ReportHeader, { type Capitulo } from "./report/ReportHeader";
 import PostMedia from "./report/PostMedia";
+import PostsEmDestaque from "./report/PostsEmDestaque";
 import { imagemSubidaAMao, urlDoPlayer } from "@/lib/reportMidia";
 
 // Formato revista: capa, header fixo com índice, um capítulo por tendência com
@@ -60,7 +61,7 @@ function Abertura({
 // evidência das redes. Reports novos (versao_formato 2) trazem leitura, não ideia.
 function PorQueImporta({ rotulo, children }: { rotulo: string; children: ReactNode }) {
   return (
-    <div className="mt-10 bg-purple-mid text-white px-6 md:px-10 py-6 md:py-7 grid gap-2 md:grid-cols-[180px_1fr] md:gap-10 md:items-baseline">
+    <div className="mt-10 rounded-3xl bg-purple-mid text-white px-6 md:px-10 py-6 md:py-7 grid gap-2 md:grid-cols-[180px_1fr] md:gap-10 md:items-baseline">
       <span className="kicker text-lime">{rotulo}</span>
       <p className="font-serif text-lg md:text-xl leading-snug max-w-[62ch] m-0">{children}</p>
     </div>
@@ -199,7 +200,7 @@ function CapituloTendencia({
 
       {molde === "voz" && (
         <>
-          <figure className="m-0 mb-10 bg-white text-black px-6 py-10 md:px-16 md:py-16">
+          <figure className="m-0 mb-10 rounded-3xl bg-white text-black px-6 py-10 md:px-16 md:py-16">
             <span className="kicker text-black/50 block mb-6">
               {t.plataforma ? `Direto do ${PLATFORM_LABEL[t.plataforma]}` : "Direto da fonte"}
             </span>
@@ -341,7 +342,7 @@ export default function ReportView({
             </div>
             {capa && (
               <figure className="m-0">
-                <div className="relative aspect-[4/3] lg:aspect-[4/5] max-h-[60vh] lg:max-h-none overflow-hidden bg-surface-2">
+                <div className="relative aspect-[4/3] lg:aspect-[4/5] max-h-[60vh] lg:max-h-none overflow-hidden rounded-3xl bg-surface-2">
                   <SmartImage
                     src={capa.imagem_url}
                     alt={capa.titulo}
@@ -364,14 +365,14 @@ export default function ReportView({
 
           {/* EM NÚMEROS */}
           <div className="mt-12 grid gap-3 grid-cols-1 sm:grid-cols-3">
-            <div className="bg-surface border border-border p-5 flex flex-col gap-2 sm:col-span-2">
+            <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-2 sm:col-span-2">
               <span className="kicker text-muted">Próximo gatilho</span>
               <span className="font-serif text-2xl md:text-3xl leading-tight">{meta.proximo_gatilho.evento}</span>
               <span className="text-sm text-lime">
                 {meta.proximo_gatilho.data} · {meta.proximo_gatilho.destaque}
               </span>
             </div>
-            <div className="bg-surface border border-border p-5 flex flex-col gap-2">
+            <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-2">
               <span className="kicker text-muted">Neste report</span>
               <span className="font-serif text-5xl leading-none tabular-nums">{tendencias.length}</span>
               <span className="text-sm text-muted">
@@ -437,27 +438,7 @@ export default function ReportView({
               titulo="Posts em destaque"
               sub="Os posts por trás da leitura, com link para cada um."
             />
-            {/* O tema do radar é resumo do modelo, não fala do post: sem aspas. */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {vozes.map((v, i) => (
-                <article key={i} className="m-0 bg-white text-black p-6 flex flex-col gap-4">
-                  <span className="kicker text-black/50">{PLATFORM_LABEL[v.plataforma]}</span>
-                  <p className="font-serif text-xl leading-snug m-0">{v.texto}</p>
-                  <footer className="mt-auto text-xs text-black/60 flex flex-wrap gap-x-3 items-center">
-                    <span className="text-black font-medium">{v.autor}</span>
-                    <a
-                      href={v.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-black underline underline-offset-4 hover:text-purple"
-                    >
-                      Ver post
-                      <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
-                    </a>
-                  </footer>
-                </article>
-              ))}
-            </div>
+            <PostsEmDestaque posts={vozes} />
             <ASeguir cap={depois("vozes")} />
           </section>
         )}
