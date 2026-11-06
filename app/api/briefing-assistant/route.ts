@@ -105,8 +105,8 @@ export async function POST(req: Request) {
     }));
 
     const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 700,
+      model: "claude-haiku-5-5",
+      max_tokens: 950,
       system: `${SYSTEM}\n\nEstado atual dos campos:\n${fieldsSnapshot(fields)}`,
       tools: [TOOL],
       tool_choice: { type: "tool", name: "responder" },

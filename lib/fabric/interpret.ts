@@ -14,8 +14,8 @@ function anthropicClient(): Anthropic {
 
 // Modelo da camada de interpretacao. Versionado junto do resultado (signal.
 // modelo_versao) pra sabermos com QUE lente + QUE modelo um sinal foi lido.
-const INTERPRET_MODEL = 'claude-haiku-4-5-20251001'
-const MODELO_VERSAO = 'interpret-haiku45-v1'
+const INTERPRET_MODEL = 'claude-haiku-5-5'
+const MODELO_VERSAO = 'interpret-haiku55-v1'
 
 // Sinal bruto de entrada (o que o radar ja coletou). NAO entra na lake — e a
 // materia-prima da leitura. So o resultado des-identificado (Interpretation) e
@@ -223,7 +223,7 @@ export async function interpretSignal(
   try {
     const res = await anthropicClient().messages.create({
       model: INTERPRET_MODEL,
-      max_tokens: 400,
+      max_tokens: 550,
       system: buildSystem(tax),
       tools: [buildTool(tax)],
       tool_choice: { type: 'tool', name: 'ler_sinal' },
