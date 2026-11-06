@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, CalendarClock, Flame, Radio, Snowflake, Sparkles, Waves } from "lucide-react";
 import type { Meme, MetricaTendencia, Tendencia, TrendReport } from "@/lib/types";
-import { PLATFORM_LABEL } from "@/lib/platforms";
+import { PLATFORM_ICON, PLATFORM_LABEL } from "@/lib/platforms";
+import HypeGauge from "./HypeGauge";
+import { ShineBorder } from "./ui/shine-border";
 import CopyBlock from "./CopyBlock";
 import InsightCard from "./InsightCard";
 import GlossaryPanel from "./GlossaryPanel";
@@ -24,6 +26,18 @@ const STATUS_LABEL: Record<Tendencia["status"], string> = {
   estabilizando: "Estabilizando",
   esfriando: "Esfriando",
 };
+
+const STATUS_ICON: Record<Tendencia["status"], typeof Flame> = {
+  em_alta: Flame,
+  subindo: Waves,
+  estabilizando: Waves,
+  esfriando: Snowflake,
+};
+
+// Número grande no degradê roxo do dashboard (o "48" dos drops da semana).
+const NUMERO_ROXO = {
+  backgroundImage: "linear-gradient(160deg, var(--purple) 0%, var(--purple-mid) 60%, #181818 100%)",
+} as const;
 
 const nn = (i: number) => String(i).padStart(2, "0");
 
@@ -56,12 +70,25 @@ function Abertura({
   );
 }
 
+function StatusTag({ status }: { status: Tendencia["status"] }) {
+  const Icone = STATUS_ICON[status];
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${status === "em_alta" ? "bg-lime text-black" : "border border-white/20 text-white/70"}`}>
+      <Icone className="w-3 h-3" strokeWidth={2.5} />
+      {STATUS_LABEL[status]}
+    </span>
+  );
+}
+
 // Fecho do capítulo, em roxo: é a voz de quem assina o report, separada da
 // evidência das redes. Reports novos (versao_formato 2) trazem leitura, não ideia.
 function PorQueImporta({ rotulo, children }: { rotulo: string; children: ReactNode }) {
   return (
-    <div className="mt-10 bg-purple-mid text-white px-6 md:px-10 py-6 md:py-7 grid gap-2 md:grid-cols-[180px_1fr] md:gap-10 md:items-baseline">
-      <span className="kicker text-lime">{rotulo}</span>
+    <div className="mt-10 rounded-3xl bg-purple-mid text-white px-6 md:px-10 py-6 md:py-8 grid gap-3 md:grid-cols-[200px_1fr] md:gap-10 md:items-baseline shadow-card">
+      <span className="kicker text-lime inline-flex items-center gap-2">
+        <Sparkles className="w-3.5 h-3.5 shrink-0" strokeWidth={2.2} />
+        {rotulo}
+      </span>
       <p className="font-serif text-lg md:text-xl leading-snug max-w-[62ch] m-0">{children}</p>
     </div>
   );
@@ -126,8 +153,11 @@ function Fonte({ t, claro = false }: { t: Tendencia; claro?: boolean }) {
 
 function Metrica({ m, grande = false }: { m: MetricaTendencia; grande?: boolean }) {
   return (
-    <div className={grande ? "border-t-2 border-white pt-4" : "border-t border-border pt-3"}>
-      <span className={`block font-serif leading-none tabular-nums text-lime ${grande ? "text-[clamp(4rem,12vw,8rem)]" : "text-5xl"}`}>
+    <div className={grande ? "rounded-3xl bg-black border border-border p-6 md:p-10 shadow-card" : "rounded-3xl bg-surface border border-border p-5 shadow-card"}>
+      <span
+        className={`block font-serif font-medium leading-none tabular-nums text-transparent bg-clip-text ${grande ? "text-[clamp(4rem,12vw,8rem)]" : "text-5xl"}`}
+        style={NUMERO_ROXO}
+      >
         {m.valor}
       </span>
       <span className={`block mt-3 text-muted ${grande ? "text-lg max-w-[40ch]" : "text-sm max-w-[28ch]"}`}>{m.rotulo}</span>
@@ -158,6 +188,7 @@ function CapituloTendencia({
   const citacao = t.citacao || citacaoDaDescricao(t.descricao);
   const molde = temFoto ? "foto" : citacao ? "voz" : t.metrica ? "numero" : "texto";
   const vertical = t.plataforma === "tiktok";
+  const IconeRede = t.plataforma ? PLATFORM_ICON[t.plataforma] : null;
 
   const texto = (
     <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_220px] md:gap-14 items-start">
@@ -173,7 +204,7 @@ function CapituloTendencia({
         total={total}
         rotulo="Tendência"
         titulo={t.titulo}
-        extra={<span className="text-muted">· {STATUS_LABEL[t.status]}</span>}
+        extra={<StatusTag status={t.status} />}
       />
 
       {molde === "foto" && vertical && (
@@ -199,8 +230,9 @@ function CapituloTendencia({
 
       {molde === "voz" && (
         <>
-          <figure className="m-0 mb-10 bg-white text-black px-6 py-10 md:px-16 md:py-16">
-            <span className="kicker text-black/50 block mb-6">
+          <figure className="m-0 mb-10 rounded-3xl bg-white text-black px-6 py-10 md:px-16 md:py-16 shadow-card">
+            <span className="kicker text-black/50 mb-6 inline-flex items-center gap-2">
+              {IconeRede && <IconeRede className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />}
               {t.plataforma ? `Direto do ${PLATFORM_LABEL[t.plataforma]}` : "Direto da fonte"}
             </span>
             <blockquote className="m-0 font-serif text-[clamp(1.6rem,4vw,2.9rem)] leading-[1.15] tracking-[-0.01em] max-w-[30ch] text-balance">
@@ -342,7 +374,7 @@ export default function ReportView({
             </div>
             {capa && (
               <figure className="m-0">
-                <div className="relative aspect-[4/3] lg:aspect-[4/5] max-h-[60vh] lg:max-h-none overflow-hidden bg-surface-2">
+                <div className="relative aspect-[4/3] lg:aspect-[4/5] max-h-[60vh] lg:max-h-none overflow-hidden rounded-3xl bg-surface-2">
                   <SmartImage
                     src={capa.imagem_url}
                     alt={capa.titulo}
@@ -363,29 +395,52 @@ export default function ReportView({
             </div>
           )}
 
-          {/* EM NÚMEROS */}
-          <div className="mt-12 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="bg-purple-mid p-5 flex flex-col gap-2">
-              <span className="kicker text-white/70">Índice de hype</span>
-              <span className="font-serif text-5xl leading-none tabular-nums">{hype}</span>
-              <span className="block h-2 bg-black/30 mt-2">
-                <span className="block h-full bg-lime" style={{ width: `${hype}%` }} />
-              </span>
+          {/* EM NÚMEROS: mesmo bentô do Pulso ao vivo do dashboard */}
+          <div className="mt-12 grid gap-4 grid-cols-1 lg:grid-cols-12">
+            <div className="lg:col-span-8 grid gap-4 grid-cols-1 sm:grid-cols-2">
+              <div className="sm:col-span-2 relative overflow-hidden rounded-3xl bg-gradient-to-br from-surface-2 via-surface to-black p-7 flex flex-col gap-3 shadow-card">
+                <ShineBorder borderWidth={1.5} duration={12} shineColor={["var(--purple)", "var(--lime)"]} />
+                <span className="kicker text-purple/70 inline-flex items-center gap-2">
+                  <CalendarClock className="w-4 h-4 shrink-0" strokeWidth={2} />
+                  Próximo gatilho
+                </span>
+                <span className="font-serif text-purple text-2xl md:text-3xl leading-tight">{meta.proximo_gatilho.evento}</span>
+                <span className="text-sm text-white/70">
+                  {meta.proximo_gatilho.data} · {meta.proximo_gatilho.destaque}
+                </span>
+              </div>
+              <div className="rounded-3xl bg-surface border border-border p-6 flex flex-col justify-between gap-4 min-h-[9rem] shadow-card">
+                <span className="kicker text-muted-2 inline-flex items-center gap-2">
+                  <Radio className="w-4 h-4 text-lime shrink-0" strokeWidth={2.2} />
+                  Sinais lidos
+                </span>
+                <div>
+                  <span className="block font-serif text-5xl leading-none tabular-nums">
+                    {totalSinais ? totalSinais.toLocaleString("pt-BR") : "—"}
+                  </span>
+                  <span className="block mt-2 text-sm text-muted">posts, vídeos e notícias desta edição</span>
+                </div>
+              </div>
+              <div className="rounded-3xl bg-black border border-border p-6 flex flex-col justify-between gap-4 min-h-[9rem] shadow-card">
+                <span className="kicker text-muted-2">Neste report</span>
+                <div>
+                  <span
+                    className="block font-serif font-medium text-7xl leading-none tabular-nums text-transparent bg-clip-text"
+                    style={NUMERO_ROXO}
+                  >
+                    {tendencias.length}
+                  </span>
+                  <span className="block mt-2 text-sm text-muted">
+                    tendências{memes.length ? ` e ${memes.length} memes` : ""}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="bg-surface border border-border p-5 flex flex-col gap-2 lg:col-span-2">
-              <span className="kicker text-muted">Próximo gatilho</span>
-              <span className="font-serif text-2xl md:text-3xl leading-tight">{meta.proximo_gatilho.evento}</span>
-              <span className="text-sm text-lime">
-                {meta.proximo_gatilho.data} · {meta.proximo_gatilho.destaque}
-              </span>
-            </div>
-            <div className="bg-surface border border-border p-5 flex flex-col gap-2">
-              <span className="kicker text-muted">Neste report</span>
-              <span className="font-serif text-5xl leading-none tabular-nums">{tendencias.length}</span>
-              <span className="text-sm text-muted">
-                tendências{memes.length ? `, ${memes.length} memes` : ""}
-                {totalSinais ? ` · ${totalSinais} sinais lidos` : ""}
-              </span>
+            <div className="lg:col-span-4 rounded-3xl bg-surface border border-border p-6 flex flex-col gap-2 min-h-[16rem] shadow-card">
+              <span className="kicker text-muted-2">Índice de hype</span>
+              <div className="flex-1 flex items-center justify-center">
+                <HypeGauge value={hype} />
+              </div>
             </div>
           </div>
 
@@ -393,9 +448,9 @@ export default function ReportView({
           {total > 0 && (
             <nav className="mt-14" aria-label="Sumário">
               <p className="kicker text-muted mb-3">Neste report</p>
-              <ol className="border-t border-border grid md:grid-cols-2 md:gap-x-10">
+              <ol className="rounded-3xl bg-surface border border-border px-6 py-2 grid md:grid-cols-2 md:gap-x-10 shadow-card">
                 {capitulos.map((c, i) => (
-                  <li key={c.id} className="border-b border-border">
+                  <li key={c.id} className="border-b border-border last:border-b-0 md:[&:nth-last-child(2)]:border-b-0">
                     <a
                       href={`#${c.id}`}
                       className="flex gap-4 items-baseline py-3 text-white hover:text-lime transition-colors"
@@ -448,8 +503,14 @@ export default function ReportView({
             {/* O tema do radar é resumo do modelo, não fala do post: sem aspas. */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {vozes.map((v, i) => (
-                <article key={i} className="m-0 bg-white text-black p-6 flex flex-col gap-4">
-                  <span className="kicker text-black/50">{PLATFORM_LABEL[v.plataforma]}</span>
+                <article key={i} className="m-0 rounded-3xl bg-white text-black p-6 flex flex-col gap-4 shadow-card">
+                  <span className="kicker text-black/50 inline-flex items-center gap-2">
+                    {(() => {
+                      const Icone = PLATFORM_ICON[v.plataforma];
+                      return <Icone className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />;
+                    })()}
+                    {PLATFORM_LABEL[v.plataforma]}
+                  </span>
                   <p className="font-serif text-xl leading-snug m-0">{v.texto}</p>
                   <footer className="mt-auto text-xs text-black/60 flex flex-wrap gap-x-3 items-center">
                     <span className="text-black font-medium">{v.autor}</span>
@@ -479,9 +540,9 @@ export default function ReportView({
               rotulo="Onde a marca entra"
               titulo={`Oportunidades para ${meta.produto}`}
             />
-            <ol className="border-t-2 border-white">
+            <ol className="grid gap-3">
               {oportunidades.map((o, i) => (
-                <li key={i} className="border-b border-border py-6 grid gap-2 md:grid-cols-[64px_220px_1fr] md:gap-8">
+                <li key={i} className="rounded-3xl bg-surface border border-border p-6 grid gap-2 md:grid-cols-[64px_220px_1fr] md:gap-8 shadow-card">
                   <span className="font-serif text-3xl text-lime leading-none tabular-nums">{i + 1}</span>
                   <span className="kicker text-muted md:pt-2">{o.label}</span>
                   <div>
