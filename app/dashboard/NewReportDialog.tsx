@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import Link from "next/link";
+import { LayoutList, X } from "lucide-react";
 import BriefingComposer from "@/components/briefing/BriefingComposer";
 import AnimatedPlusBadge from "@/components/AnimatedPlusBadge";
 import { ShineBorder } from "@/components/ui/shine-border";
@@ -76,6 +77,13 @@ export default function NewReportDialog() {
                   Preencha os campos abaixo. A gente cuida do resto pra IA entender a marca,
                   a campanha e o contexto que você quer explorar.
                 </p>
+                <Link
+                  href="/dashboard/new/montar"
+                  className="flex items-center gap-1.5 text-sm text-lime hover:brightness-110 w-fit"
+                >
+                  <LayoutList className="w-4 h-4" strokeWidth={2} />
+                  Ou monte a partir do acervo, com posts que já foram coletados
+                </Link>
               </div>
               <button
                 type="button"

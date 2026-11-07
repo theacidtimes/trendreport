@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { LayoutList } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/Sidebar";
 import BriefingComposer from "@/components/briefing/BriefingComposer";
@@ -33,6 +35,13 @@ export default function NewReportPage() {
                 Preencha os campos abaixo. A gente cuida do resto pra IA entender a marca,
                 a campanha e o contexto que você quer explorar.
               </p>
+              <Link
+                href="/dashboard/new/montar"
+                className="flex items-center gap-1.5 text-sm text-lime hover:brightness-110 w-fit"
+              >
+                <LayoutList className="w-4 h-4" strokeWidth={2} />
+                Ou monte a partir do acervo, com posts que já foram coletados
+              </Link>
             </div>
 
             <BriefingComposer />
