@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import AcervoBusca, { MiniaturaItem, NOME_REDE, chaveItem } from "@/components/acervo/AcervoBusca";
+import Tour from "@/components/tour/Tour";
 import type { ColetaItem } from "@/lib/types";
 
 // "Montar do acervo": escolher itens da coleta da marca, distribuir nos blocos
@@ -136,6 +137,8 @@ export default function MontarReport({
 
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-10 py-8 flex flex-col gap-6">
+      {/* Espera o acervo carregar, pra poder apontar pro primeiro item. */}
+      <Tour id="montar-acervo" atraso={1800} />
       <div className="flex flex-col gap-2">
         <Link href="/dashboard" className="flex items-center gap-1.5 text-muted hover:text-white text-xs w-fit">
           <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} />
@@ -192,7 +195,10 @@ export default function MontarReport({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] items-start">
         {/* ACERVO */}
-        <section className="bg-surface/30 border border-border rounded-2xl p-4 h-[75vh] flex flex-col">
+        <section
+          data-tour="montar-acervo"
+          className="bg-surface/30 border border-border rounded-2xl p-4 h-[75vh] flex flex-col"
+        >
           <span className="text-white font-medium text-sm mb-3">Acervo da marca</span>
           <div className="flex-1 min-h-0">
             {marcaId && (
@@ -228,7 +234,10 @@ export default function MontarReport({
         </section>
 
         {/* O REPORT */}
-        <section className="lg:sticky lg:top-6 bg-surface/50 border border-border rounded-2xl p-4 flex flex-col gap-5">
+        <section
+          data-tour="montar-report"
+          className="lg:sticky lg:top-6 bg-surface/50 border border-border rounded-2xl p-4 flex flex-col gap-5"
+        >
           <span className="text-white font-medium text-sm">Seu report</span>
 
           {(["tendencias", "memes"] as Bloco[]).map((bloco) => (

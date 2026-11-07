@@ -21,6 +21,7 @@ import ReportView from "@/components/ReportView";
 import SmartImage from "@/components/SmartImage";
 import { createClient } from "@/lib/supabase/client";
 import AcervoPicker from "./AcervoPicker";
+import Tour from "@/components/tour/Tour";
 import type {
   ColetaItem,
   CopyItem,
@@ -266,6 +267,7 @@ export default function ReportEditor({
             </button>
             <button
               onClick={() => setTab("preview")}
+              data-tour="aba-preview"
               className={`flex items-center gap-1.5 text-xs font-medium rounded-md px-3 py-1.5 transition-colors ${
                 tab === "preview" ? "bg-lime text-black" : "text-muted hover:text-white"
               }`}
@@ -463,6 +465,7 @@ export default function ReportEditor({
                     </label>
                     <button
                       onClick={() => setTrocando({ alvo: "tendencias", index: i })}
+                      data-tour={i === 0 ? "trocar-coleta" : undefined}
                       className="flex items-center gap-1.5 text-xs font-medium border border-border rounded-lg px-3 py-2 text-white hover:border-lime/40 transition-colors"
                     >
                       <ArrowLeftRight className="w-3.5 h-3.5" strokeWidth={2.5} />
@@ -838,6 +841,8 @@ export default function ReportEditor({
           </p>
         </div>
       )}
+
+      {tab === "editar" && !trocando && <Tour id="editor-trocar-coleta" />}
 
       {trocando && (
         <AcervoPicker
