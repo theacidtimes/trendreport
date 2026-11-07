@@ -110,6 +110,35 @@ async function persistirUma(url: string): Promise<string | null> {
   }
 }
 
+/** Diz se a URL já aponta pro nosso bucket (não precisa baixar de novo). */
+export function ehImagemNossa(url: string | null | undefined): boolean {
+  return !!url && url.includes(`/storage/v1/object/public/${BUCKET}/`);
+}
+
+/**
+ * Persiste várias imagens com no máximo `concorrencia` downloads ao mesmo
+ * tempo. Devolve original → URL nossa, só com as que deram certo. Usado pela
+ * coleta, que manda dezenas de imagens de uma vez: sem o teto, um Promise.all
+ * abriria todas as conexões juntas e os CDNs começam a recusar.
+ */
+export async function persistirUrls(
+  urls: string[],
+  concorrencia = 8
+): Promise<Map<string, string>> {
+  const resolvidas = new Map<string, string>();
+  if (!admin()) return resolvidas;
+
+  const fila = Array.from(new Set(urls.filter((u) => u && !ehImagemNossa(u))));
+  async function trabalhador() {
+    for (let url = fila.shift(); url; url = fila.shift()) {
+      const nova = await persistirUma(url);
+      if (nova) resolvidas.set(url, nova);
+    }
+  }
+  await Promise.all(Array.from({ length: concorrencia }, trabalhador));
+  return resolvidas;
+}
+
 /**
  * Troca as `imagem_url` do report por cópias no nosso storage. Muta o report
  * recebido e o devolve.
@@ -120,7 +149,10 @@ async function persistirUma(url: string): Promise<string | null> {
  * dia e depois degrada para o ícone, exatamente o comportamento de antes.
  */
 export async function persistirImagensDoReport(
-  report: TrendReport
+  report: TrendReport,
+  // Recebe original → URL nossa de cada imagem que subiu, pra coleta não
+  // baixar de novo a mesma imagem logo em seguida.
+  resolvidasOut?: Map<string, string>
 ): Promise<TrendReport> {
   // Checado uma vez, antes de baixar qualquer coisa: sem credencial o upload
   // falharia em todas, e o log de "não persistidas" pareceria problema de rede
@@ -148,6 +180,8 @@ export async function persistirImagensDoReport(
       if (nova) resolvidas.set(url, nova);
     })
   );
+
+  resolvidas.forEach((nova, original) => resolvidasOut?.set(original, nova));
 
   for (const card of cards) {
     const nova = resolvidas.get(card.imagem_url as string);

@@ -14,6 +14,7 @@ import {
 import { custoAnthropic, type RegistroCusto } from "./custos";
 import { type Mercado, MERCADO_PADRAO, mercadoDaMarca } from "./mercados";
 import { persistirImagensDoReport } from "./imagens";
+import { montarColeta, persistirImagensDaColeta, type ColetaNova } from "./coleta";
 import { enriquecerComLegendas } from "./legendas";
 import {
   SYSTEM_PROMPT,
@@ -644,7 +645,9 @@ export async function generateReport(
   onProgress?: OnProgress,
   marcaKnowledge?: MarcaKnowledge
 ): Promise<
-  ({ report: TrendReport } | { error: string }) & { custos: CustoColetado[] }
+  ({ report: TrendReport; coleta: ColetaNova[] } | { error: string }) & {
+    custos: CustoColetado[];
+  }
 > {
   // Acumuladores de custo. Vão em TODOS os caminhos de retorno, inclusive nos
   // de erro: report que falhou no meio já gastou scrape e já gastou token, e
@@ -729,6 +732,13 @@ export async function generateReport(
   // A fala só existe agora. Vídeo de caption inocente e conteúdo político
   // passou pelo primeiro filtro; aqui ele cai pela transcrição.
   const segundaPassada = filtrarTikTokPorTranscricao(enviados.tiktok);
+  const tiktokMantidos = new Set(segundaPassada.itens.map((t) => t.webVideoUrl));
+  // Os cortados pela fala também ficam fora do acervo (ver lib/coleta.ts).
+  const tiktokRemovidos = new Set(
+    enviados.tiktok
+      .map((t) => t.webVideoUrl)
+      .filter((u): u is string => !!u && !tiktokMantidos.has(u))
+  );
   enviados.tiktok = segundaPassada.itens;
   if (segundaPassada.removidos > 0) {
     console.log(
@@ -863,7 +873,20 @@ export async function generateReport(
   // Tem que ser aqui, com o report ainda quente — a assinatura da cover do
   // TikTok vence em horas, então qualquer tentativa posterior já pega 403.
   // Nunca lança: imagem que não sobe mantém a URL original (ver lib/imagens.ts).
-  await persistirImagensDoReport(report);
+  const imagensDoReport = new Map<string, string>();
+  await persistirImagensDoReport(report, imagensDoReport);
 
-  return { report, custos };
+  // Acervo: a coleta inteira fica guardada pra curadoria trocar cards depois
+  // (botão "Trocar pela coleta"). Imagem só sobe pros itens que foram ao
+  // modelo; o resto fica com a URL do CDN (ver persistirImagensDaColeta).
+  const coleta = montarColeta(rawData, enviados.tiktok, tiktokRemovidos);
+  const prioritarios = new Set(
+    [
+      ...enviados.instagram.map((i) => i.url),
+      ...enviados.tiktok.map((t) => t.webVideoUrl),
+    ].filter((u): u is string => !!u)
+  );
+  await persistirImagensDaColeta(coleta, prioritarios, imagensDoReport);
+
+  return { report, coleta, custos };
 }
