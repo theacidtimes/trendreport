@@ -3,6 +3,7 @@ import * as yaml from "js-yaml";
 import WebSocket from "ws";
 import { generateReport } from "../lib/generateReport";
 import { registrarCustos } from "../lib/custos";
+import { gravarColeta } from "../lib/coleta";
 import type { MarcaKnowledge } from "../lib/types";
 
 async function main() {
@@ -62,7 +63,7 @@ async function main() {
     // gasto nesta geração (ver registrarCustos mais abaixo).
     const { data: reportRow, error: reportError } = await supabase
       .from("reports")
-      .select("marca_id, tenant_id")
+      .select("id, marca_id, tenant_id")
       .eq("slug", slug)
       .maybeSingle();
     if (reportError) {
@@ -157,6 +158,14 @@ async function main() {
         `Update não afetou nenhuma linha (slug não encontrado?): ${JSON.stringify(slug)}`
       );
     }
+
+    // Acervo da coleta, depois do report salvo: se falhar, o report já foi
+    // entregue (gravarColeta só loga). Ver lib/coleta.ts.
+    await gravarColeta(supabase, result.coleta, {
+      tenantId: reportRow?.tenant_id ?? null,
+      marcaId: reportRow?.marca_id ?? null,
+      reportId: reportRow?.id ?? null,
+    });
 
     // Metering (Fase 3A): 1 report = 1 crédito. Debitado no ponto onde o
     // trabalho de fato termina (report salvo como "ready"). Idempotente por

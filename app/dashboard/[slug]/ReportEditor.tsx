@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeftRight,
   Check,
   Eye,
   Image as ImageIcon,
@@ -19,7 +20,9 @@ import {
 import ReportView from "@/components/ReportView";
 import SmartImage from "@/components/SmartImage";
 import { createClient } from "@/lib/supabase/client";
+import AcervoPicker from "./AcervoPicker";
 import type {
+  ColetaItem,
   CopyItem,
   Oportunidade,
   TendenciaStatus,
@@ -88,6 +91,12 @@ export default function ReportEditor({
   const [savedAt, setSavedAt] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [error, setError] = useState("");
+  // Card aberto no "Trocar pela coleta" (painel lateral do acervo).
+  const [trocando, setTrocando] = useState<{
+    alvo: "tendencias" | "memes";
+    index: number;
+  } | null>(null);
+  const [trocadoKey, setTrocadoKey] = useState<string | null>(null);
 
   function mutate(fn: (draft: TrendReport) => void) {
     setReport((prev) => {
@@ -96,6 +105,9 @@ export default function ReportEditor({
       return draft;
     });
     setSavedAt(false);
+    // Qualquer outra edição (inclusive remover um card, que muda os índices)
+    // apaga o aviso de troca.
+    setTrocadoKey(null);
   }
 
   // Sobe uma imagem escolhida pelo analista pro bucket público report-images e
@@ -134,6 +146,31 @@ export default function ReportEditor({
     } finally {
       setUploadingKey(null);
     }
+  }
+
+  // Troca a origem do card por um item do acervo. Imagem, link, autor e rede
+  // vêm juntos do mesmo item, por isso não descasam como na troca à mão.
+  // Citação e métrica eram do post antigo e saem; o texto do card fica, pra
+  // quem revisa ajustar.
+  function trocarPelaColeta(item: ColetaItem) {
+    if (!trocando) return;
+    const { alvo, index } = trocando;
+    mutate((d) => {
+      const card = alvo === "memes" ? d.memes?.[index] : d.tendencias[index];
+      if (!card) return;
+      card.post_url = item.url;
+      card.plataforma = item.plataforma;
+      card.autor = item.autor;
+      card.imagem_url = item.imagem_url ?? undefined;
+      card.linguagem_explicita = item.linguagem_explicita;
+      if (alvo === "tendencias") {
+        const t = d.tendencias[index];
+        t.citacao = null;
+        t.metrica = null;
+      }
+    });
+    setTrocadoKey(`${alvo}-${index}`);
+    setTrocando(null);
   }
 
   async function persist(status?: "published") {
@@ -424,6 +461,18 @@ export default function ReportEditor({
                         </>
                       )}
                     </label>
+                    <button
+                      onClick={() => setTrocando({ alvo: "tendencias", index: i })}
+                      className="flex items-center gap-1.5 text-xs font-medium border border-border rounded-lg px-3 py-2 text-white hover:border-lime/40 transition-colors"
+                    >
+                      <ArrowLeftRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                      Trocar pela coleta
+                    </button>
+                    {trocadoKey === `tendencias-${i}` && (
+                      <span className="text-lime text-[11px]">
+                        Imagem, link, autor e rede trocados. Revise o texto.
+                      </span>
+                    )}
                     {t.imagem_url && uploadingKey !== `tendencias-${i}` && (
                       <button
                         onClick={() => mutate((d) => (d.tendencias[i].imagem_url = undefined))}
@@ -562,6 +611,18 @@ export default function ReportEditor({
                           </>
                         )}
                       </label>
+                      <button
+                        onClick={() => setTrocando({ alvo: "memes", index: i })}
+                        className="flex items-center gap-1.5 text-xs font-medium border border-border rounded-lg px-3 py-2 text-white hover:border-lime/40 transition-colors"
+                      >
+                        <ArrowLeftRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                        Trocar pela coleta
+                      </button>
+                      {trocadoKey === `memes-${i}` && (
+                        <span className="text-lime text-[11px]">
+                          Imagem, link, autor e rede trocados. Revise o texto.
+                        </span>
+                      )}
                       {m.imagem_url && uploadingKey !== `memes-${i}` && (
                         <button
                           onClick={() =>
@@ -776,6 +837,19 @@ export default function ReportEditor({
             como o cliente vai receber.
           </p>
         </div>
+      )}
+
+      {trocando && (
+        <AcervoPicker
+          slug={slug}
+          titulo={
+            (trocando.alvo === "memes"
+              ? report.memes?.[trocando.index]?.titulo
+              : report.tendencias[trocando.index]?.titulo) ?? ""
+          }
+          onEscolher={trocarPelaColeta}
+          onFechar={() => setTrocando(null)}
+        />
       )}
 
       {/* AÇÕES FIXAS */}

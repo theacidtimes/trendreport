@@ -239,6 +239,24 @@ export interface RedditItem {
   createdAt?: string;
 }
 
+// Item do acervo (tabela coleta_item, ou radar_raw_data quando origem="radar").
+// É o formato que o "Trocar pela coleta" do editor consome.
+export interface ColetaItem {
+  id: string;
+  origem: "report" | "radar";
+  plataforma: "instagram" | "tiktok" | "twitter" | "news" | "reddit";
+  url: string;
+  autor: string | null;
+  texto: string | null;
+  imagem_url: string | null;
+  imagem_estavel: boolean;
+  linguagem_explicita: string | null;
+  metricas: Record<string, number | null>;
+  engajamento: number;
+  publicado_em: string | null;
+  coletado_em: string;
+}
+
 export interface RawData {
   instagram: InstagramItem[];
   tiktok: TikTokItem[];
