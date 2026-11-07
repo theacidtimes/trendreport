@@ -201,7 +201,7 @@ export default function AcervoBusca({
             </span>
           </div>
         ) : (
-          itens.map((item) => {
+          itens.map((item, n) => {
             const metricas = resumoMetricas(item);
             const conteudo = (
               <>
@@ -253,7 +253,10 @@ export default function AcervoBusca({
                 ) : (
                   <div className="flex gap-3 flex-1 min-w-0">{conteudo}</div>
                 )}
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <div
+                  className="flex flex-col items-end gap-1.5 shrink-0"
+                  data-tour={n === 0 && acoes ? "acervo-acoes" : undefined}
+                >
                   <a
                     href={item.url}
                     target="_blank"

@@ -1,3 +1,4 @@
+import Tour from "@/components/tour/Tour";
 import { ArrowUpRight, Flame, Radio, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -202,6 +203,7 @@ export default async function DashboardPage() {
       <Sidebar userEmail={user?.email} isAdmin={isAdmin} />
 
       <main className="md:pl-20">
+        <Tour id="novidades-2026-11" atraso={1200} />
         <div className="max-w-6xl mx-auto px-6 md:px-10 py-10 md:py-14 flex flex-col gap-4">
           {/* PULSO AO VIVO — área nobre alimentada pelo RADAR (sempre populada) */}
           <div className="animate-fade-up flex flex-col gap-4">

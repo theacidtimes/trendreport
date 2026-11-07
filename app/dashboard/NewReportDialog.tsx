@@ -41,6 +41,7 @@ export default function NewReportDialog() {
     <>
       <button
         type="button"
+        data-tour="novo-report"
         onClick={() => setOpen(true)}
         className="group relative overflow-hidden sm:col-span-2 rounded-3xl bg-gradient-to-br from-surface-2 via-surface to-black p-7 md:p-8 flex items-center justify-between gap-4 text-left shadow-card"
       >

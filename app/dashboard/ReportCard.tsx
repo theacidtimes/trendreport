@@ -54,6 +54,7 @@ export default function ReportCard({
   return (
     <Link
       href={`/dashboard/${slug}`}
+      data-tour={index === 1 ? "primeiro-report" : undefined}
       className="group flex flex-col rounded-[28px] overflow-hidden border border-border bg-surface transition-colors hover:border-white/20 shadow-card"
     >
       {/* IMAGE */}
