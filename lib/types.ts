@@ -22,6 +22,9 @@ export interface ReportMeta {
   // 2 = gancho_produto é "por que importa" (leitura), não "e se" criativo.
   // Reports antigos não têm o campo e mantêm o rótulo "Para a marca".
   versao_formato?: number;
+  // "montado" = report criado à mão a partir do acervo (/dashboard/new/montar),
+  // sem coleta nem modelo. Ausente = gerado pelo pipeline.
+  origem?: "gerado" | "montado";
 }
 
 export interface MetricaTendencia {

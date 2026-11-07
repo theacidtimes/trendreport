@@ -365,14 +365,21 @@ export default function ReportView({
 
           {/* EM NÚMEROS */}
           <div className="mt-12 grid gap-3 grid-cols-1 sm:grid-cols-3">
-            <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-2 sm:col-span-2">
-              <span className="kicker text-muted">Próximo gatilho</span>
-              <span className="font-serif text-2xl md:text-3xl leading-tight">{meta.proximo_gatilho.evento}</span>
-              <span className="text-sm text-lime">
-                {meta.proximo_gatilho.data} · {meta.proximo_gatilho.destaque}
-              </span>
-            </div>
-            <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-2">
+            {/* Report montado do acervo nasce sem gatilho; sem evento, o bloco sai. */}
+            {meta.proximo_gatilho?.evento && (
+              <div className="rounded-3xl bg-surface border border-border p-5 flex flex-col gap-2 sm:col-span-2">
+                <span className="kicker text-muted">Próximo gatilho</span>
+                <span className="font-serif text-2xl md:text-3xl leading-tight">{meta.proximo_gatilho.evento}</span>
+                <span className="text-sm text-lime">
+                  {[meta.proximo_gatilho.data, meta.proximo_gatilho.destaque].filter(Boolean).join(" · ")}
+                </span>
+              </div>
+            )}
+            <div
+              className={`rounded-3xl bg-surface border border-border p-5 flex flex-col gap-2 ${
+                meta.proximo_gatilho?.evento ? "" : "sm:col-span-3"
+              }`}
+            >
               <span className="kicker text-muted">Neste report</span>
               <span className="font-serif text-5xl leading-none tabular-nums">{tendencias.length}</span>
               <span className="text-sm text-muted">
