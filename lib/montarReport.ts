@@ -1,100 +1,91 @@
-import type { ColetaItem, Meme, Tendencia, TrendReport } from "./types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  COLUNAS_COLETA,
+  COLUNAS_RADAR,
+  linhaColetaParaItem,
+  linhaRadarParaItem,
+  type LinhaRadar,
+} from "./acervo";
+import type { ColetaItem } from "./types";
 
 // REPORT MONTADO
 //
-// Monta um TrendReport a partir de itens escolhidos no acervo. É o mesmo
-// formato e a mesma página do report gerado: cada card nasce de um post
-// coletado, com imagem, link, autor, rede e trecho literal vindos do item.
-// O que é leitura (descrição, "por que importa") fica vazio pra quem monta
-// escrever no editor; o report sai em "ready", ou seja, em revisão.
+// A pessoa escolhe no acervo da marca quais posts viram tendência e quais
+// viram meme. A rota /api/reports/montar só valida e enfileira: a linha nasce
+// em "pending" com este briefing, e o worker (scripts/generate-report.ts)
+// escreve o report com o mesmo modelo e o mesmo prompt do report gerado, só
+// que sem coletar: a matéria-prima são os itens escolhidos (lib/redigirMontado.ts).
 
-const fmt = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
+export type RefAcervo = { id: string; origem: "report" | "radar" };
 
-function primeiraLinha(texto: string | null, max: number): string {
-  const linha = (texto ?? "").split("\n").map((l) => l.trim()).find(Boolean) ?? "";
-  return linha.length > max ? `${linha.slice(0, max - 1).trimEnd()}…` : linha;
-}
-
-// Trecho literal do post, como a citação do report gerado (que só aceita texto
-// que bate com a coleta). Aqui é o próprio texto do item, então sempre bate.
-function trecho(texto: string | null): string | null {
-  const t = (texto ?? "").replace(/\s+/g, " ").trim();
-  if (!t) return null;
-  return t.length > 220 ? `${t.slice(0, 219).trimEnd()}…` : t;
-}
-
-// Métrica real do post, a mais forte que ele tiver.
-function metrica(item: ColetaItem): Tendencia["metrica"] {
-  const m = item.metricas ?? {};
-  const pares: [number | null | undefined, string][] = [
-    [m.views, "views"],
-    [m.curtidas, "curtidas"],
-    [m.upvotes, "upvotes"],
-  ];
-  const [valor, rotulo] = pares.find(([v]) => typeof v === "number" && v > 0) ?? [];
-  return typeof valor === "number" && rotulo ? { valor: fmt.format(valor), rotulo } : null;
-}
-
-function origemDoCard(item: ColetaItem) {
-  return {
-    imagem_url: item.imagem_url ?? undefined,
-    post_url: item.url,
-    autor: item.autor,
-    plataforma: item.plataforma,
-    linguagem_explicita: item.linguagem_explicita,
-  };
-}
-
-export function tendenciaDoItem(item: ColetaItem): Tendencia {
-  return {
-    titulo: primeiraLinha(item.texto, 80),
-    status: "em_alta",
-    descricao: "",
-    gancho_produto: "",
-    citacao: trecho(item.texto),
-    metrica: metrica(item),
-    ...origemDoCard(item),
-  };
-}
-
-export function memeDoItem(item: ColetaItem): Meme {
-  return {
-    titulo: primeiraLinha(item.texto, 80),
-    status: "em_alta",
-    descricao: "",
-    linguagem: "",
-    ...origemDoCard(item),
-  };
-}
-
-export function montarReport(input: {
+export interface BriefingMontado {
+  modo: "montado";
   cliente: string;
-  produto: string;
-  edicao: string;
-  tituloSocial: string;
-  tendencias: ColetaItem[];
-  memes: ColetaItem[];
-}): TrendReport {
-  return {
-    meta: {
-      cliente: input.cliente,
-      produto: input.produto,
-      edicao: input.edicao,
-      // Hype e gatilho são leituras do pipeline; no montado ficam vazios e o
-      // editor deixa preencher. A página esconde o gatilho sem evento.
-      indice_hype: 0,
-      hype_motivo: "",
-      proximo_gatilho: { evento: "", data: "", destaque: "" },
-      titulo_social: input.tituloSocial || undefined,
-      versao_formato: 2,
-      origem: "montado",
-    },
-    tendencias: input.tendencias.map(tendenciaDoItem),
-    memes: input.memes.map(memeDoItem),
-    oportunidades: [],
-    copy: [],
-    radar: [],
-    // Sem `fontes`: o report montado não fez varredura, e "N sinais lidos"
-    // na capa daria a entender que fez.
-  };
+  // Vazios = o modelo decide, como no report gerado.
+  produto?: string;
+  edicao?: string;
+  titulo_social?: string;
+  // Direção de leitura opcional ("foco no plantio da safra 26/27").
+  orientacao?: string;
+  tendencias: RefAcervo[];
+  memes: RefAcervo[];
+}
+
+export const MAX_POR_BLOCO = 12;
+
+export function ehBriefingMontado(b: unknown): b is BriefingMontado {
+  return !!b && typeof b === "object" && (b as { modo?: unknown }).modo === "montado";
+}
+
+export function refsValidas(refs: unknown): RefAcervo[] {
+  if (!Array.isArray(refs)) return [];
+  return refs
+    .filter(
+      (r): r is RefAcervo =>
+        !!r &&
+        typeof (r as RefAcervo).id === "string" &&
+        ((r as RefAcervo).origem === "report" || (r as RefAcervo).origem === "radar")
+    )
+    .map((r) => ({ id: r.id, origem: r.origem }))
+    .slice(0, MAX_POR_BLOCO);
+}
+
+/**
+ * Relê do banco os itens escolhidos, presos à marca, e devolve na ordem em que
+ * a pessoa montou. Item que sumiu ou é de outra marca não entra. Serve à rota
+ * (com a RLS do tenant) e ao worker (service role).
+ */
+export async function resolverItens(
+  supabase: SupabaseClient,
+  marcaId: string,
+  blocos: { tendencias: RefAcervo[]; memes: RefAcervo[] }
+): Promise<{ tendencias: ColetaItem[]; memes: ColetaItem[] } | { error: string }> {
+  const todos = [...blocos.tendencias, ...blocos.memes];
+  const idsColeta = todos.filter((r) => r.origem === "report").map((r) => r.id);
+  const idsRadar = todos.filter((r) => r.origem === "radar").map((r) => r.id);
+
+  const [resColeta, resRadar] = await Promise.all([
+    idsColeta.length
+      ? supabase.from("coleta_item").select(COLUNAS_COLETA).eq("marca_id", marcaId).in("id", idsColeta)
+      : Promise.resolve({ data: [], error: null }),
+    idsRadar.length
+      ? supabase.from("radar_raw_data").select(COLUNAS_RADAR).eq("marca_id", marcaId).in("id", idsRadar)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (resColeta.error || resRadar.error) {
+    return { error: (resColeta.error ?? resRadar.error)?.message ?? "Falha ao ler o acervo." };
+  }
+
+  const porChave = new Map<string, ColetaItem>();
+  for (const r of resColeta.data ?? []) {
+    porChave.set(`report:${(r as { id: string }).id}`, linhaColetaParaItem(r as Omit<ColetaItem, "origem">));
+  }
+  for (const r of (resRadar.data ?? []) as LinhaRadar[]) {
+    const item = linhaRadarParaItem(r);
+    if (item) porChave.set(`radar:${item.id}`, item);
+  }
+
+  const resolver = (refs: RefAcervo[]) =>
+    refs.map((r) => porChave.get(`${r.origem}:${r.id}`)).filter((i): i is ColetaItem => !!i);
+  return { tendencias: resolver(blocos.tendencias), memes: resolver(blocos.memes) };
 }

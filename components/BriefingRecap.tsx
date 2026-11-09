@@ -24,6 +24,21 @@ export default function BriefingRecap({
 
   if (!briefing) return null;
 
+  // Report montado do acervo: o "briefing" é a lista de itens escolhidos, que
+  // não se lê como texto. Mostra o resumo da montagem.
+  if (typeof briefing !== "string" && briefing.modo === "montado") {
+    const b = briefing;
+    const n = (k: string) => (Array.isArray(b[k]) ? (b[k] as unknown[]).length : 0);
+    briefing = {
+      origem: "Montado do acervo",
+      itens: `${n("tendencias")} em tendências, ${n("memes")} em memes`,
+      produto: b.produto,
+      edicao: b.edicao,
+      titulo_social: b.titulo_social,
+      orientacao: b.orientacao,
+    };
+  }
+
   const entries =
     typeof briefing === "string"
       ? [{ label: "Briefing", value: briefing }]

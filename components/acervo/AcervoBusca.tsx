@@ -40,17 +40,18 @@ export const NOME_REDE: Record<ColetaItem["plataforma"], string> = {
 
 const fmt = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
 
-function resumoMetricas(item: ColetaItem): string | null {
+export function resumoMetricas(item: ColetaItem): string | null {
   const m = item.metricas ?? {};
   const partes: string[] = [];
   if (m.views) partes.push(`${fmt.format(m.views)} views`);
   if (m.curtidas) partes.push(`${fmt.format(m.curtidas)} curtidas`);
   if (m.upvotes) partes.push(`${fmt.format(m.upvotes)} upvotes`);
   if (m.respostas) partes.push(`${fmt.format(m.respostas)} respostas`);
+  if (m.comentarios) partes.push(`${fmt.format(m.comentarios)} comentários`);
   return partes.length ? partes.join(" · ") : null;
 }
 
-function quando(item: ColetaItem): string {
+export function quando(item: ColetaItem): string {
   const d = new Date(item.publicado_em ?? item.coletado_em);
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
@@ -78,19 +79,67 @@ export function MiniaturaItem({ item, className = "w-14 h-16" }: { item: ColetaI
   );
 }
 
+/**
+ * Capa do item em tamanho de card. Com imagem, a imagem; sem imagem (X,
+ * notícia, Reddit, sinal do radar), o próprio texto em destaque, pra dar pra
+ * ler o item sem abrir.
+ */
+export function CapaItem({ item, grande = false }: { item: ColetaItem; grande?: boolean }) {
+  const texto = item.texto || "(sem texto)";
+  if (item.imagem_url) {
+    return (
+      <SmartImage
+        src={item.imagem_url}
+        className={`absolute inset-0 w-full h-full ${grande ? "object-contain" : "object-cover"}`}
+        fallback={<CapaTexto texto={texto} item={item} grande={grande} />}
+        wrapperClassName="absolute inset-0"
+      />
+    );
+  }
+  return <CapaTexto texto={texto} item={item} grande={grande} />;
+}
+
+function CapaTexto({ texto, item, grande }: { texto: string; item: ColetaItem; grande: boolean }) {
+  // Notícia: a primeira linha é a manchete.
+  const [manchete, ...resto] = item.plataforma === "news" ? texto.split("\n") : [texto];
+  return (
+    <div className={`absolute inset-0 bg-gradient-to-br from-surface-2 to-black px-4 pb-4 flex flex-col gap-2 overflow-hidden ${grande ? "pt-6 md:pt-8" : "pt-10"}`}>
+      <span
+        className={`text-white font-serif leading-snug ${
+          grande ? "text-xl md:text-2xl" : "text-[15px] line-clamp-6"
+        }`}
+      >
+        {manchete}
+      </span>
+      {resto.join(" ").trim() && (
+        <span className={`text-white/60 leading-relaxed ${grande ? "text-sm" : "text-xs line-clamp-3"}`}>
+          {resto.join(" ").trim()}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function AcervoBusca({
   escopo,
   onEscolher,
   acoes,
   marcado,
+  layout = "lista",
+  onAbrir,
 }: {
   escopo: { slug: string } | { marca: string };
   // Linha inteira clicável (painel do editor).
   onEscolher?: (item: ColetaItem) => void;
   // Botões à direita de cada item (tela de montar).
   acoes?: (item: ColetaItem) => ReactNode;
-  // Item já usado: aparece com borda de destaque.
-  marcado?: (item: ColetaItem) => boolean;
+  // Item já usado: aparece com borda de destaque (e com o texto do selo).
+  marcado?: (item: ColetaItem) => boolean | string;
+  // "grade": cards grandes com capa (tela de montar). "lista": linhas
+  // compactas (painel lateral do editor).
+  layout?: "lista" | "grade";
+  // Clique na capa: abre o item inteiro. Recebe a lista pra navegar.
+  onAbrir?: (item: ColetaItem, lista: ColetaItem[]) => void;
 }) {
   const [q, setQ] = useState("");
   const [rede, setRede] = useState("");
@@ -182,7 +231,13 @@ export default function AcervoBusca({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-2">
+      <div
+        className={`flex-1 overflow-y-auto py-4 ${
+          layout === "grade" && itens.length > 0 && !erro
+            ? "grid grid-cols-2 xl:grid-cols-3 auto-rows-max gap-3 content-start"
+            : "flex flex-col gap-2"
+        }`}
+      >
         {carregando && itens.length === 0 ? (
           <div className="flex items-center justify-center gap-2 text-muted text-sm py-10">
             <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2.5} />
@@ -203,6 +258,56 @@ export default function AcervoBusca({
         ) : (
           itens.map((item, n) => {
             const metricas = resumoMetricas(item);
+            if (layout === "grade") {
+              const selo = marcado?.(item);
+              return (
+                <div
+                  key={chaveItem(item)}
+                  className={`flex flex-col bg-surface/50 border rounded-xl overflow-hidden transition-colors ${
+                    selo ? "border-lime/70" : "border-border hover:border-lime/40"
+                  }`}
+                >
+                  <button
+                    onClick={() => onAbrir?.(item, itens)}
+                    className="relative aspect-[4/5] bg-black text-left"
+                    aria-label={`Ver ${NOME_REDE[item.plataforma]}${item.autor ? ` de ${item.autor}` : ""}`}
+                  >
+                    <CapaItem item={item} />
+                    <span className="absolute top-2 left-2 text-[10px] font-medium uppercase tracking-wide bg-black/70 text-white rounded-full px-2 py-0.5">
+                      {NOME_REDE[item.plataforma]}
+                    </span>
+                    {selo && (
+                      <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-semibold bg-lime text-black rounded-full px-2 py-0.5">
+                        {typeof selo === "string" ? selo : "No report"}
+                      </span>
+                    )}
+                  </button>
+                  <div className="flex flex-col gap-1.5 p-2.5">
+                    {item.imagem_url && (
+                      <span className="text-white text-xs leading-snug line-clamp-2">{item.texto || "(sem texto)"}</span>
+                    )}
+                    <span className="text-muted text-[11px] truncate">
+                      {item.autor ? `${item.autor} · ` : ""}
+                      {quando(item)}
+                    </span>
+                    {metricas && <span className="text-white/80 text-[11px] truncate">{metricas}</span>}
+                    {item.linguagem_explicita && (
+                      <span className="text-[10px] text-amber-300 w-fit bg-amber-400/10 border border-amber-400/30 rounded-full px-2 py-0.5">
+                        Linguagem explícita
+                      </span>
+                    )}
+                    {acoes && (
+                      <div
+                        className="flex flex-wrap gap-1.5 pt-1"
+                        data-tour={n === 0 ? "acervo-acoes" : undefined}
+                      >
+                        {acoes(item)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }
             const conteudo = (
               <>
                 <MiniaturaItem item={item} />

@@ -24,6 +24,12 @@ const STEPS: { id: StepId; label: string; icon: typeof Sparkles }[] = [
   { id: "model", label: "Cruzando sinais e escrevendo o report", icon: Lightbulb },
 ];
 
+// Report montado do acervo: não há coleta, só a leitura dos itens escolhidos.
+const STEPS_MONTADO: typeof STEPS = [
+  { id: "briefing", label: "Lendo os itens escolhidos no acervo", icon: Sparkles },
+  { id: "model", label: "Cruzando sinais e escrevendo o report", icon: Lightbulb },
+];
+
 const SOURCE_IDS: SourceName[] = ["instagram", "tiktok", "twitter", "reddit", "news"];
 
 function isSource(id: StepId): id is SourceName {
@@ -69,7 +75,7 @@ export default function ProcessLoader({ progress = null }: { progress?: ReportPr
       </div>
 
       <div className="flex flex-col gap-4">
-        {STEPS.map(({ id, label, icon: Icon }) => {
+        {(progress?.montado ? STEPS_MONTADO : STEPS).map(({ id, label, icon: Icon }) => {
           const state = statusOf(id, progress);
           const isDone = state === "done";
           const isActive = state === "active";
