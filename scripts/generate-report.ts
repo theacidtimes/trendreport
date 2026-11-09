@@ -106,12 +106,12 @@ async function main() {
             return { custos: [], error: "Report montado sem marca." } as const;
           }
           await salvarProgresso({ phase: "model", sources_done: [], montado: true });
-          const itens = await resolverItens(supabase, reportRow.marca_id, montado);
+          const itens = await resolverItens(supabase, reportRow.marca_id, montado.itens ?? []);
           if ("error" in itens) return { custos: [], error: `Falha ao ler o acervo: ${itens.error}` } as const;
-          if (itens.tendencias.length + itens.memes.length === 0) {
+          if (itens.length === 0) {
             return { custos: [], error: "Nenhum dos itens escolhidos está mais no acervo da marca." } as const;
           }
-          const r = await redigirReportMontado({ briefing: montado, ...itens, marcaKnowledge });
+          const r = await redigirReportMontado({ briefing: montado, itens, marcaKnowledge });
           return "error" in r ? r : { ...r, coleta: [] };
         })()
       : await generateReport(briefingYaml, briefing, salvarProgresso, marcaKnowledge);

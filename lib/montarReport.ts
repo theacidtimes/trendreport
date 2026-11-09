@@ -10,8 +10,9 @@ import type { ColetaItem } from "./types";
 
 // REPORT MONTADO
 //
-// A pessoa escolhe no acervo da marca quais posts viram tendência e quais
-// viram meme. A rota /api/reports/montar só valida e enfileira: a linha nasce
+// A pessoa escolhe no acervo da marca quais posts entram no report e em que
+// ordem. Quem decide se cada um é tendência ou meme é o modelo, pelo mesmo
+// critério do report gerado: a pessoa só inclui. A rota /api/reports/montar só valida e enfileira: a linha nasce
 // em "pending" com este briefing, e o worker (scripts/generate-report.ts)
 // escreve o report com o mesmo modelo e o mesmo prompt do report gerado, só
 // que sem coletar: a matéria-prima são os itens escolhidos (lib/redigirMontado.ts).
@@ -27,11 +28,11 @@ export interface BriefingMontado {
   titulo_social?: string;
   // Direção de leitura opcional ("foco no plantio da safra 26/27").
   orientacao?: string;
-  tendencias: RefAcervo[];
-  memes: RefAcervo[];
+  // Na ordem em que a pessoa deixou.
+  itens: RefAcervo[];
 }
 
-export const MAX_POR_BLOCO = 12;
+export const MAX_ITENS = 20;
 
 export function ehBriefingMontado(b: unknown): b is BriefingMontado {
   return !!b && typeof b === "object" && (b as { modo?: unknown }).modo === "montado";
@@ -47,7 +48,7 @@ export function refsValidas(refs: unknown): RefAcervo[] {
         ((r as RefAcervo).origem === "report" || (r as RefAcervo).origem === "radar")
     )
     .map((r) => ({ id: r.id, origem: r.origem }))
-    .slice(0, MAX_POR_BLOCO);
+    .slice(0, MAX_ITENS);
 }
 
 /**
@@ -58,9 +59,9 @@ export function refsValidas(refs: unknown): RefAcervo[] {
 export async function resolverItens(
   supabase: SupabaseClient,
   marcaId: string,
-  blocos: { tendencias: RefAcervo[]; memes: RefAcervo[] }
-): Promise<{ tendencias: ColetaItem[]; memes: ColetaItem[] } | { error: string }> {
-  const todos = [...blocos.tendencias, ...blocos.memes];
+  refs: RefAcervo[]
+): Promise<ColetaItem[] | { error: string }> {
+  const todos = refs;
   const idsColeta = todos.filter((r) => r.origem === "report").map((r) => r.id);
   const idsRadar = todos.filter((r) => r.origem === "radar").map((r) => r.id);
 
@@ -85,7 +86,5 @@ export async function resolverItens(
     if (item) porChave.set(`radar:${item.id}`, item);
   }
 
-  const resolver = (refs: RefAcervo[]) =>
-    refs.map((r) => porChave.get(`${r.origem}:${r.id}`)).filter((i): i is ColetaItem => !!i);
-  return { tendencias: resolver(blocos.tendencias), memes: resolver(blocos.memes) };
+  return refs.map((r) => porChave.get(`${r.origem}:${r.id}`)).filter((i): i is ColetaItem => !!i);
 }

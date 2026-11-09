@@ -22,14 +22,15 @@ import type { ColetaItem, MarcaKnowledge, Meme, Tendencia, TrendReport } from ".
 // vindo do item escolhido, nunca do modelo.
 
 const REGRAS_MONTADO = `REPORT MONTADO (substitui o que for diferente nas regras acima):
-Os dados desta vez NÃO são uma coleta bruta: uma pessoa da equipe escolheu, no acervo da marca, cada item que entra no report e decidiu em qual bloco ele fica. Cada item tem um id (T1, T2... para tendências; M1, M2... para memes).
+Os dados desta vez NÃO são uma coleta bruta: uma pessoa da equipe escolheu, no acervo da marca, cada item que entra no report, e a ordem deles. Cada item tem um id (I1, I2...), na ordem escolhida.
 
-- Respeite a curadoria. Todo item escolhido entra no report, no bloco em que foi posto: itens T viram tendencias[], itens M viram memes[]. Não descarte item por relevância, nem por achar que "não é meme": a pessoa já decidiu. A única exceção continua sendo BRAND SAFETY.
-- Agrupe quando fizer sentido. Itens do mesmo bloco que mostram o MESMO fenômeno podem virar um card só, com uma leitura que cruza os dois. Cada card leva o campo "itens": a lista de ids que ele usa, com o item principal (o que dá a imagem e o link do card) primeiro. Cada id aparece em exatamente um card.
-- A ordem dos cards segue a ordem em que os itens foram escolhidos (a do primeiro id de cada card).
+- Todo item escolhido entra no report. Não descarte item por relevância: a pessoa já decidiu que ele entra. A única exceção continua sendo BRAND SAFETY.
+- Quem decide a seção é você, como no report gerado: aplique o teste de meme da seção memes[] (unidade replicável: bordão, áudio, formato, imagem-modelo) a cada item. O que passa vai para memes[]; o resto (notícia, comportamento, assunto, discussão, lançamento) vai para tendencias[]. Leve em conta a rede e o teor do post.
+- Agrupe quando fizer sentido. Itens que mostram o MESMO fenômeno podem virar um card só, com uma leitura que cruza os dois. Cada card leva o campo "itens": a lista de ids que ele usa, com o item principal (o que dá a imagem e o link do card) primeiro. Cada id aparece em exatamente um card, em tendencias[] ou em memes[].
+- Dentro de cada seção, a ordem dos cards segue a ordem dos ids (a do primeiro id de cada card).
 - Não preencha imagem_url, post_url, autor nem plataforma: deixe null. O sistema copia esses campos do item principal.
 - citacao: trecho literal do texto de um dos itens do card. metrica: número do campo metricas de um dos itens do card.
-- Os limites de quantidade de tendências não valem aqui: o número de cards é o que os itens pedirem.
+- Os limites de quantidade de tendências não valem aqui: o número de cards é o que os itens pedirem. memes[] pode ficar vazio se nenhum item passar no teste.
 - radar[]: use os próprios itens escolhidos, com a url de cada um.
 - meta.edicao e meta.titulo_social: se o briefing trouxer, use exatamente o texto do briefing. Se não, escreva como manda a regra de campo.
 - meta.produto: se o briefing trouxer, use; se não, tire da base de conhecimento da marca.
@@ -103,23 +104,17 @@ function ancorar<T extends Tendencia | Meme>(
 
 export async function redigirReportMontado(input: {
   briefing: BriefingMontado;
-  tendencias: ColetaItem[];
-  memes: ColetaItem[];
+  itens: ColetaItem[];
   marcaKnowledge?: MarcaKnowledge;
 }): Promise<({ report: TrendReport } | { error: string }) & { custos: CustoColetado[] }> {
   const custos: CustoColetado[] = [];
   const mercado = mercadoDaMarca(input.marcaKnowledge);
 
   const porId = new Map<string, ColetaItem>();
-  const tendencias = input.tendencias.map((item, n) => {
-    porId.set(`T${n + 1}`, item);
-    return itemParaModelo(`T${n + 1}`, item);
+  const dados = input.itens.map((item, n) => {
+    porId.set(`I${n + 1}`, item);
+    return itemParaModelo(`I${n + 1}`, item);
   });
-  const memes = input.memes.map((item, n) => {
-    porId.set(`M${n + 1}`, item);
-    return itemParaModelo(`M${n + 1}`, item);
-  });
-  const dados = { tendencias, memes };
 
   const b = input.briefing;
   const briefingYaml = yaml.dump({

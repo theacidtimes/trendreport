@@ -68,13 +68,13 @@ export const TOURS = {
       alvo: "acervo-acoes",
       titulo: "Coloque no bloco",
       texto:
-        "Clique no card para ver o post inteiro. Use + Tendência ou + Meme para colocar no report.",
+        "Clique no card para ver o post inteiro. Use Incluir no report para levar o item.",
     },
     {
       alvo: "montar-report",
       titulo: "Organize e crie",
       texto:
-        "Mude a ordem, tire o que não serve e crie. A IA escreve a leitura em cima dos itens escolhidos, no formato de sempre. Usa 1 crédito.",
+        "Arraste para mudar a ordem, tire o que não serve e crie. A IA separa tendências e memes e escreve a leitura, no formato de sempre. Usa 1 crédito.",
     },
   ],
 } satisfies Record<string, PassoTour[]>;
