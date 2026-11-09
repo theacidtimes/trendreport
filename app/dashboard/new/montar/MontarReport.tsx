@@ -14,12 +14,13 @@ import {
   X,
 } from "lucide-react";
 import AcervoBusca, { MiniaturaItem, NOME_REDE, chaveItem } from "@/components/acervo/AcervoBusca";
+import PreviewItem from "@/components/acervo/PreviewItem";
 import Tour from "@/components/tour/Tour";
 import type { ColetaItem } from "@/lib/types";
 
-// "Montar do acervo": escolher itens da coleta da marca, distribuir nos blocos
-// fixos do report (tendências e memes) e criar o report em revisão. Os textos
-// de leitura são escritos depois, no editor de sempre.
+// "Montar do acervo": escolher itens da coleta da marca e distribuir nos blocos
+// do report (tendências e memes). Ao criar, o worker escreve o report com o
+// mesmo modelo dos gerados, em cima dos itens escolhidos (lib/redigirMontado.ts).
 
 type Bloco = "tendencias" | "memes";
 const MAX_POR_BLOCO = 12;
@@ -31,11 +32,6 @@ const NOME_BLOCO: Record<Bloco, string> = {
 
 const inputClass =
   "bg-surface border border-border text-white text-sm rounded-lg px-3 py-2.5 outline-none focus:border-lime transition-colors placeholder:text-muted/60 w-full";
-
-function edicaoPadrao(): string {
-  const s = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
 
 export default function MontarReport({
   marcas,
@@ -49,8 +45,10 @@ export default function MontarReport({
     marcas.find((m) => m.id === marcaInicial)?.id ?? marcas[0]?.id ?? ""
   );
   const [produto, setProduto] = useState("");
-  const [edicao, setEdicao] = useState(edicaoPadrao);
+  const [edicao, setEdicao] = useState("");
   const [tituloSocial, setTituloSocial] = useState("");
+  const [orientacao, setOrientacao] = useState("");
+  const [preview, setPreview] = useState<{ item: ColetaItem; lista: ColetaItem[] } | null>(null);
   const [blocos, setBlocos] = useState<Record<Bloco, ColetaItem[]>>({ tendencias: [], memes: [] });
   const [criando, setCriando] = useState(false);
   const [erro, setErro] = useState("");
@@ -94,6 +92,31 @@ export default function MontarReport({
     });
   }
 
+  function botoesBloco(item: ColetaItem, grande = false) {
+    const atual = blocoDe(item);
+    return (["tendencias", "memes"] as Bloco[]).map((b) => (
+      <button
+        key={b}
+        onClick={() => (atual === b ? remover(b, blocos[b].findIndex((i) => chaveItem(i) === chaveItem(item))) : adicionar(item, b))}
+        disabled={atual !== b && blocos[b].length >= MAX_POR_BLOCO}
+        className={`flex items-center gap-1 font-medium rounded-full border transition-colors whitespace-nowrap ${
+          grande ? "text-sm px-4 py-2" : "text-[11px] px-2.5 py-1"
+        } ${
+          atual === b
+            ? "bg-lime/10 border-lime/60 text-lime"
+            : "border-border text-muted hover:text-white hover:border-white/20 disabled:opacity-40"
+        }`}
+      >
+        {atual === b ? (
+          <Check className={grande ? "w-4 h-4" : "w-3 h-3"} strokeWidth={2.5} />
+        ) : (
+          <Plus className={grande ? "w-4 h-4" : "w-3 h-3"} strokeWidth={2.5} />
+        )}
+        {b === "tendencias" ? "Tendência" : "Meme"}
+      </button>
+    ));
+  }
+
   async function criar() {
     if (total === 0) {
       setErro("Adicione pelo menos um item ao report.");
@@ -111,6 +134,7 @@ export default function MontarReport({
           produto,
           edicao,
           tituloSocial,
+          orientacao,
           tendencias: blocos.tendencias.map(ref),
           memes: blocos.memes.map(ref),
         }),
@@ -150,7 +174,8 @@ export default function MontarReport({
         </h1>
         <p className="text-muted text-[15px] max-w-xl">
           Escolha posts e notícias que já foram coletados para a marca e coloque cada um em um bloco.
-          Os textos de leitura você escreve depois, no editor.
+          A IA escreve o report em cima deles, no formato de sempre: títulos, leitura, por que importa,
+          hype e gatilho.
         </p>
       </div>
 
@@ -174,30 +199,49 @@ export default function MontarReport({
           <input
             value={produto}
             onChange={(e) => setProduto(e.target.value)}
-            placeholder={marcas.find((m) => m.id === marcaId)?.nome}
+            placeholder="A IA tira da marca"
             className={inputClass}
           />
         </label>
         <label className="flex flex-col gap-1.5">
           <span className="text-muted text-[11px] uppercase tracking-[0.1em] font-medium">Edição</span>
-          <input value={edicao} onChange={(e) => setEdicao(e.target.value)} className={inputClass} />
+          <input
+            value={edicao}
+            onChange={(e) => setEdicao(e.target.value)}
+            placeholder="A IA nomeia pelo tema"
+            className={inputClass}
+          />
         </label>
         <label className="flex flex-col gap-1.5">
           <span className="text-muted text-[11px] uppercase tracking-[0.1em] font-medium">Título (manchete)</span>
           <input
             value={tituloSocial}
             onChange={(e) => setTituloSocial(e.target.value)}
-            placeholder="Pode deixar para o editor"
+            placeholder="A IA escreve"
             className={inputClass}
           />
         </label>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] items-start">
+      <label className="flex flex-col gap-1.5">
+        <span className="text-muted text-[11px] uppercase tracking-[0.1em] font-medium">
+          Orientação para a leitura (opcional)
+        </span>
+        <textarea
+          value={orientacao}
+          onChange={(e) => setOrientacao(e.target.value)}
+          rows={2}
+          maxLength={600}
+          placeholder="Ex.: foco na janela de plantio da safra 26/27; o cliente quer entender o que o produtor está falando."
+          className={`${inputClass} resize-y`}
+        />
+      </label>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
         {/* ACERVO */}
         <section
           data-tour="montar-acervo"
-          className="bg-surface/30 border border-border rounded-2xl p-4 h-[75vh] flex flex-col"
+          className="bg-surface/30 border border-border rounded-2xl p-4 h-[85vh] flex flex-col"
         >
           <span className="text-white font-medium text-sm mb-3">Acervo da marca</span>
           <div className="flex-1 min-h-0">
@@ -205,29 +249,13 @@ export default function MontarReport({
               <AcervoBusca
                 key={marcaId}
                 escopo={{ marca: marcaId }}
-                marcado={(item) => blocoDe(item) !== null}
-                acoes={(item) => {
-                  const atual = blocoDe(item);
-                  return (["tendencias", "memes"] as Bloco[]).map((b) => (
-                    <button
-                      key={b}
-                      onClick={() => adicionar(item, b)}
-                      disabled={atual === b || blocos[b].length >= MAX_POR_BLOCO}
-                      className={`flex items-center gap-1 text-[11px] font-medium rounded-full px-2.5 py-1 border transition-colors whitespace-nowrap ${
-                        atual === b
-                          ? "border-lime/60 text-lime"
-                          : "border-border text-muted hover:text-white hover:border-white/20 disabled:opacity-40"
-                      }`}
-                    >
-                      {atual === b ? (
-                        <Check className="w-3 h-3" strokeWidth={2.5} />
-                      ) : (
-                        <Plus className="w-3 h-3" strokeWidth={2.5} />
-                      )}
-                      {b === "tendencias" ? "Tendência" : "Meme"}
-                    </button>
-                  ));
+                layout="grade"
+                marcado={(item) => {
+                  const b = blocoDe(item);
+                  return b ? (b === "tendencias" ? "Tendência" : "Meme") : false;
                 }}
+                onAbrir={(item, lista) => setPreview({ item, lista })}
+                acoes={(item) => botoesBloco(item)}
               />
             )}
           </div>
@@ -252,6 +280,11 @@ export default function MontarReport({
               ) : (
                 blocos[bloco].map((item, i) => (
                   <div key={chaveItem(item)} className="flex items-center gap-2.5 bg-bg/60 border border-border rounded-xl p-2">
+                    <button
+                      onClick={() => setPreview({ item, lista: blocos[bloco] })}
+                      className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+                      aria-label="Ver item"
+                    >
                     <MiniaturaItem item={item} className="w-10 h-12" />
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="text-white text-xs leading-snug line-clamp-2">{item.texto || "(sem texto)"}</span>
@@ -260,6 +293,7 @@ export default function MontarReport({
                         {item.autor ? ` · ${item.autor}` : ""}
                       </span>
                     </div>
+                    </button>
                     <div className="flex items-center shrink-0">
                       <button
                         onClick={() => mover(bloco, i, -1)}
@@ -309,14 +343,25 @@ export default function MontarReport({
                 Criando
               </>
             ) : (
-              "Criar report e abrir no editor"
+              "Criar report"
             )}
           </button>
           <span className="text-muted text-[11px] leading-relaxed">
-            O report nasce em revisão, com imagem, link, autor e trecho de cada post. Não consome crédito.
+            A IA escreve a leitura em cima dos itens escolhidos; imagem, link e autor de cada card vêm do
+            post. Leva alguns minutos, usa 1 crédito e o report nasce em revisão.
           </span>
         </section>
       </div>
+
+      {preview && (
+        <PreviewItem
+          item={preview.item}
+          lista={preview.lista}
+          onTrocar={(item) => setPreview((p) => (p ? { ...p, item } : p))}
+          onFechar={() => setPreview(null)}
+          acoes={(item) => botoesBloco(item, true)}
+        />
+      )}
     </div>
   );
 }

@@ -32,16 +32,18 @@ import type {
   TrendReport,
 } from "./types";
 
+// `montado` = report montado do acervo: não coleta, então a tela de espera
+// mostra só a leitura dos itens escolhidos e a escrita.
 export type ReportProgress =
-  | { phase: "briefing"; sources_done: SourceName[] }
-  | { phase: "collecting"; sources_done: SourceName[] }
-  | { phase: "model"; sources_done: SourceName[] };
+  | { phase: "briefing"; sources_done: SourceName[]; montado?: boolean }
+  | { phase: "collecting"; sources_done: SourceName[]; montado?: boolean }
+  | { phase: "model"; sources_done: SourceName[]; montado?: boolean };
 
 export type OnProgress = (progress: ReportProgress) => void | Promise<void>;
 
-const anthropic = new Anthropic();
+export const anthropic = new Anthropic();
 
-const MODELO_REPORT = "claude-opus-5-5";
+export const MODELO_REPORT = "claude-opus-5-5";
 const MODELO_TERMOS = "claude-haiku-5-5";
 
 // Custo de fornecedor medido durante a geração, sem os campos que só quem
@@ -73,7 +75,7 @@ export function custosDaApify(log: ApifyRunLog): CustoColetado[] {
 // O `id` da resposta do Anthropic é a chave natural do evento — mesmo papel
 // que o run id tem na Apify. Modelo fora da tabela de preços devolve null e
 // vira log, nunca zero (zero somaria como "saiu de graça").
-function registrarLlm(
+export function registrarLlm(
   custos: CustoColetado[],
   modelo: string,
   response: { id?: string; usage?: Anthropic.Usage } | null | undefined
@@ -314,7 +316,7 @@ function topByEngagement<T>(items: T[], score: (item: T) => number, limit: numbe
 // em cercas de markdown (```json) ou solta uma frase antes/depois. Isto recorta
 // o objeto de forma robusta: tira cercas e descarta qualquer prosa fora do
 // primeiro { … último }.
-function extractJson(text: string): string {
+export function extractJson(text: string): string {
   let t = text.trim();
 
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
@@ -548,7 +550,9 @@ function normalizarTexto(t: string): string {
 // report: citação tem que estar, palavra por palavra, em algum post enviado ao
 // modelo; métrica tem que ter seus números nos dados. O que não bate vira null
 // e o capítulo cai pro molde sem citação/número.
-function validarEvidencias(report: TrendReport, enviados: RawData): number {
+// `enviados` é qualquer coisa serializável: a coleta (RawData) no report gerado,
+// os itens escolhidos no montado.
+export function validarEvidencias(report: TrendReport, enviados: unknown): number {
   const bruto = JSON.stringify(enviados);
   const texto = normalizarTexto(bruto);
   const digitos = bruto.replace(/[.,]/g, "");

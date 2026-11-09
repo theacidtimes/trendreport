@@ -4,6 +4,8 @@ import WebSocket from "ws";
 import { generateReport } from "../lib/generateReport";
 import { registrarCustos } from "../lib/custos";
 import { gravarColeta } from "../lib/coleta";
+import { ehBriefingMontado, resolverItens } from "../lib/montarReport";
+import { redigirReportMontado } from "../lib/redigirMontado";
 import type { MarcaKnowledge } from "../lib/types";
 
 async function main() {
@@ -63,7 +65,7 @@ async function main() {
     // gasto nesta geração (ver registrarCustos mais abaixo).
     const { data: reportRow, error: reportError } = await supabase
       .from("reports")
-      .select("id, marca_id, tenant_id")
+      .select("id, marca_id, tenant_id, briefing")
       .eq("slug", slug)
       .maybeSingle();
     if (reportError) {
@@ -82,7 +84,7 @@ async function main() {
       }
     }
 
-    const result = await generateReport(briefingYaml, briefing, async (progress) => {
+    const salvarProgresso = async (progress: unknown) => {
       console.log("PROGRESSO:", JSON.stringify(progress));
       // Best-effort: se essa update falhar, a coleta/geração continua normal —
       // só a barra de progresso na interface fica parada até o próximo passo.
@@ -93,7 +95,26 @@ async function main() {
       if (error) {
         console.error("Falha ao atualizar progress (não bloqueia a geração):", error.message);
       }
-    }, marcaKnowledge);
+    };
+
+    // Report montado do acervo: não coleta. Os itens escolhidos são relidos do
+    // banco (presos à marca) e o modelo escreve em cima deles.
+    const montado = ehBriefingMontado(reportRow?.briefing) ? reportRow!.briefing : null;
+    const result = montado
+      ? await (async () => {
+          if (!reportRow?.marca_id) {
+            return { custos: [], error: "Report montado sem marca." } as const;
+          }
+          await salvarProgresso({ phase: "model", sources_done: [], montado: true });
+          const itens = await resolverItens(supabase, reportRow.marca_id, montado);
+          if ("error" in itens) return { custos: [], error: `Falha ao ler o acervo: ${itens.error}` } as const;
+          if (itens.tendencias.length + itens.memes.length === 0) {
+            return { custos: [], error: "Nenhum dos itens escolhidos está mais no acervo da marca." } as const;
+          }
+          const r = await redigirReportMontado({ briefing: montado, ...itens, marcaKnowledge });
+          return "error" in r ? r : { ...r, coleta: [] };
+        })()
+      : await generateReport(briefingYaml, briefing, salvarProgresso, marcaKnowledge);
     console.log("FASE 3: generateReport() concluído.", "error" in result ? "(com erro)" : "(sucesso)");
 
     // CUSTO REAL DESTA GERAÇÃO, com dono.

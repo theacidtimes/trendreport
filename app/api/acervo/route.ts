@@ -78,10 +78,10 @@ export async function GET(req: Request) {
       ? coleta.order("coletado_em", { ascending: false })
       : coleta.order("engajamento", { ascending: false });
 
-  // O radar só guarda Reddit, notícias e X: entra como complemento, nunca
-  // quando o filtro pede outra rede.
+  // O radar guarda Reddit, notícias, X e TikTok: entra como complemento,
+  // nunca quando o filtro pede Instagram.
   const radarCabe =
-    !!marcaId && (!plataforma || ["reddit", "news", "twitter"].includes(plataforma));
+    !!marcaId && (!plataforma || ["reddit", "news", "twitter", "tiktok"].includes(plataforma));
   async function buscarRadar(): Promise<LinhaRadar[]> {
     if (!radarCabe || !marcaId) return [];
     let radar = supabase
