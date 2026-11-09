@@ -21,8 +21,7 @@ type Body = {
   edicao?: string;
   tituloSocial?: string;
   orientacao?: string;
-  tendencias?: unknown;
-  memes?: unknown;
+  itens?: unknown;
 };
 
 const texto = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -44,12 +43,11 @@ export async function POST(req: Request) {
   }
 
   const marcaId = typeof body.marcaId === "string" ? body.marcaId : "";
-  const tendenciasRef = refsValidas(body.tendencias);
-  const memesRef = refsValidas(body.memes);
+  const refs = refsValidas(body.itens);
   if (!marcaId) {
     return NextResponse.json({ error: "Escolha a marca." }, { status: 400 });
   }
-  if (tendenciasRef.length + memesRef.length === 0) {
+  if (refs.length === 0) {
     return NextResponse.json({ error: "Adicione pelo menos um item ao report." }, { status: 400 });
   }
 
@@ -86,11 +84,11 @@ export async function POST(req: Request) {
 
   // Confere já aqui que os itens existem e são da marca, pra não enfileirar
   // um report que o worker não teria com o que escrever.
-  const itens = await resolverItens(supabase, marcaId, { tendencias: tendenciasRef, memes: memesRef });
+  const itens = await resolverItens(supabase, marcaId, refs);
   if ("error" in itens) {
     return NextResponse.json({ error: "Falha ao ler o acervo.", detail: itens.error }, { status: 500 });
   }
-  if (itens.tendencias.length + itens.memes.length === 0) {
+  if (itens.length === 0) {
     return NextResponse.json(
       { error: "Nenhum dos itens escolhidos foi encontrado no acervo desta marca." },
       { status: 400 }
@@ -104,8 +102,7 @@ export async function POST(req: Request) {
     edicao: texto(body.edicao, 60) || undefined,
     titulo_social: texto(body.tituloSocial, 200) || undefined,
     orientacao: texto(body.orientacao, 600) || undefined,
-    tendencias: tendenciasRef,
-    memes: memesRef,
+    itens: refs,
   };
 
   const { data: saved, error: saveError } = await supabase

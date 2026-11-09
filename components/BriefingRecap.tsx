@@ -31,7 +31,7 @@ export default function BriefingRecap({
     const n = (k: string) => (Array.isArray(b[k]) ? (b[k] as unknown[]).length : 0);
     briefing = {
       origem: "Montado do acervo",
-      itens: `${n("tendencias")} em tendências, ${n("memes")} em memes`,
+      itens: `${n("itens")} escolhidos no acervo`,
       produto: b.produto,
       edicao: b.edicao,
       titulo_social: b.titulo_social,
