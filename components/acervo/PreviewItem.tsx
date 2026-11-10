@@ -91,7 +91,7 @@ export default function PreviewItem({
 
           <p
             className={`text-white/90 whitespace-pre-line m-0 ${
-              temImagem ? "text-[15px] leading-relaxed" : "font-serif text-xl leading-snug"
+              temImagem ? "text-[15px] leading-relaxed" : "text-lg font-medium leading-relaxed"
             }`}
           >
             {item.texto || "(sem texto)"}
