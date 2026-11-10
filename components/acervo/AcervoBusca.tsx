@@ -105,8 +105,8 @@ function CapaTexto({ texto, item, grande }: { texto: string; item: ColetaItem; g
   return (
     <div className={`absolute inset-0 bg-gradient-to-br from-surface-2 to-black px-4 pb-4 flex flex-col gap-2 overflow-hidden ${grande ? "pt-6 md:pt-8" : "pt-10"}`}>
       <span
-        className={`text-white font-serif leading-snug ${
-          grande ? "text-xl md:text-2xl" : "text-[15px] line-clamp-6"
+        className={`text-white font-medium ${
+          grande ? "text-lg md:text-xl leading-snug" : "text-base leading-normal line-clamp-6"
         }`}
       >
         {manchete}
