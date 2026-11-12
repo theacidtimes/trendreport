@@ -258,6 +258,9 @@ export interface ColetaItem {
   engajamento: number;
   publicado_em: string | null;
   coletado_em: string;
+  // Ligado à marca segundo o classificador (lib/relevancia.ts). null = não
+  // classificado. Item do radar não tem.
+  relevante?: boolean | null;
 }
 
 export interface RawData {
