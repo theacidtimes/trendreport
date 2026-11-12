@@ -233,6 +233,7 @@ export default function MontarReport({
                 key={marcaId}
                 escopo={{ marca: marcaId }}
                 layout="grade"
+                semPulso
                 marcado={(item) => (incluido(item) ? "No report" : false)}
                 onAbrir={(item, lista) => setPreview({ item, lista })}
                 acoes={(item) => botaoIncluir(item)}

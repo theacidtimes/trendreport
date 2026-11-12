@@ -1,4 +1,5 @@
 import { palavrao } from "./brandSafety";
+import { MERCADOS } from "./mercados";
 import type { ColetaItem } from "./types";
 
 // Peças comuns da leitura do acervo (coleta_item + radar_raw_data), usadas pela
@@ -20,6 +21,34 @@ export type LinhaRadar = {
   metadata: { upvotes?: number | null; comentarios?: number | null } | null;
   created_at: string;
 };
+
+// PULSO GERAL
+//
+// Parte da coleta do report não tem nada a ver com o briefing: o Instagram é só
+// a lista fixa de perfis do mercado (g1, páginas de meme...) e o Reddit raspa
+// subs fixos além da busca pelo tema. Isso entra em TODO report, de qualquer
+// marca, e é gravado com o marca_id de quem gerou. No acervo da marca (tela de
+// montar) aparecia como se fosse dela: post de Enem e Flamengo no acervo de
+// marca de agro. O filtro abaixo tira o pulso geral; o editor ("Trocar pela
+// coleta") continua vendo tudo, porque a seção de memes do report vem dele.
+//
+// Subreddit vai nas duas grafias (como está na lista e minúsculo): o `in` do
+// PostgREST é exato e o nome da comunidade pode chegar em outra caixa.
+const SUBS_FIXOS = Array.from(
+  new Set(
+    Object.values(MERCADOS).flatMap((m) =>
+      [...m.reddit.geral, ...m.reddit.meme].flatMap((s) => [`r/${s}`, `r/${s.toLowerCase()}`])
+    )
+  )
+);
+
+/**
+ * Condições de um `.or()` que deixam de fora os subs fixos do Reddit. O
+ * Instagram sai com um `neq` à parte (a rede inteira é pulso geral).
+ */
+export const FORA_SUBS_FIXOS = `plataforma.neq.reddit,autor.is.null,autor.not.in.(${SUBS_FIXOS.map(
+  (s) => `"${s}"`
+).join(",")})`;
 
 export function linhaColetaParaItem(r: Omit<ColetaItem, "origem">): ColetaItem {
   return { ...r, origem: "report" };
