@@ -127,6 +127,7 @@ export default function AcervoBusca({
   marcado,
   layout = "lista",
   onAbrir,
+  semPulso = false,
 }: {
   escopo: { slug: string } | { marca: string };
   // Linha inteira clicável (painel do editor).
@@ -140,6 +141,10 @@ export default function AcervoBusca({
   layout?: "lista" | "grade";
   // Clique na capa: abre o item inteiro. Recebe a lista pra navegar.
   onAbrir?: (item: ColetaItem, lista: ColetaItem[]) => void;
+  // Tira o pulso geral (perfis fixos de Instagram e subs fixos do Reddit, que
+  // entram em todo report e não são da marca). Sem o Instagram dos perfis
+  // fixos, o chip da rede ficaria sempre vazio e some.
+  semPulso?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [rede, setRede] = useState("");
@@ -158,6 +163,7 @@ export default function AcervoBusca({
       setCarregando(true);
       setErro("");
       const params = new URLSearchParams({ q, plataforma: rede, dias: String(dias), ordem });
+      if (semPulso) params.set("pulso", "0");
       try {
         const res = await fetch(`/api/acervo?${escopoParam}&${params}`, { signal: ctrl.signal });
         const data = await res.json().catch(() => ({}));
@@ -175,7 +181,7 @@ export default function AcervoBusca({
       clearTimeout(t);
       ctrl.abort();
     };
-  }, [escopoParam, q, rede, dias, ordem]);
+  }, [escopoParam, q, rede, dias, ordem, semPulso]);
 
   const chip = (ativo: boolean) =>
     `text-xs font-medium rounded-full px-3 py-1.5 border transition-colors ${
@@ -199,7 +205,7 @@ export default function AcervoBusca({
         </label>
 
         <div className="flex flex-wrap gap-1.5">
-          {REDES.map((r) => (
+          {REDES.filter((r) => !(semPulso && r.value === "instagram")).map((r) => (
             <button key={r.value} onClick={() => setRede(r.value)} className={chip(rede === r.value)}>
               {r.label}
             </button>

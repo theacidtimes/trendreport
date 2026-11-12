@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   COLUNAS_COLETA,
   COLUNAS_RADAR,
+  FORA_SUBS_FIXOS,
   PLATAFORMAS,
   linhaColetaParaItem,
   linhaRadarParaItem,
@@ -16,7 +17,10 @@ import type { ColetaItem } from "@/lib/types";
 // A RLS de tenant vale nas duas tabelas: quem não é do tenant recebe lista
 // vazia, não erro.
 //
-// GET /api/acervo?slug=<report> | marca=<id>  &q=&plataforma=&dias=&ordem=engajamento|recentes
+// GET /api/acervo?slug=<report> | marca=<id>  &q=&plataforma=&dias=&ordem=engajamento|recentes&pulso=0
+//
+// pulso=0 tira o pulso geral (Instagram dos perfis fixos e subs fixos do
+// Reddit), que entra em todo report e não é da marca. Ver lib/acervo.ts.
 
 const LIMITE = 60;
 
@@ -49,6 +53,7 @@ export async function GET(req: Request) {
     : null;
   const dias = Number(params.get("dias")) || 0;
   const ordem = params.get("ordem") === "recentes" ? "recentes" : "engajamento";
+  const semPulso = params.get("pulso") === "0";
   const desde = dias > 0 ? new Date(Date.now() - dias * 86_400_000).toISOString() : null;
 
   // Escopo: report com marca → acervo da marca inteira; report avulso → só o
@@ -72,7 +77,16 @@ export async function GET(req: Request) {
   coleta = marcaId ? coleta.eq("marca_id", marcaId) : coleta.eq("report_id", reportId);
   if (plataforma) coleta = coleta.eq("plataforma", plataforma);
   if (desde) coleta = coleta.gte("coletado_em", desde);
-  if (q) coleta = coleta.or(`texto.ilike.${padrao(q)},autor.ilike.${padrao(q)}`);
+  const busca = q ? `texto.ilike.${padrao(q)},autor.ilike.${padrao(q)}` : null;
+  if (semPulso) {
+    coleta = coleta.neq("plataforma", "instagram");
+    // Um .or() só: dois viram dois parâmetros `or` na URL.
+    coleta = coleta.or(
+      busca ? `and(or(${busca}),or(${FORA_SUBS_FIXOS}))` : FORA_SUBS_FIXOS
+    );
+  } else if (busca) {
+    coleta = coleta.or(busca);
+  }
   coleta =
     ordem === "recentes"
       ? coleta.order("coletado_em", { ascending: false })
