@@ -79,7 +79,11 @@ function dnaDaMarca(nome: string, k: MarcaKnowledge | null | undefined): string 
 }
 
 function linhaItem(i: ItemParaClassificar, n: number): string {
-  const texto = (i.texto ?? "").replace(/\s+/g, " ").trim().slice(0, TEXTO_MAX) || "(sem texto)";
+  // Corte por caractere, não por unidade UTF-16: o slice comum partia emoji ao
+  // meio e o surrogate solto deixava o corpo da requisição JSON inválido (400
+  // no lote inteiro). toWellFormed limpa os que já chegam soltos do scraper.
+  const limpo = (i.texto ?? "").toWellFormed().replace(/\s+/g, " ").trim();
+  const texto = Array.from(limpo).slice(0, TEXTO_MAX).join("") || "(sem texto)";
   return `[${n}] ${i.plataforma}${i.autor ? ` ${i.autor}` : ""}: ${texto}`;
 }
 
