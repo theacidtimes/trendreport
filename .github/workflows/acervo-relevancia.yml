@@ -1,0 +1,40 @@
+name: Acervo — Relevância
+
+# Classifica o acervo (coleta_item) que ainda não tem relevância para a marca.
+# Manual: rodar uma vez depois da migration 0050 e quando quiser reprocessar
+# lotes que falharam. Report novo já grava classificado. Ver
+# scripts/classificar-acervo.ts.
+on:
+  workflow_dispatch:
+    inputs:
+      marca_id:
+        description: 'Só esta marca (id). Vazio = todas.'
+        required: false
+        default: ''
+
+concurrency:
+  group: acervo-relevancia
+  cancel-in-progress: false
+
+jobs:
+  classificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx tsx scripts/classificar-acervo.ts
+        env:
+          MARCA_ID: ${{ inputs.marca_id }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -4,6 +4,7 @@ import WebSocket from "ws";
 import { generateReport } from "../lib/generateReport";
 import { registrarCustos } from "../lib/custos";
 import { gravarColeta } from "../lib/coleta";
+import { classificarRelevancia } from "../lib/relevancia";
 import { ehBriefingMontado, resolverItens } from "../lib/montarReport";
 import { redigirReportMontado } from "../lib/redigirMontado";
 import type { MarcaKnowledge } from "../lib/types";
@@ -61,6 +62,7 @@ async function main() {
     // gerador bebe do yaml_conhecimento dela. Sem marca_id, marcaKnowledge fica
     // undefined e o gerador cai no bloco de marca padrão (comportamento atual).
     let marcaKnowledge: MarcaKnowledge | undefined;
+    let marcaNome = "";
     // tenant_id vem junto porque é ele que dá dono ao custo de fornecedor
     // gasto nesta geração (ver registrarCustos mais abaixo).
     const { data: reportRow, error: reportError } = await supabase
@@ -73,12 +75,15 @@ async function main() {
     } else if (reportRow?.marca_id) {
       const { data: marcaRow, error: marcaError } = await supabase
         .from("marcas")
-        .select("yaml_conhecimento")
+        .select("nome, yaml_conhecimento")
         .eq("id", reportRow.marca_id)
         .maybeSingle();
       if (marcaError) {
         console.error("Falha ao carregar marca (segue no fallback):", marcaError.message);
-      } else if (marcaRow?.yaml_conhecimento) {
+      } else if (marcaRow) {
+        marcaNome = marcaRow.nome ?? "";
+      }
+      if (marcaRow?.yaml_conhecimento) {
         marcaKnowledge = marcaRow.yaml_conhecimento as MarcaKnowledge;
         console.log("FASE 2b: marca carregada, gerador vai usar o yaml_conhecimento.");
       }
@@ -177,6 +182,28 @@ async function main() {
     if (!updateData || updateData.length === 0) {
       throw new Error(
         `Update não afetou nenhuma linha (slug não encontrado?): ${JSON.stringify(slug)}`
+      );
+    }
+
+    // Relevância de cada item para a marca: é o que tira o ruído da busca do
+    // "Montar report". Só report de marca (avulso não tem acervo de marca).
+    // Nunca lança: lote que falha fica sem classificação. Ver lib/relevancia.ts.
+    if (reportRow?.marca_id && result.coleta.length) {
+      const { resultado, custos } = await classificarRelevancia(result.coleta, {
+        nome: marcaNome,
+        knowledge: marcaKnowledge,
+      });
+      result.coleta.forEach((item, n) => {
+        item.relevante = resultado[n];
+      });
+      await registrarCustos(
+        supabase,
+        custos.map((c) => ({
+          ...c,
+          tenantId: reportRow.tenant_id ?? null,
+          marcaId: reportRow.marca_id,
+          origem: "report" as const,
+        }))
       );
     }
 
