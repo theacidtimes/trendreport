@@ -1,0 +1,39 @@
+name: CI — Checagens do PR
+
+# Roda o que até aqui só rodava se alguém lembrasse: typecheck, lint e os
+# scripts check-* (testes offline: não chamam Apify, LLM nem Supabase, então
+# não precisam de secret nenhum). Ficam de fora os scripts que tocam serviço
+# pago ou banco (validar-apify-real, check-apify-run, probe-perfil...).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checagens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Checks offline
+        run: npm run check

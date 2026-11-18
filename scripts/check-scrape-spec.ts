@@ -43,8 +43,11 @@ check(
   tw.start
 );
 
+// floor e não round: `start` é a data (meia-noite UTC) de 7 dias atrás, então a
+// diferença vai de 7,0 a 7,99 ao longo do dia. Com round o caso falhava toda
+// tarde (depois das 12h UTC) sem nada ter mudado no código.
 const diasAtras = (d: string) =>
-  Math.round((Date.now() - new Date(`${d}T00:00:00Z`).getTime()) / 86_400_000);
+  Math.floor((Date.now() - new Date(`${d}T00:00:00Z`).getTime()) / 86_400_000);
 // 7 e não 2: o radar roda a cada 12–24h, mas 48h com sort=Top esvazia termo de
 // nicho — mesmo motivo de o Reddit usar month e não day.
 check("twitter: janela e de 7 dias", diasAtras(tw.start as string) === 7, tw.start);

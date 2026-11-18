@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { cronAutorizado } from '@/lib/cronAuth'
 import { runAllActiveRadars } from '@/lib/radar/runRadar'
 
 // Cada marca roda inline (~100s: coleta + embeddings + LLM). O default da Vercel
@@ -6,8 +7,7 @@ import { runAllActiveRadars } from '@/lib/radar/runRadar'
 export const maxDuration = 300
 
 export async function POST(request: Request) {
-  const auth = request.headers.get('authorization')
-  if (auth !== `Bearer ${process.env.RADAR_CRON_SECRET}`) {
+  if (!cronAutorizado(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   try {
