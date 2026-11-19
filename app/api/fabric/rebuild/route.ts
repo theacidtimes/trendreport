@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { cronAutorizado } from '@/lib/cronAuth'
 import { createClient } from '@supabase/supabase-js'
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -17,8 +18,7 @@ import { createClient } from '@supabase/supabase-js'
 export const maxDuration = 60
 
 export async function POST(request: Request) {
-  const auth = request.headers.get('authorization')
-  if (auth !== `Bearer ${process.env.RADAR_CRON_SECRET}`) {
+  if (!cronAutorizado(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

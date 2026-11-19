@@ -10,7 +10,8 @@
     "generate:report": "tsx scripts/generate-report.ts",
     "radar": "tsx scripts/radar.ts",
     "manutencao": "tsx scripts/manutencao.ts",
-    "fila": "tsx scripts/processar-fila.ts"
+    "fila": "tsx scripts/processar-fila.ts",
+    "check": "for s in agenda clusters custos legendas mercados perfil-cultural planner-agenda radar-prompt reddit scrape-spec; do echo \"== check-$s\"; tsx scripts/check-$s.ts || exit 1; done"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",
